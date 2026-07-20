@@ -1,4 +1,4 @@
-import type { AppState, BacklogGroupBy, BoardGroupBy, IssueSummary, StatusDefinition } from "./app-state"
+import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, StatusDefinition } from "./app-state"
 
 export const boardGroupModes: { id: BoardGroupBy; label: string }[] = [
   { id: "none", label: "None" },
@@ -50,29 +50,31 @@ export function boardIssuesForMode(state: AppState, mode: "active-sprint" | "kan
   return mode === "active-sprint" ? activeSprintIssues(state) : kanbanIssues(state)
 }
 
-export function boardGroupByForMode(state: AppState, mode: "active-sprint" | "kanban") {
+export function boardGroupByForMode(state: AppState, mode: BoardMode) {
   return mode === "active-sprint" ? state.activeSprintGroupBy : state.kanbanGroupBy
 }
 
-export function boardStatusOffsetForMode(state: AppState, mode: "active-sprint" | "kanban") {
+export function boardStatusOffsetForMode(state: AppState, mode: BoardMode) {
   return mode === "active-sprint" ? state.activeSprintStatusOffset : state.kanbanStatusOffset
 }
 
 export function boardStatusWindowSize(totalWidth: number, statusCount: number) {
   const reservedWidth = totalWidth < 100 ? 10 : 70
   const usableWidth = Math.max(20, totalWidth - reservedWidth)
-  const count = Math.floor(usableWidth / 21)
-  return Math.max(1, Math.min(statusCount, count, 4))
+  const columnWidth = 19
+  const columnGap = 1
+  const count = Math.floor((usableWidth + columnGap) / (columnWidth + columnGap))
+  return Math.max(1, Math.min(statusCount, count))
 }
 
-export function visibleStatusesForBoard(state: AppState, mode: "active-sprint" | "kanban", totalWidth: number) {
+export function visibleStatusesForBoard(state: AppState, mode: BoardMode, totalWidth: number) {
   const windowSize = boardStatusWindowSize(totalWidth, state.statuses.length)
   const maxOffset = Math.max(0, state.statuses.length - windowSize)
   const offset = Math.min(boardStatusOffsetForMode(state, mode), maxOffset)
   return state.statuses.slice(offset, offset + windowSize)
 }
 
-export function boardGroupsForMode(state: AppState, mode: "active-sprint" | "kanban") {
+export function boardGroupsForMode(state: AppState, mode: BoardMode) {
   return groupIssues(boardIssuesForMode(state, mode), boardGroupByForMode(state, mode))
 }
 

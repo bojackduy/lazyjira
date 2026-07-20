@@ -46,6 +46,8 @@ export type IssueComment = {
 
 export type BoardGroupBy = "none" | "assignee" | "epic" | "feature" | "space" | "issueType" | "priority"
 
+export type BoardMode = "active-sprint" | "kanban"
+
 export type BacklogGroupBy = "sprint" | Exclude<BoardGroupBy, "none">
 
 export type FocusPane = "sidebar" | "main" | "inspector"

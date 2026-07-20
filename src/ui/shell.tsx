@@ -148,7 +148,7 @@ function Footer() {
 function footerText(focusedPane: string, route: string) {
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
   if (route === "active-sprint") return "sprint: j/k card in column  h/l column  d/u scroll  enter detail  tab focus  q quit"
-  if (route === "kanban") return "kanban: j/k same status across groups  h/l status  d/u scroll  g group  enter detail"
+  if (route === "kanban") return "kanban: j/k same status across groups  h/l status/next cell  d/u scroll  g group  enter detail"
   if (route === "backlog") return "backlog: j/k row  h/l group  d/u scroll  g group  enter detail  tab focus  q quit"
   if (route === "issue-detail") return "detail: u/d scroll  backspace/q back  tab focus"
   return "1 workspace  2 sprint  3 backlog  4 kanban  tab focus  q quit"

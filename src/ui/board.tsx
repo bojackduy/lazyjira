@@ -1,6 +1,6 @@
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, For, Show } from "solid-js"
+import { createEffect, For } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
@@ -59,8 +59,14 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
     scrollbox?.scrollBy(delta, "viewport")
   }
 
+  function rowsForGroup(issueKeys: string[]) {
+    const columns = visibleStatuses().map((status) => issueKeys.filter((issueKey) => state.issues[issueKey]?.statusId === status.id))
+    const rowCount = Math.max(1, ...columns.map((column) => column.length))
+    return Array.from({ length: rowCount }, (_, rowIndex) => columns.map((column) => column[rowIndex]))
+  }
+
   return (
-    <box flexDirection="column" gap={1} flexGrow={1} minHeight={0}>
+    <box flexDirection="column" gap={1} flexGrow={1} minHeight={0} overflow="hidden">
       <box flexDirection={compactHeader() ? "column" : "row"} justifyContent="space-between" gap={compactHeader() ? 1 : 0}>
         <box flexDirection="column">
           <text attributes={TextAttributes.BOLD} fg={theme.accent}>{title()}</text>
@@ -72,33 +78,40 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
         </box>
       </box>
       <Legend />
-      <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} viewportCulling={true}>
-        <For each={groups()}>
+      <scrollbox
+        ref={(element: ScrollBoxRenderable) => (scrollbox = element)}
+        width="100%"
+        height={bodyHeight()}
+        scrollY={true}
+        viewportCulling={true}
+        viewportOptions={{ paddingRight: 1 }}
+        verticalScrollbarOptions={{ visible: true, trackOptions: { backgroundColor: theme.panel, foregroundColor: theme.border } }}
+      >
+        <For each={groups()} fallback={<text fg={theme.textSubtle}>No issues match the active filters.</text>}>
           {(group) => (
-            <box borderStyle="rounded" borderColor={theme.border} padding={1} flexDirection="column" gap={1} marginBottom={1} width="100%" flexShrink={1}>
-              <box flexDirection="row" justifyContent="space-between">
-                <text attributes={TextAttributes.BOLD} fg={theme.text}>{group.label}</text>
-                <text fg={theme.textSubtle}>{group.issueKeys.length} issues</text>
+            <>
+              <box flexDirection="row" justifyContent="space-between" flexShrink={0} marginTop={1} paddingRight={1}>
+                <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none">{group.label}</text>
+                <text fg={theme.textSubtle} wrapMode="none">{group.issueKeys.length} issues</text>
               </box>
-              <box flexDirection="row" gap={1}>
+              <box flexDirection="row" gap={1} flexShrink={0} paddingRight={1}>
                 <For each={visibleStatuses()}>
-                  {(status) => {
-                    const issueKeys = () => group.issueKeys.filter((issueKey) => state.issues[issueKey]?.statusId === status.id)
-                    return (
-                      <box borderStyle="rounded" borderColor={status.color} padding={1} width={19} flexShrink={0}>
-                        <text fg={status.color} wrapMode="none">{status.name}</text>
-                        <For each={issueKeys()} fallback={<text fg={theme.textSubtle}>-</text>}>
-                          {(issueKey) => {
-                            const issue = state.issues[issueKey]
-                            return issue ? <IssueCard issue={issue} selected={state.selectedIssueKey === issue.key} /> : null
-                          }}
-                        </For>
-                      </box>
-                    )
-                  }}
+                  {(status) => <text fg={status.color} width={19} flexShrink={0} wrapMode="none">{status.name}</text>}
                 </For>
               </box>
-            </box>
+              <For each={rowsForGroup(group.issueKeys)}>
+                {(row) => (
+                  <box flexDirection="row" gap={1} flexShrink={0} paddingRight={1}>
+                    <For each={row}>
+                      {(issueKey) => {
+                        const issue = issueKey ? state.issues[issueKey] : undefined
+                        return <IssueCell issue={issue} selected={issue?.key === state.selectedIssueKey} />
+                      }}
+                    </For>
+                  </box>
+                )}
+              </For>
+            </>
           )}
         </For>
       </scrollbox>
@@ -106,27 +119,28 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   )
 }
 
+function IssueCell(props: { issue?: IssueSummary; selected: boolean }) {
+  if (!props.issue) return <box width={19} height={4} flexShrink={0} />
+  return <IssueCard issue={props.issue} selected={props.selected} />
+}
+
 function IssueCard(props: { issue: IssueSummary; selected: boolean }) {
   const { state } = useAppState()
   const theme = useTheme()
   const typeColor = () => issueTypeColor(state, props.issue)
   const borderColor = () => (props.selected ? theme.borderActive : statusColor(state, props.issue))
+  const signal = () => (props.issue.blocked ? " · blocked" : props.issue.staleDays >= 7 ? ` · stale ${props.issue.staleDays}d` : "")
 
   return (
-    <box id={`issue-${props.issue.key}`} borderColor={borderColor()} paddingLeft={1} paddingRight={1} marginTop={1} backgroundColor={props.selected ? "#172554" : undefined}>
+    <box id={`issue-${props.issue.key}`} width={19} height={4} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined} border={["left"]} borderColor={borderColor()} overflow="hidden">
       <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">
         <span style={{ fg: typeColor() }}>■ </span>
         <span>{props.issue.key}</span>
       </text>
       <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">{props.issue.title}</text>
       <text fg={theme.textSubtle} wrapMode="none">
-        {props.issue.type} · {props.issue.priority}
+        {props.issue.type} · {props.issue.priority}{signal()}
       </text>
-      <Show when={props.issue.blocked || props.issue.staleDays >= 7}>
-        <text fg={props.issue.blocked ? theme.danger : theme.warning} wrapMode="none">
-          {props.issue.blocked ? "blocked" : `stale ${props.issue.staleDays}d`}
-        </text>
-      </Show>
     </box>
   )
 }

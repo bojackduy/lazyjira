@@ -5,6 +5,15 @@ import { useAppState } from "./context/app-state"
 import { useExit } from "./context/exit"
 import { AppShell } from "./ui/shell"
 import { sidebarRoutes } from "./state/routes"
+import type { BoardMode } from "./state/app-state"
+import {
+  boardCellIssueKeys,
+  boardIssueKeyAtLocation,
+  firstBoardLocation,
+  nextKanbanHorizontalLocation,
+  selectedBoardLocation,
+  type BoardLocation,
+} from "./state/board-navigation"
 import {
   boardGroupsForMode,
   boardIssuesForMode,
@@ -15,8 +24,6 @@ import {
   nextBoardGroupBy,
   visibleStatusesForBoard,
 } from "./state/selectors"
-
-type BoardMode = "active-sprint" | "kanban"
 
 export function App() {
   const appState = useAppState()
@@ -130,50 +137,54 @@ export function App() {
   }
 
   function moveSprintVertical(delta: number) {
-    const location = selectedBoardLocation("active-sprint") ?? firstBoardLocation("active-sprint")
+    const location = selectedBoardLocation(state, "active-sprint") ?? firstBoardLocation(state, "active-sprint")
     if (!location) return
-    const cell = boardCell("active-sprint", location.groupIndex, location.statusIndex)
+    const cell = boardCellIssueKeys(state, "active-sprint", location.groupIndex, location.statusIndex)
     const nextItemIndex = location.itemIndex + delta
     if (cell[nextItemIndex]) {
-      appState.selectIssue(cell[nextItemIndex]!)
+      selectBoardIssue("active-sprint", cell[nextItemIndex]!)
       return
     }
 
     const next = findSprintColumnWithIssue(location.statusIndex + delta, delta)
     if (!next) return
-    ensureStatusVisible("active-sprint", next.statusIndex)
-    appState.selectIssue(delta > 0 ? next.issueKeys[0]! : next.issueKeys[next.issueKeys.length - 1]!)
+    selectBoardIssue("active-sprint", delta > 0 ? next.issueKeys[0]! : next.issueKeys[next.issueKeys.length - 1]!)
   }
 
   function moveKanbanVertical(delta: number) {
-    const location = selectedBoardLocation("kanban") ?? firstBoardLocation("kanban")
+    const location = selectedBoardLocation(state, "kanban") ?? firstBoardLocation(state, "kanban")
     if (!location) return
-    const cell = boardCell("kanban", location.groupIndex, location.statusIndex)
+    const cell = boardCellIssueKeys(state, "kanban", location.groupIndex, location.statusIndex)
     const nextItemIndex = location.itemIndex + delta
     if (cell[nextItemIndex]) {
-      appState.selectIssue(cell[nextItemIndex]!)
+      selectBoardIssue("kanban", cell[nextItemIndex]!)
       return
     }
 
     const groups = boardGroupsForMode(state, "kanban")
     for (let groupIndex = location.groupIndex + delta; groupIndex >= 0 && groupIndex < groups.length; groupIndex += delta) {
-      const issueKeys = boardCell("kanban", groupIndex, location.statusIndex)
+      const issueKeys = boardCellIssueKeys(state, "kanban", groupIndex, location.statusIndex)
       if (issueKeys.length) {
-        appState.selectIssue(delta > 0 ? issueKeys[0]! : issueKeys[issueKeys.length - 1]!)
+        selectBoardIssue("kanban", delta > 0 ? issueKeys[0]! : issueKeys[issueKeys.length - 1]!)
         return
       }
     }
   }
 
   function moveBoardHorizontal(mode: BoardMode, delta: number) {
-    const location = selectedBoardLocation(mode) ?? firstBoardLocation(mode)
+    const location = selectedBoardLocation(state, mode) ?? firstBoardLocation(state, mode)
     if (!location) return
+    if (mode === "kanban") {
+      const next = nextKanbanHorizontalLocation(state, location, delta > 0 ? 1 : -1)
+      if (next) selectBoardLocation("kanban", next)
+      return
+    }
+
     const groups = boardGroupsForMode(state, mode)
     for (let statusIndex = location.statusIndex + delta; statusIndex >= 0 && statusIndex < state.statuses.length; statusIndex += delta) {
-      const issueKeys = boardCell(mode, location.groupIndex, statusIndex)
+      const issueKeys = boardCellIssueKeys(state, mode, location.groupIndex, statusIndex)
       if (!issueKeys.length) continue
-      ensureStatusVisible(mode, statusIndex)
-      appState.selectIssue(issueKeys[Math.min(location.itemIndex, issueKeys.length - 1)]!)
+      selectBoardIssue(mode, issueKeys[Math.min(location.itemIndex, issueKeys.length - 1)]!)
       return
     }
 
@@ -211,36 +222,6 @@ export function App() {
     return keys.length ? keys : boardIssuesForMode(state, mode).map((issue) => issue.key)
   }
 
-  function boardCell(mode: BoardMode, groupIndex: number, statusIndex: number) {
-    const group = boardGroupsForMode(state, mode)[groupIndex]
-    const status = state.statuses[statusIndex]
-    if (!group || !status) return []
-    return group.issueKeys.filter((issueKey) => state.issues[issueKey]?.statusId === status.id)
-  }
-
-  function selectedBoardLocation(mode: BoardMode) {
-    const groups = boardGroupsForMode(state, mode)
-    for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
-      for (let statusIndex = 0; statusIndex < state.statuses.length; statusIndex++) {
-        const issueKeys = boardCell(mode, groupIndex, statusIndex)
-        const itemIndex = issueKeys.indexOf(state.selectedIssueKey)
-        if (itemIndex !== -1) return { groupIndex, statusIndex, itemIndex }
-      }
-    }
-    return
-  }
-
-  function firstBoardLocation(mode: BoardMode) {
-    const groups = boardGroupsForMode(state, mode)
-    for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
-      for (let statusIndex = 0; statusIndex < state.statuses.length; statusIndex++) {
-        const issueKeys = boardCell(mode, groupIndex, statusIndex)
-        if (issueKeys.length) return { groupIndex, statusIndex, itemIndex: 0 }
-      }
-    }
-    return
-  }
-
   function findSprintColumnWithIssue(startStatusIndex: number, delta: number) {
     for (let statusIndex = startStatusIndex; statusIndex >= 0 && statusIndex < state.statuses.length; statusIndex += delta) {
       const issueKeys = boardIssuesForMode(state, "active-sprint")
@@ -261,6 +242,17 @@ export function App() {
     nextOffset = Math.max(0, Math.min(nextOffset, maxOffset))
     if (mode === "active-sprint") appState.setActiveSprintStatusOffset(nextOffset)
     else appState.setKanbanStatusOffset(nextOffset)
+  }
+
+  function selectBoardIssue(mode: BoardMode, issueKey: string) {
+    const location = selectedBoardLocation(state, mode, issueKey)
+    appState.selectIssue(issueKey)
+    if (location) ensureStatusVisible(mode, location.statusIndex)
+  }
+
+  function selectBoardLocation(mode: BoardMode, location: BoardLocation) {
+    const issueKey = boardIssueKeyAtLocation(state, mode, location)
+    if (issueKey) selectBoardIssue(mode, issueKey)
   }
 
   function isBoardRoute(route: string): route is "active-sprint" | "kanban" {
