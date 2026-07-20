@@ -205,6 +205,13 @@ Shortcuts should be generated into help and command surfaces so users can discov
 
 ## Product Path
 
+Implementation planning artifacts live under `docs/`:
+
+- `docs/BUILD_PLAN.md`: phased build plan and parallel workstreams.
+- `docs/TASK_TRACKER.md`: checklist for subagent coordination.
+- `docs/OPENTUI_REFERENCE.md`: OpenTUI and OpenCode implementation references.
+- `docs/subagents/`: task briefs that can be assigned to parallel implementers.
+
 ### Phase 1: Demo Board Foundation
 
 Goal: prove the main experience without depending on real Jira data.

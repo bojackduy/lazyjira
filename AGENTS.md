@@ -38,6 +38,7 @@ Follow lazy/vim muscle memory before inventing new shortcuts.
 
 ## Engineering Policy
 
+- Before implementation work, read `README.md`, `docs/BUILD_PLAN.md`, `docs/TASK_TRACKER.md`, and `docs/OPENTUI_REFERENCE.md`.
 - Keep interactions command-driven: keybindings call commands, commands update state, and the UI renders state.
 - Keep Jira API access out of widget/rendering code.
 - Separate API, cache/state, keymap, command handling, and rendering concerns.
