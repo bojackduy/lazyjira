@@ -2,9 +2,9 @@
 
 ## Product Direction
 
-We are building a fast, keyboard-first Jira TUI in the `lazy*` tool family. Think `lazygit`-style interaction patterns for Jira: persistent panes, focused context, single-key actions, quick feedback, and no web-UI latency.
+We are building a fast, keyboard-first Jira workspace in the `lazy*` tool family. The app should preserve lazy/vim muscle memory while giving Jira-specific overview screens the space they deserve: active sprint, backlog, Kanban board, project/board navigation, issue inspector, and rich issue/document detail.
 
-The goal is not to recreate all of Jira in a terminal. The goal is to make daily Jira work fast: browse issues, triage queues, read details, update status, edit fields, comment, assign, and jump back to work with minimal friction.
+The goal is not a simple ticket browser. The goal is to make daily Jira work fast: understand sprint/backlog state at a glance, track work across columns, groom and rank backlog items, triage blocked/stale/unassigned work, open rich issue details when needed, update Jira safely, and jump back to work with minimal friction.
 
 ## Reference Projects
 
@@ -14,10 +14,12 @@ The goal is not to recreate all of Jira in a terminal. The goal is to make daily
 
 ## UX Policy
 
+- Optimize for overview first, details second.
+- Treat Active Sprint, Backlog, and Kanban Board as first-class screens.
 - Prioritize keyboard workflows over mouse workflows.
 - Keep the UI stable: panels should not jump around unless terminal size requires it.
 - Prefer one or two keystrokes for common actions once focus is in the right pane.
-- Make context visible: selected issue, active project/filter, current status, and pending operation should be clear.
+- Make context visible: selected project, board, sprint/backlog section, issue, status, and pending operation should be clear.
 - Default to safe browsing. Destructive or high-impact writes need confirmation.
 - Show actionable Jira/API errors instead of swallowing them or replacing them with vague messages.
 - Support narrow terminals by stacking or simplifying panes rather than rendering broken layouts.

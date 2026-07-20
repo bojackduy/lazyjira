@@ -1,232 +1,313 @@
 # lazyjira-rs
 
-`lazyjira-rs` is a planned fast, keyboard-first Jira TUI for daily issue work. The intended feel is the `lazy*` ecosystem: stable panes, single-key commands, vim-style navigation, visible context, and immediate feedback.
+`lazyjira-rs` is a keyboard-first Jira workspace for the terminal.
 
-This repository currently keeps two reference implementations as submodules:
+The goal is not to make a simple ticket browser. The goal is to bring the high-value Jira web workflows into a fast terminal UI: backlog grooming, Kanban tracking, active sprint overview, issue triage, and rich issue/document reading.
 
-- `lazyjira/`: Go/Bubble Tea implementation with strong lazy-style layout, keymap, panels, and command flow.
-- `jiratui/`: Python/Textual implementation with broad Jira feature coverage, dynamic widgets, metadata-driven forms, and async workers.
+We want the speed and muscle memory of the `lazy*` family, but the UI itself should be designed for Jira's real value: seeing work, moving work, tracking sprint health, and drilling into details only when needed.
 
-The implementation should learn from both, but the new product direction is not to copy either project directly. The target is a focused Rust TUI that makes common Jira actions faster than the browser.
+## Product Direction
 
-## Product Goal
+Jira is valuable because it gives teams a shared overview of work:
 
-Make daily Jira work fast from the terminal:
+- What is in the backlog?
+- What is in the active sprint?
+- What is blocked?
+- What is stale?
+- What is unassigned?
+- What is moving across statuses?
+- What needs grooming, ranking, assignment, transition, or comment follow-up?
 
-- Browse issue queues and saved JQL tabs.
-- Read issue summary, description, comments, links, subtasks, and metadata without losing context.
-- Update status, assignee, priority, labels, summary, description, and comments with one or two keystrokes.
-- Keep destructive or high-impact writes behind confirmation.
-- Preserve lazy/vim muscle memory so users do not need to relearn navigation.
+The terminal app should optimize those workflows first.
 
-Non-goal: recreate every Jira screen in a terminal. The TUI should optimize the high-frequency Jira loop: find issue, inspect, update, comment, move on.
+Issue details and Confluence-style rich documents still matter, but they are the drill-down surface. The main experience should open on a board, backlog, or workspace overview, not on a single issue reader.
 
-## Reference Findings
+## Product Principles
 
-### From `lazyjira/`
+- Overview first, details second.
+- Boards and backlog are first-class screens, not just filters over a ticket list.
+- Active sprint health should be visible without running reports in the browser.
+- Rich ticket/document reading should be beautiful when opened, but should not dominate the default workflow.
+- Keyboard actions should be one or two keystrokes for common Jira work.
+- The UI should feel native to the terminal, not like a cramped copy of the web page.
+- Keep lazy-family navigation muscle memory: `j/k`, `h/l`, `g/G`, `/`, `?`, `q`, `Esc`, `Tab`, `Enter`.
+- High-impact writes need confirmation and clear before/after context.
+- Jira errors should be actionable, not vague.
 
-- The cleanest interaction model is `key -> action -> focused handler -> state/API command -> render`.
-- `pkg/tui/keymap.go` separates actions from physical keys and supports config overrides.
-- `pkg/tui/handlers_keys.go` dispatches global keys first, then focus/tab/issue-specific actions.
-- `pkg/tui/views` keeps rendering separate from Jira API access.
-- `pkg/tui/layout.go` uses a stable side-by-side layout, then switches to a stacked accordion layout for narrow terminals.
-- `pkg/jira/client.go` maps Jira REST responses into app models before state/rendering code sees them.
-- The `?` help popup and bottom help bar are essential; they should be generated from the active keymap, not manually duplicated.
+## Reference Material
 
-### From `jiratui/`
+This repo includes two reference submodules:
 
-- The `APIController` pattern is useful: API methods return a normalized success/error response instead of leaking raw HTTP errors into widgets.
-- Search, issue details, comments, attachments, links, subtasks, and dynamic create/edit metadata are all separate widget concerns.
-- Selection changes should fetch details asynchronously and cancel stale in-flight requests; Textual does this with `run_worker(..., exclusive=True)`.
-- Jira create/edit metadata should drive forms instead of hardcoding every custom field.
-- User-facing errors should be concrete: connection failure, invalid response, missing metadata, no valid transition, permission failure.
+- `lazyjira/`: useful for lazy-style keybindings, pane layout, command flow, and focused Jira actions.
+- `jiratui/`: useful for broad Jira feature coverage, forms, metadata-driven fields, comments, links, attachments, and user-facing error handling.
 
-### What We Will Change
+Use them as reference material. Do not copy their product model blindly. Our direction is an overview-first Jira command center.
 
-- Keep `j` and `k` for navigation everywhere. `jiratui` uses some letters as direct focus shortcuts; this conflicts with lazy/vim muscle memory.
-- Use `/` for search/filter/JQL entry so `s` can remain the mnemonic status/transition action.
-- Keep widgets dumb: they render state and emit commands. Jira API calls should live in the API/task layer, not panel rendering code.
-- Prefer fewer always-visible filters than `jiratui`; make search powerful but avoid crowding the main screen.
+## Primary Screens
 
-## Target Architecture
+### 1. Workspace Home
 
-Planned Rust stack:
+Purpose: give the user a fast starting point.
 
-- TUI/rendering: `ratatui` with `crossterm`.
-- Async/runtime: `tokio`.
-- HTTP: `reqwest`.
-- Data: `serde`, `serde_json`, optional `serde_yaml` for config.
-- Config paths: XDG-compatible config/cache locations.
+Should show:
 
-Core layers:
+- Projects and boards.
+- Active sprint entry points.
+- Backlog entry points.
+- My assigned work.
+- Recently updated issues.
+- Blocked/unassigned/stale quick filters.
+- Recently opened issues and docs.
 
-```text
-terminal input
-  -> keymap resolver
-  -> command dispatcher
-  -> app state reducer
-  -> async Jira task queue
-  -> normalized domain models/cache
-  -> ratatui render pass
-```
+### 2. Active Sprint Board
 
-Suggested modules:
+Purpose: track current sprint execution.
 
-- `api`: Jira Cloud/Data Center REST client, auth, pagination, rate-limit/error mapping.
-- `models`: normalized `Issue`, `Project`, `User`, `Transition`, `Comment`, `Field`, `IssueLink`, `Attachment` types.
-- `state`: selected project/filter/tab/issue, caches, loading flags, pending operation, modal state.
-- `commands`: user intents such as `Refresh`, `OpenIssue`, `TransitionIssue`, `AssignIssue`, `AddComment`.
-- `keymap`: action enum, default bindings, user overrides, help generation.
-- `tasks`: async effects that call `api` and return typed messages back to state.
-- `ui`: pane rendering only; no Jira HTTP calls.
-- `config`: auth/config loading, validation, and persistence.
+Should show:
 
-## Data To UI Flow
+- Columns by workflow status.
+- Issue cards in each status.
+- Sprint health summary.
+- Blocked, stale, unassigned, and high-priority indicators.
+- Quick filters for assignee, epic, type, priority, labels, and blockers.
+- Inspector for selected card.
 
-### Startup
-
-1. Load config and auth from XDG paths.
-2. Build Jira client for Cloud or Data Center.
-3. Fetch current user, configured projects, saved filters/JQL tabs, and initial issue list.
-4. Store results in state caches.
-5. Render the default layout with visible selected project/filter/status.
-
-### Issue List
-
-1. User chooses a tab, project, saved filter, or enters `/` search/JQL.
-2. Command dispatcher emits `LoadIssues { query, start_at, page_size }`.
-3. API task calls Jira search and requests only fields needed for the list plus prefetch fields.
-4. Response is normalized into `IssueSummary` rows.
-5. State updates list rows, total count, pagination cursor, and loading/error flags.
-6. UI rerenders the issues pane with stable cursor and scroll offset.
-
-### Issue Detail
-
-1. Cursor movement updates selected issue immediately.
-2. Selection schedules a debounced detail fetch for the selected issue key.
-3. Stale detail fetches are cancelled or ignored if the selected issue changed.
-4. API task fetches description, comments, links, subtasks, attachments, changelog, and editable fields as needed.
-5. State updates `IssueDetail` cache and marks the selected issue as loaded.
-6. Detail/info panes rerender without moving the list cursor.
-
-### Jira Writes
-
-1. User presses an action key such as `s`, `a`, `p`, `e`, or `c`.
-2. App opens a modal, picker, editor, or confirmation flow.
-3. For high-impact writes, show the exact issue key and target change before submit.
-4. API task performs the write.
-5. On success, patch local cache when safe or refetch the issue/list when Jira may recalculate fields.
-6. On failure, keep the user in context and show the actionable Jira/API error in the status/help area.
-
-## UI Model
-
-Default wide layout:
+Example direction:
 
 ```text
-┌ Status / Context ───────┐┌ Issue Detail ─────────────────────────────┐
-│ account, host, project  ││ summary, status, assignee, priority       │
-├ Issue Tabs / Queue ─────┤│ description / comments / links / history  │
-│ selected issue list     ││                                            │
-├ Info / Fields ──────────┤├ Activity / Logs ──────────────────────────┤
-│ selected issue metadata ││ pending API calls, errors, recent actions │
-├ Projects / Filters ─────┤└────────────────────────────────────────────┘
-│ projects, saved views   │
-└─────────────────────────┘
-? help  / search  r refresh  s status  e edit  c comment
+┌─ Workspace ───────────────┐┌─ Active Sprint: Sprint 24 ───────────────────────────────────────────────┐┌─ Inspector ─────────────┐
+│ Project: PROJ             ││  To Do              In Progress          Review              Done        ││ PROJ-128                │
+│ Board: Product Scrum      ││ ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌─────────┐ ││ Fix login redirect     │
+│                           ││ │ PROJ-121      │   │ PROJ-128      │   │ PROJ-117      │   │ PROJ-1  │ ││ Bug · High             │
+│ Views                     ││ │ OAuth setup   │   │ Login redirect│   │ Race in loader│   │ Cleanup │ ││ In Progress            │
+│ > Active Sprint           ││ │ Task · Medium │   │ Bug · High    │   │ Bug · High    │   │ Done    │ ││ Assignee: Duy          │
+│   Backlog                 ││ └───────────────┘   └───────────────┘   └───────────────┘   └─────────┘ ││ Sprint: Sprint 24      │
+│   Kanban Board            ││                                                                          ││                         │
+│   My Work                 ││ ┌───────────────┐   ┌───────────────┐                                      ││ Actions                 │
+│                           ││ │ PROJ-122      │   │ PROJ-130      │                                      ││ s status                │
+│ Quick Filters             ││ │ Docs refresh  │   │ Payment retry │                                      ││ a assign                │
+│ > Only My Issues          ││ │ Story · Low   │   │ Bug · Medium  │                                      ││ c comment               │
+│   Blocked                 ││ └───────────────┘   └───────────────┘                                      ││ e edit                  │
+└───────────────────────────┘└──────────────────────────────────────────────────────────────────────────┘└─────────────────────────┘
+? help  / search  j/k card  h/l column  s status  a assign  c comment  enter detail
 ```
 
-Narrow layout:
+### 3. Backlog
 
-- Stack panes vertically.
-- Keep non-focused panes collapsed to one-line context bars.
-- Always preserve selected issue, active tab, loading state, and latest error.
-- Never render broken tables wider than the terminal; truncate fields with clear ellipses.
+Purpose: groom, rank, and plan work.
 
-Primary panes:
+Should show:
 
-- Status: current account, host, project, online/offline/error state.
-- Issues: tabs for saved JQL queues, search results, hierarchy views, and recent issues.
-- Info: compact selected issue fields such as key, type, status, assignee, reporter, sprint, labels.
-- Detail: description, comments, links, subtasks, attachments, history.
-- Projects/Filters: project list and saved views.
-- Help/Status Bar: context-aware key hints generated from the current keymap.
+- Active sprint block.
+- Future sprint blocks.
+- Backlog block.
+- Epics and quick filters.
+- Ranking movement.
+- Move-to-sprint and move-to-backlog actions.
+- Sprint capacity and health indicators.
 
-## Keybinding Policy
+Example direction:
 
-Default bindings should follow lazy/vim muscle memory before app-specific shortcuts.
+```text
+┌─ Workspace ─────────────┐┌─ Backlog: Product Scrum ───────────────────────────────────────────┐┌─ Sprint Health ─────────┐
+│ PROJ Product App        ││ Active Sprint: Sprint 24                                           ││ Sprint 24               │
+│                         ││ ┌────────────────────────────────────────────────────────────────┐ ││ 42 issues               │
+│ Views                   ││ │ > PROJ-128  Bug   High  Fix login redirect       Duy   Auth   │ ││ 18 todo                 │
+│   Active Sprint         ││ │   PROJ-121  Task  Med   OAuth setup wizard       An    Auth   │ ││ 16 in progress          │
+│ > Backlog               ││ │   PROJ-117  Bug   High  Race in detail loader    Duy   Core   │ ││ 8 done                  │
+│   Kanban Board          ││ └────────────────────────────────────────────────────────────────┘ ││                         │
+│                         ││ Future Sprint: Sprint 25                                           ││ Warnings                │
+│ Quick Filters           ││ ┌────────────────────────────────────────────────────────────────┐ ││ 3 unassigned            │
+│ > Only My Issues        ││ │   PROJ-140  Story Med   Improve docs reader     Linh  Docs   │ ││ 2 blocked               │
+│   Bugs                  ││ │   PROJ-141  Task  Low   Add board hints        Duy   UI     │ ││ 5 stale > 7d            │
+│   Blocked               ││ └────────────────────────────────────────────────────────────────┘ ││                         │
+│   Unassigned            ││ Backlog                                                             ││ Actions                 │
+│                         ││ ┌────────────────────────────────────────────────────────────────┐ ││ n new issue             │
+│                         ││ │   PROJ-160  Task  Low   Cleanup labels        Unassigned     │ ││ m move to sprint        │
+└─────────────────────────┘└────────────────────────────────────────────────────────────────────┘└─────────────────────────┘
+j/k move  J/K rank  m move to sprint  s transition  / filter  enter detail  tab focus
+```
 
-| Area | Keys | Action |
-|---|---|---|
-| Global | `?` | Open searchable help |
-| Global | `q` | Back, close, or quit depending on context |
-| Global | `Esc` | Cancel modal/filter or move back |
-| Global | `/` | Search/filter/JQL entry |
-| Global | `r` / `R` | Refresh current view / refresh all |
-| Navigation | `j` / `k` | Move down / up |
-| Navigation | `h` / `l` | Focus left / right or go back / open |
-| Navigation | arrows | Same as vim navigation where practical |
-| Navigation | `Tab` / `Shift-Tab` | Cycle focus |
-| Navigation | `g` / `G` | Top / bottom |
-| Navigation | `Ctrl-u` / `Ctrl-d` | Half page up / down |
-| Selection | `Enter` | Open/confirm |
-| Selection | `Space` | Select/toggle |
-| Jira | `s` | Status/transition |
-| Jira | `e` | Edit focused field |
-| Jira | `a` | Assign |
-| Jira | `p` | Priority |
-| Jira | `c` | Comment |
-| Jira | `o` | Open issue in browser |
-| Jira | `y` | Copy issue URL/key |
+### 4. Kanban Board
 
-New shortcuts must be mnemonic, documented in `?`, and configurable when practical.
+Purpose: track continuous-flow projects without sprint structure.
 
-## MVP Plan
+Should show:
 
-### 1. Read-Only TUI Foundation
+- Columns by status.
+- Optional WIP limits.
+- Swimlanes by epic, assignee, priority, or issue type.
+- Blocker/stale signals.
+- Fast transition and assignment actions.
 
-- Config/auth loading.
-- Jira client with Cloud and Data Center path differences isolated.
-- Basic issue search by JQL/project.
-- Stable two-column layout plus narrow stacked layout.
-- Issue list, selected issue context, detail pane, and help bar.
-- Keyboard navigation and searchable `?` help.
+### 5. Issue Detail
 
-### 2. Fast Daily Browsing
+Purpose: inspect and act on one selected item without losing board/backlog context.
 
-- Saved JQL tabs and recent issues.
-- Detail prefetch on selection with stale-response protection.
-- Comments, links, subtasks, attachments, and history tabs.
-- Local cache for issue summaries/details with explicit refresh.
-- Actionable error display in the status panel.
+Should show:
 
-### 3. Safe Jira Writes
+- Summary, type, status, priority, assignee, reporter, sprint, labels, components.
+- Description as rich document content.
+- Comments.
+- Subtasks.
+- Linked issues.
+- Confluence/docs links.
+- Attachments.
+- Activity/history.
+- Actions for transition, assign, priority, comment, edit, copy, and open in browser.
 
-- Status transitions via `s` with a transition picker.
-- Assign via `a` with user search.
-- Priority via `p`.
-- Comment add/edit via `c`/`e`.
-- Summary/description edit through `$EDITOR` or inline modal.
-- Dry-run/read-only mode that exercises the full flow without writing to Jira.
+Issue detail can be a drawer, overlay, or full-screen route depending on terminal size.
 
-### 4. Metadata-Driven Forms
+### 6. Search And Command Palette
 
-- Create issue using Jira create metadata.
-- Edit custom fields using field metadata and allowed values.
-- Validate required fields before submit.
-- Show unsupported fields clearly instead of silently dropping them.
+Purpose: let users jump anywhere without navigating through panes.
 
-## Engineering Rules
+Should support:
 
-- Rendering code never calls Jira directly.
-- Keybindings resolve to commands, not widget-specific side effects.
-- API tasks return typed messages with normalized success/error data.
-- State updates should be testable without a terminal.
-- Render tests should cover narrow terminals, focused panels, truncation, help hints, and empty/error states.
-- Write operations must test success, Jira validation errors, network errors, and read-only/dry-run behavior.
+- Search issues.
+- Search boards/projects.
+- Search Confluence/docs links.
+- Run actions by name.
+- Show shortcuts next to commands.
+- Filter current board/backlog.
+- Reuse recent searches and saved filters.
 
-## Open Decisions
+## Navigation Model
 
-- Exact Rust crate layout and binary name.
-- Whether JQL search is a modal, a temporary tab, or both.
-- Whether mouse support is included in MVP or deferred.
-- How much Jira Agile support belongs in the first release: boards, sprints, epics, and backlog may require separate API handling.
+The app should use lazy-family muscle memory, adapted to Jira's board and backlog screens.
+
+| Key | Meaning |
+|---|---|
+| `?` | Help for current context |
+| `/` | Search or filter current screen |
+| `q` | Back, close, or quit depending on context |
+| `Esc` | Cancel modal/search/selection |
+| `Tab` / `Shift-Tab` | Cycle focus between major regions |
+| `h` / `l` | Move between panes or board columns |
+| `j` / `k` | Move through cards, rows, options, or document lines |
+| `g` / `G` | Jump to top/bottom |
+| `Ctrl-u` / `Ctrl-d` | Half-page up/down |
+| `Enter` | Open or confirm |
+| `Space` | Select/toggle for bulk work |
+| `r` | Refresh current screen |
+| `R` | Refresh all visible data |
+| `s` | Status/transition |
+| `a` | Assign |
+| `p` | Priority |
+| `c` | Comment |
+| `e` | Edit focused field/content |
+| `m` | Move issue to sprint/backlog/column when applicable |
+| `J` / `K` | Rank backlog item down/up |
+| `o` | Open in browser |
+| `y` | Copy issue key/link |
+
+Shortcuts should be generated into help and command surfaces so users can discover them from inside the app.
+
+## Product Path
+
+### Phase 1: Demo Board Foundation
+
+Goal: prove the main experience without depending on real Jira data.
+
+- Workspace sidebar.
+- Active sprint board with columns and cards.
+- Backlog with active/future/backlog sections.
+- Inspector for selected issue.
+- Detail drawer/overlay for one issue.
+- Help surface and command palette.
+- Keyboard navigation across board columns, backlog rows, and detail content.
+
+Success criteria:
+
+- The app feels useful with mock data.
+- A user can understand sprint state at a glance.
+- A user can navigate entirely by keyboard.
+- A user can open details without losing board/backlog context.
+
+### Phase 2: Read-Only Jira Workspace
+
+Goal: load real Jira overview data safely.
+
+- Projects and boards.
+- Board columns/statuses.
+- Active sprint issues.
+- Backlog issues.
+- Future sprints.
+- Issue detail.
+- Comments, links, subtasks, attachments, and activity.
+- Saved filters and quick filters.
+
+Success criteria:
+
+- The terminal can replace the web UI for checking active sprint and backlog state.
+- Refreshing data is explicit and reliable.
+- Errors are visible and actionable.
+
+### Phase 3: Safe Daily Actions
+
+Goal: perform common Jira updates faster than the web UI.
+
+- Transition status.
+- Assign/reassign.
+- Change priority.
+- Add/edit comment.
+- Edit summary/description.
+- Move issue into sprint or backlog.
+- Rank issue in backlog.
+- Copy/open issue links.
+
+Success criteria:
+
+- Common actions take one or two keystrokes after selection.
+- High-impact writes show confirmation with exact issue key and target change.
+- Failed writes keep the user in context and show the Jira reason.
+
+### Phase 4: Planning And Triage Power Tools
+
+Goal: make sprint planning and triage better than the web UI for keyboard users.
+
+- Bulk selection.
+- Bulk assign/transition/priority.
+- Blocked/stale/unassigned views.
+- Epic and assignee swimlanes.
+- Sprint capacity indicators.
+- Recently changed issue feed.
+- Personal work queue.
+- Saved workspace layouts.
+
+Success criteria:
+
+- A user can groom a backlog without switching to the browser.
+- A user can run a sprint triage session from the terminal.
+- The app makes risky changes obvious before applying them.
+
+### Phase 5: Rich Docs And Knowledge Context
+
+Goal: make issue reading and linked documentation comfortable.
+
+- Rich issue descriptions.
+- Confluence/doc links opened inside the terminal.
+- Code blocks, tables, checklists, links, and quotes displayed cleanly.
+- Related docs shown next to issue context.
+- Search across issues and docs.
+
+Success criteria:
+
+- Users can understand issue context without opening the browser.
+- Linked docs are readable enough for daily engineering work.
+
+## What We Are Not Building First
+
+- A clone of every Jira administration screen.
+- A terminal replacement for all Jira configuration.
+- A document reader that ignores board/backlog workflow.
+- A table-only issue browser with no sprint/backlog awareness.
+
+## Open Product Decisions
+
+- Default landing screen: Active Sprint, Backlog, or Workspace Home.
+- How much of the inspector should always be visible on narrow terminals.
+- Whether issue detail opens as a right drawer, overlay, or full-screen route by default.
+- How to represent swimlanes without making the board visually noisy.
+- Which bulk operations are safe enough for early versions.
+- How aggressively to mirror Jira web behavior versus designing terminal-native flows.
