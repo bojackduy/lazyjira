@@ -6,10 +6,10 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 
 ## Wave 0
 
-- [ ] `01-foundation-shell`: scaffold runnable app shell.
-- [ ] Define test/typecheck/dev commands.
-- [ ] Add initial app state, routes, and demo mode switch.
-- [ ] Verify Checkpoint A in `BUILD_PLAN.md`.
+- [x] `01-foundation-shell`: scaffold runnable app shell.
+- [x] Define test/typecheck/dev commands.
+- [x] Add initial app state, routes, and demo mode switch.
+- [x] Verify Checkpoint A in `BUILD_PLAN.md`.
 
 ## Wave 1
 

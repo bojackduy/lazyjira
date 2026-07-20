@@ -212,6 +212,14 @@ Implementation planning artifacts live under `docs/`:
 - `docs/OPENTUI_REFERENCE.md`: OpenTUI and OpenCode implementation references.
 - `docs/subagents/`: task briefs that can be assigned to parallel implementers.
 
+## Development
+
+- `bun install`: install dependencies.
+- `bun run dev`: run the TUI in watch mode.
+- `bun run start`: run the TUI once.
+- `bun run typecheck`: validate TypeScript.
+- `bun test`: run tests.
+
 ### Phase 1: Demo Board Foundation
 
 Goal: prove the main experience without depending on real Jira data.

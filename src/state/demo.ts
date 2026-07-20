@@ -1,0 +1,85 @@
+import type { AppState, IssueSummary } from "./app-state"
+
+const issues: IssueSummary[] = [
+  {
+    key: "PROJ-121",
+    title: "OAuth setup wizard",
+    type: "Task",
+    priority: "Medium",
+    status: "To Do",
+    assignee: "An",
+    epic: "Auth",
+    blocked: false,
+    staleDays: 2,
+  },
+  {
+    key: "PROJ-128",
+    title: "Fix login redirect",
+    type: "Bug",
+    priority: "High",
+    status: "In Progress",
+    assignee: "Duy",
+    epic: "Auth",
+    blocked: true,
+    staleDays: 8,
+  },
+  {
+    key: "PROJ-130",
+    title: "Payment retry messaging",
+    type: "Bug",
+    priority: "Medium",
+    status: "In Progress",
+    assignee: "Linh",
+    epic: "Billing",
+    blocked: false,
+    staleDays: 1,
+  },
+  {
+    key: "PROJ-117",
+    title: "Race in detail loader",
+    type: "Bug",
+    priority: "High",
+    status: "Review",
+    assignee: "Duy",
+    epic: "Core",
+    blocked: false,
+    staleDays: 5,
+  },
+  {
+    key: "PROJ-160",
+    title: "Cleanup stale labels",
+    type: "Task",
+    priority: "Low",
+    status: "Backlog",
+    assignee: "Unassigned",
+    epic: "Operations",
+    blocked: false,
+    staleDays: 13,
+  },
+]
+
+export function loadDemoWorkspace(): AppState {
+  return {
+    demoMode: true,
+    route: "workspace",
+    project: { key: "PROJ", name: "Product App" },
+    board: { id: "demo-board", name: "Product Scrum", type: "scrum" },
+    sprint: { id: "sprint-24", name: "Sprint 24", goal: "Stabilize auth and billing flows" },
+    columns: [
+      { id: "todo", name: "To Do", issueKeys: ["PROJ-121"] },
+      { id: "in-progress", name: "In Progress", issueKeys: ["PROJ-128", "PROJ-130"] },
+      { id: "review", name: "Review", issueKeys: ["PROJ-117"] },
+      { id: "done", name: "Done", issueKeys: [] },
+    ],
+    issues: Object.fromEntries(issues.map((issue) => [issue.key, issue])),
+    selectedIssueKey: "PROJ-128",
+    stats: {
+      todo: 1,
+      inProgress: 2,
+      done: 0,
+      blocked: 1,
+      stale: 2,
+      unassigned: 1,
+    },
+  }
+}
