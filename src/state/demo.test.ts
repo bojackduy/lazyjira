@@ -6,8 +6,10 @@ describe("demo workspace", () => {
     const state = loadDemoWorkspace()
 
     expect(state.demoMode).toBe(true)
-    expect(state.route).toBe("workspace")
-    expect(state.columns.length).toBeGreaterThan(0)
+    expect(state.route).toBe("active-sprint")
+    expect(state.statuses.length).toBeGreaterThan(4)
+    expect(state.issueTypes.map((type) => type.id)).toContain("Subtask")
+    expect(Object.keys(state.issues).length).toBeGreaterThan(10)
     expect(state.issues[state.selectedIssueKey]?.key).toBe(state.selectedIssueKey)
   })
 })

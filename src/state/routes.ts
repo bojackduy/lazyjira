@@ -6,6 +6,8 @@ export const appRoutes = [
   { id: "issue-detail", label: "Issue Detail", shortLabel: "Detail" },
 ] as const
 
+export const sidebarRoutes = appRoutes.filter((route) => route.id !== "issue-detail")
+
 export type AppRoute = (typeof appRoutes)[number]["id"]
 
 export function isAppRoute(value: string): value is AppRoute {

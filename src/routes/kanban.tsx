@@ -1,5 +1,5 @@
-import { ActiveSprintRoute } from "./active-sprint"
+import { BoardSurface } from "../ui/board"
 
 export function KanbanRoute() {
-  return <ActiveSprintRoute />
+  return <BoardSurface mode="kanban" />
 }
