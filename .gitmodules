@@ -1,0 +1,6 @@
+[submodule "lazyjira"]
+	path = lazyjira
+	url = git@khaclbit:textfuel/lazyjira.git
+[submodule "jiratui"]
+	path = jiratui
+	url = git@khaclbit:whyisdifficult/jiratui.git
