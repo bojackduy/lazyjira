@@ -8,25 +8,24 @@ import type { IssueSummary } from "../state/app-state"
 import { groupBacklogIssues, groupModeLabel, issueTypeColor, statusColor, statusName } from "../state/selectors"
 
 export function BacklogRoute() {
-  const appState = useAppState()
-  const { state } = appState
+  const { state } = useAppState()
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
   const groups = () => groupBacklogIssues(state, state.backlogGroupBy)
   const compact = () => dimensions().width < 130
-  const bodyHeight = () => Math.max(6, dimensions().height - 11)
+  const bodyHeight = () => Math.max(5, dimensions().height - (compact() ? 17 : 15))
 
   useBindings(() => ({
     commands: [
-      { name: "backlog.page.down", run: () => pageSelection(1) },
-      { name: "backlog.page.up", run: () => pageSelection(-1) },
+      { name: "backlog.scroll.down", run: () => scrollPage(1) },
+      { name: "backlog.scroll.up", run: () => scrollPage(-1) },
     ],
     bindings: [
-      { key: "d", cmd: "backlog.page.down" },
-      { key: { name: "d", ctrl: true }, cmd: "backlog.page.down" },
-      { key: "u", cmd: "backlog.page.up" },
-      { key: { name: "u", ctrl: true }, cmd: "backlog.page.up" },
+      { key: "d", cmd: "backlog.scroll.down" },
+      { key: { name: "d", ctrl: true }, cmd: "backlog.scroll.down" },
+      { key: "u", cmd: "backlog.scroll.up" },
+      { key: { name: "u", ctrl: true }, cmd: "backlog.scroll.up" },
     ],
   }))
 
@@ -35,14 +34,9 @@ export function BacklogRoute() {
     scrollbox?.scrollChildIntoView(`issue-${state.selectedIssueKey}`)
   })
 
-  function pageSelection(delta: 1 | -1) {
+  function scrollPage(delta: 1 | -1) {
     if (state.focusedPane !== "main" || state.route !== "backlog") return
-    const keys = groups().flatMap((group) => group.issueKeys)
-    if (!keys.length) return
-    const currentIndex = keys.indexOf(state.selectedIssueKey)
-    const startIndex = currentIndex === -1 ? 0 : currentIndex
-    const nextIndex = Math.max(0, Math.min(keys.length - 1, startIndex + delta * 8))
-    appState.selectIssue(keys[nextIndex] ?? keys[0]!)
+    scrollbox?.scrollBy(delta, "viewport")
   }
 
   return (
@@ -58,7 +52,8 @@ export function BacklogRoute() {
             <text fg={theme.textSubtle}>g group · h/l group jump</text>
           </box>
         </box>
-        <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} height={bodyHeight()} scrollY={true} viewportCulling={true}>
+        <BacklogLegend />
+        <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} viewportCulling={true}>
           <For each={groups()}>
             {(group) => (
               <box borderStyle="rounded" borderColor={theme.border} padding={1} flexDirection="column" gap={1} marginBottom={1} width="100%">
@@ -86,6 +81,26 @@ export function BacklogRoute() {
   function sectionPoints(issueKeys: string[]) {
     return issueKeys.reduce((total, issueKey) => total + (state.issues[issueKey]?.storyPoints ?? 0), 0)
   }
+}
+
+function BacklogLegend() {
+  const { state } = useAppState()
+  const theme = useTheme()
+
+  return (
+    <box flexDirection="column" gap={1}>
+      <box flexDirection="row" gap={1}>
+        <For each={state.issueTypes}>
+          {(issueType) => <text fg={theme.textSubtle} wrapMode="none"><span style={{ fg: issueType.color }}>■</span> {shortType(issueType.name)}</text>}
+        </For>
+      </box>
+      <box flexDirection="row" gap={1}>
+        <For each={state.statuses}>
+          {(status) => <text fg={status.color} wrapMode="none">● {shortStatus(status.name)}</text>}
+        </For>
+      </box>
+    </box>
+  )
 }
 
 function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: boolean }) {
@@ -148,4 +163,16 @@ function SprintHealth() {
       </box>
     </box>
   )
+}
+
+function shortType(name: string) {
+  if (name === "Feature") return "Feat"
+  if (name === "Subtask") return "Sub"
+  return name
+}
+
+function shortStatus(name: string) {
+  if (name === "In Progress") return "Prog"
+  if (name === "Code Review") return "Review"
+  return name
 }

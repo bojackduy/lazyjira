@@ -62,7 +62,7 @@ export function boardStatusWindowSize(totalWidth: number, statusCount: number) {
   const reservedWidth = totalWidth < 100 ? 10 : 70
   const usableWidth = Math.max(20, totalWidth - reservedWidth)
   const count = Math.floor(usableWidth / 21)
-  return Math.max(1, Math.min(statusCount, count))
+  return Math.max(1, Math.min(statusCount, count, 4))
 }
 
 export function visibleStatusesForBoard(state: AppState, mode: "active-sprint" | "kanban", totalWidth: number) {

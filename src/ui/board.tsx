@@ -18,8 +18,7 @@ import {
 } from "../state/selectors"
 
 export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
-  const appState = useAppState()
-  const { state } = appState
+  const { state } = useAppState()
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
@@ -29,7 +28,8 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   const statusOffset = () => boardStatusOffsetForMode(state, props.mode)
   const statusWindowSize = () => boardStatusWindowSize(dimensions().width, state.statuses.length)
   const displayedStatusStart = () => Math.min(statusOffset(), Math.max(0, state.statuses.length - statusWindowSize())) + 1
-  const bodyHeight = () => Math.max(6, dimensions().height - 15)
+  const bodyHeight = () => Math.max(5, dimensions().height - 21)
+  const compactHeader = () => dimensions().width < 145
   const title = () => (props.mode === "active-sprint" ? `Active Sprint: ${activeSprint(state)?.name ?? "Sprint"}` : "Kanban Board")
   const subtitle = () =>
     props.mode === "active-sprint"
@@ -38,14 +38,14 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
 
   useBindings(() => ({
     commands: [
-      { name: `${props.mode}.page.down`, run: () => pageSelection(1) },
-      { name: `${props.mode}.page.up`, run: () => pageSelection(-1) },
+      { name: `${props.mode}.scroll.down`, run: () => scrollPage(1) },
+      { name: `${props.mode}.scroll.up`, run: () => scrollPage(-1) },
     ],
     bindings: [
-      { key: "d", cmd: `${props.mode}.page.down` },
-      { key: { name: "d", ctrl: true }, cmd: `${props.mode}.page.down` },
-      { key: "u", cmd: `${props.mode}.page.up` },
-      { key: { name: "u", ctrl: true }, cmd: `${props.mode}.page.up` },
+      { key: "d", cmd: `${props.mode}.scroll.down` },
+      { key: { name: "d", ctrl: true }, cmd: `${props.mode}.scroll.down` },
+      { key: "u", cmd: `${props.mode}.scroll.up` },
+      { key: { name: "u", ctrl: true }, cmd: `${props.mode}.scroll.up` },
     ],
   }))
 
@@ -54,43 +54,28 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
     scrollbox?.scrollChildIntoView(`issue-${state.selectedIssueKey}`)
   })
 
-  function pageSelection(delta: 1 | -1) {
+  function scrollPage(delta: 1 | -1) {
     if (state.focusedPane !== "main" || state.route !== props.mode) return
-    const keys = visibleIssueKeys()
-    if (!keys.length) return
-    const pageSize = Math.max(3, visibleStatuses().length * 2)
-    const currentIndex = keys.indexOf(state.selectedIssueKey)
-    const startIndex = currentIndex === -1 ? 0 : currentIndex
-    const nextIndex = Math.max(0, Math.min(keys.length - 1, startIndex + delta * pageSize))
-    appState.selectIssue(keys[nextIndex] ?? keys[0]!)
-  }
-
-  function visibleIssueKeys() {
-    const visibleStatusIds = new Set(visibleStatuses().map((status) => status.id))
-    const keys: string[] = []
-    for (const group of groups()) {
-      keys.push(...group.issueKeys.filter((issueKey) => visibleStatusIds.has(state.issues[issueKey]?.statusId ?? "")))
-    }
-    return keys
+    scrollbox?.scrollBy(delta, "viewport")
   }
 
   return (
     <box flexDirection="column" gap={1} flexGrow={1} minHeight={0}>
-      <box flexDirection="row" justifyContent="space-between">
+      <box flexDirection={compactHeader() ? "column" : "row"} justifyContent="space-between" gap={compactHeader() ? 1 : 0}>
         <box flexDirection="column">
           <text attributes={TextAttributes.BOLD} fg={theme.accent}>{title()}</text>
-          <text fg={theme.textMuted}>{subtitle()}</text>
+          <text fg={theme.textMuted} wrapMode="none">{subtitle()}</text>
         </box>
-        <box flexDirection="column" alignItems="flex-end">
+        <box flexDirection="column" alignItems={compactHeader() ? "flex-start" : "flex-end"}>
           <text fg={theme.text}>Group by: {groupModeLabel(groupBy())}</text>
           <text fg={theme.textSubtle}>Statuses {displayedStatusStart()}-{Math.min(displayedStatusStart() + visibleStatuses().length - 1, state.statuses.length)}/{state.statuses.length}</text>
         </box>
       </box>
       <Legend />
-      <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} height={bodyHeight()} scrollY={true} viewportCulling={true}>
+      <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} viewportCulling={true}>
         <For each={groups()}>
           {(group) => (
-            <box borderStyle="rounded" borderColor={theme.border} padding={1} flexDirection="column" gap={1} marginBottom={1} width="100%">
+            <box borderStyle="rounded" borderColor={theme.border} padding={1} flexDirection="column" gap={1} marginBottom={1} width="100%" flexShrink={1}>
               <box flexDirection="row" justifyContent="space-between">
                 <text attributes={TextAttributes.BOLD} fg={theme.text}>{group.label}</text>
                 <text fg={theme.textSubtle}>{group.issueKeys.length} issues</text>
@@ -154,14 +139,26 @@ function Legend() {
     <box flexDirection="column" gap={1}>
       <box flexDirection="row" gap={1}>
         <For each={state.issueTypes}>
-          {(issueType) => <text fg={theme.textSubtle}><span style={{ fg: issueType.color }}>■</span> {issueType.name}</text>}
+          {(issueType) => <text fg={theme.textSubtle} wrapMode="none"><span style={{ fg: issueType.color }}>■</span> {shortType(issueType.name)}</text>}
         </For>
       </box>
       <box flexDirection="row" gap={1}>
         <For each={state.statuses}>
-          {(status) => <text fg={status.color}>● {status.name}</text>}
+          {(status) => <text fg={status.color} wrapMode="none">● {shortStatus(status.name)}</text>}
         </For>
       </box>
     </box>
   )
+}
+
+function shortType(name: string) {
+  if (name === "Feature") return "Feat"
+  if (name === "Subtask") return "Sub"
+  return name
+}
+
+function shortStatus(name: string) {
+  if (name === "In Progress") return "Prog"
+  if (name === "Code Review") return "Review"
+  return name
 }
