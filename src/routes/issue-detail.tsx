@@ -6,6 +6,7 @@ import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { IssueSummary } from "../state/app-state"
+import { issueByKey } from "../state/issue-drafts"
 import { issueTypeColor, statusColor, statusName } from "../state/selectors"
 
 export function IssueDetailRoute() {
@@ -14,7 +15,7 @@ export function IssueDetailRoute() {
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
-  const issue = () => state.issues[state.selectedIssueKey]
+  const issue = () => issueByKey(state, state.selectedIssueKey)
   const bodyHeight = () => Math.max(8, dimensions().height - 10)
 
   useBindings(() => ({
@@ -110,7 +111,7 @@ function BodyEditor(props: { issue: IssueSummary }) {
     <Show when={state.detailBodyEditing} fallback={
       <box flexDirection="column" gap={1}>
         <Show when={state.issueDrafts[props.issue.key]?.description !== undefined}>
-          <text fg={theme.warning} wrapMode="none">Body staged · w local apply · W write Jira</text>
+          <text fg={theme.warning} wrapMode="none">Body staged · w render · W write Jira</text>
         </Show>
         <text fg={theme.textMuted}>{body() || "No description"}</text>
         <text fg={theme.textSubtle} wrapMode="none">e edit body · j/k line scroll · d/u half page</text>
@@ -132,7 +133,7 @@ function BodyEditor(props: { issue: IssueSummary }) {
           backgroundColor={theme.panel}
           focusedBackgroundColor={theme.panel}
         />
-        <text fg={theme.textSubtle} wrapMode="none">Ctrl-Enter stage body · Esc cancel · w local apply · W write Jira</text>
+        <text fg={theme.textSubtle} wrapMode="none">Ctrl-Enter stage body · Esc cancel · w render · W write Jira</text>
       </box>
     </Show>
   )

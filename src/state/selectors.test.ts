@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { loadDemoWorkspace } from "./demo"
-import { boardStatusWindowSize, visibleStatusesForBoard } from "./selectors"
+import { activeSprintIssues, boardStatusWindowSize, visibleStatusesForBoard } from "./selectors"
 
 describe("board selectors", () => {
   test("shows all statuses when the board is wide enough", () => {
@@ -23,5 +23,15 @@ describe("board selectors", () => {
 
     expect(windowSize).toBeGreaterThan(0)
     expect(windowSize).toBeLessThan(state.statuses.length)
+  })
+
+  test("uses staged render overlay for issue status without changing base issue", () => {
+    const state = loadDemoWorkspace()
+    state.issueDrafts["PROJ-128"] = { statusId: "code-review" }
+
+    const renderedIssue = activeSprintIssues(state).find((issue) => issue.key === "PROJ-128")
+
+    expect(renderedIssue?.statusId).toBe("code-review")
+    expect(state.issues["PROJ-128"]?.statusId).toBe("blocked")
   })
 })

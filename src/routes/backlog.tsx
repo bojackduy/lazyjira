@@ -5,6 +5,7 @@ import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { IssueSummary } from "../state/app-state"
+import { issueByKey } from "../state/issue-drafts"
 import { groupBacklogIssues, groupModeLabel, issueTypeColor, statusColor, statusName } from "../state/selectors"
 
 export function BacklogRoute() {
@@ -63,7 +64,7 @@ export function BacklogRoute() {
                 </box>
                 <For each={group.issueKeys}>
                   {(issueKey) => {
-                    const issue = state.issues[issueKey]
+                    const issue = issueByKey(state, issueKey)
                     return issue ? <BacklogRow issue={issue} selected={state.selectedIssueKey === issue.key} compact={compact()} /> : null
                   }}
                 </For>
@@ -79,7 +80,7 @@ export function BacklogRoute() {
   )
 
   function sectionPoints(issueKeys: string[]) {
-    return issueKeys.reduce((total, issueKey) => total + (state.issues[issueKey]?.storyPoints ?? 0), 0)
+    return issueKeys.reduce((total, issueKey) => total + (issueByKey(state, issueKey)?.storyPoints ?? 0), 0)
   }
 }
 

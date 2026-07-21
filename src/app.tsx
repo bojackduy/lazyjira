@@ -87,15 +87,19 @@ export function App() {
       { name: "pane.left", run: () => moveHorizontal(-1) },
       { name: "pane.enter", run: () => openFocusedItem() },
       { name: "sidebar.toggle-filter", run: () => toggleSpaceAction() },
+      { name: "staged-discard.down", run: () => (state.stagedDiscardOpen ? appState.moveStagedDiscardSelection(1) : moveVertical(1)) },
+      { name: "staged-discard.up", run: () => (state.stagedDiscardOpen ? appState.moveStagedDiscardSelection(-1) : moveVertical(-1)) },
+      { name: "staged-discard.confirm", run: () => (state.stagedDiscardOpen ? appState.confirmStagedDiscard() : openFocusedItem()) },
+      { name: "staged-discard.toggle", run: () => (state.stagedDiscardOpen ? appState.toggleStagedDiscardSelection() : toggleSpaceAction()) },
       { name: "group.cycle", run: () => cycleGroup() },
       { name: "issue.edit", run: () => editSelectedIssue() },
       { name: "issue.new", run: () => createIssueFromContext() },
-      { name: "issue.apply", run: () => (canRunGlobalShortcut() ? appState.applyIssueChanges() : false) },
+      { name: "issue.apply", run: () => writeStagedRender() },
       { name: "issue.remote-apply", run: () => remoteApplyAction() },
       { name: "issue.delete", run: () => (canRunGlobalShortcut() ? appState.requestIssueDelete() : false) },
       { name: "issue.confirm-delete", run: () => (canRunGlobalShortcut() ? appState.confirmIssueDelete() : false) },
       { name: "issue.cancel-delete", run: () => (canRunGlobalShortcut() ? appState.cancelIssueDelete() : false) },
-      { name: "staged-discard.open", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.openStagedDiscard()) },
+      { name: "staged-discard.open", run: () => (isPlainTextEditing() || isPopupOpen() || isAnyEditing() ? false : appState.openStagedDiscard()) },
     ],
     bindings: [
       { key: "q", cmd: "app.quit", preventDefault: false },
@@ -109,16 +113,16 @@ export function App() {
       { key: "2", cmd: "route.active-sprint", preventDefault: false },
       { key: "3", cmd: "route.backlog", preventDefault: false },
       { key: "4", cmd: "route.kanban", preventDefault: false },
-      { key: "j", cmd: "pane.down", preventDefault: false },
-      { key: "down", cmd: "pane.down", preventDefault: false },
-      { key: "k", cmd: "pane.up", preventDefault: false },
-      { key: "up", cmd: "pane.up", preventDefault: false },
+      { key: "j", cmd: "staged-discard.down", preventDefault: false },
+      { key: "down", cmd: "staged-discard.down", preventDefault: false },
+      { key: "k", cmd: "staged-discard.up", preventDefault: false },
+      { key: "up", cmd: "staged-discard.up", preventDefault: false },
       { key: "l", cmd: "pane.right", preventDefault: false },
       { key: "right", cmd: "pane.right", preventDefault: false },
       { key: "h", cmd: "pane.left", preventDefault: false },
       { key: "left", cmd: "pane.left", preventDefault: false },
-      { key: "return", cmd: "pane.enter", preventDefault: false },
-      { key: "space", cmd: "sidebar.toggle-filter", preventDefault: false },
+      { key: "return", cmd: "staged-discard.confirm", preventDefault: false },
+      { key: "space", cmd: "staged-discard.toggle", preventDefault: false },
       { key: "g", cmd: "group.cycle", preventDefault: false },
       { key: "e", cmd: "issue.edit", preventDefault: false },
       { key: "n", cmd: "issue.new", preventDefault: false },
@@ -287,6 +291,13 @@ export function App() {
     return false
   }
 
+  function writeStagedRender() {
+    if (isPopupOpen() || state.detailBodyEditing) return false
+    if (state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type") return false
+    if (state.inspectorEditingFieldId) appState.commitInspectorEdit()
+    appState.applyIssueChanges()
+  }
+
   function canRunGlobalShortcut() {
     return !isPlainTextEditing() && !isPopupOpen()
   }
@@ -306,6 +317,10 @@ export function App() {
 
   function isPlainTextEditing() {
     return state.detailBodyEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
+  }
+
+  function isAnyEditing() {
+    return state.detailBodyEditing || !!state.inspectorEditingFieldId
   }
 
   function defaultsFromBoardGroup(issue: IssueSummary, groupBy: ReturnType<typeof boardGroupByForMode>): Partial<IssueSummary> {

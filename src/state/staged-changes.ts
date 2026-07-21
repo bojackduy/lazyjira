@@ -26,6 +26,29 @@ export function stagedDeleteId(issueKey: string) {
   return `delete:${issueKey}`
 }
 
+export function stagedDiscardTargetIds(changes: StagedChange[], selectedIndex: number, selections: string[]) {
+  if (selections.length) return new Set(selections)
+  const fallback = changes[selectedIndex]?.id
+  return new Set(fallback ? [fallback] : [])
+}
+
+export function discardedActiveEditors(
+  changes: StagedChange[],
+  discardedIds: Set<string>,
+  selectedIssueKey: string,
+  inspectorEditingFieldId?: IssueEditableField,
+  detailBodyEditing = false,
+) {
+  let inspector = false
+  let detailBody = false
+  for (const change of changes) {
+    if (!discardedIds.has(change.id) || change.kind !== "edit" || change.issueKey !== selectedIssueKey) continue
+    if (change.fieldId === inspectorEditingFieldId) inspector = true
+    if (change.fieldId === "description" && detailBodyEditing) detailBody = true
+  }
+  return { inspector, detailBody }
+}
+
 function stagedFieldLabel(fieldId: IssueEditableField) {
   if (fieldId === "description") return "Body"
   return issueFields.find((field) => field.id === fieldId)?.label ?? fieldId

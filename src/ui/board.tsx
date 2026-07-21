@@ -5,6 +5,7 @@ import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { IssueSummary } from "../state/app-state"
+import { issueByKey } from "../state/issue-drafts"
 import {
   activeSprint,
   boardGroupsForMode,
@@ -60,7 +61,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   }
 
   function rowsForGroup(issueKeys: string[]) {
-    const columns = visibleStatuses().map((status) => issueKeys.filter((issueKey) => state.issues[issueKey]?.statusId === status.id))
+    const columns = visibleStatuses().map((status) => issueKeys.filter((issueKey) => issueByKey(state, issueKey)?.statusId === status.id))
     const rowCount = Math.max(1, ...columns.map((column) => column.length))
     return Array.from({ length: rowCount }, (_, rowIndex) => columns.map((column) => column[rowIndex]))
   }
@@ -104,7 +105,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
                   <box flexDirection="row" gap={1} flexShrink={0} paddingRight={1}>
                     <For each={row}>
                       {(issueKey) => {
-                        const issue = issueKey ? state.issues[issueKey] : undefined
+                        const issue = issueKey ? issueByKey(state, issueKey) : undefined
                         return <IssueCell issue={issue} selected={issue?.key === state.selectedIssueKey} />
                       }}
                     </For>

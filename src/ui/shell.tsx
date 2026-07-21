@@ -1,11 +1,12 @@
-import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/solid"
-import { For, Show, type JSX } from "solid-js"
+import { TextAttributes, type KeyEvent } from "@opentui/core"
+import { useRenderer, useTerminalDimensions } from "@opentui/solid"
+import { For, onCleanup, onMount, Show, type JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useConfig } from "../context/config"
 import { useTheme } from "../context/theme"
 import { useToast } from "../context/toast"
 import { RouteSurface } from "../routes"
+import { issueByKey } from "../state/issue-drafts"
 import { routeLabel, sidebarRoutes } from "../state/routes"
 import { stagedChanges, type StagedChange } from "../state/staged-changes"
 import { IssueInspector } from "./issue-inspector"
@@ -130,7 +131,7 @@ function DeleteConfirm() {
       {(selectedIssue) => (
         <box borderStyle="rounded" borderColor={theme.danger} paddingLeft={1} paddingRight={1} marginLeft={1} marginRight={1} flexDirection="row" justifyContent="space-between">
           <text fg={theme.danger} wrapMode="none">Delete {selectedIssue().key}: {selectedIssue().title}?</text>
-          <text fg={theme.text} wrapMode="none">y stage delete · n/Esc cancel · w local apply · W write Jira</text>
+          <text fg={theme.text} wrapMode="none">y stage delete · n/Esc cancel · w render · W write Jira</text>
         </box>
       )}
     </Show>
@@ -138,9 +139,11 @@ function DeleteConfirm() {
 }
 
 function StagedDiscardPopup() {
-  const { state } = useAppState()
+  const appState = useAppState()
+  const { state } = appState
   const theme = useTheme()
   const changes = () => stagedChanges(state)
+  useStagedDiscardKeyboard(appState)
 
   return (
     <Show when={state.stagedDiscardOpen}>
@@ -156,7 +159,7 @@ function StagedDiscardPopup() {
               const checked = () => state.stagedDiscardSelections.includes(change.id)
               return (
                 <text fg={change.kind === "delete" ? theme.danger : selected() ? theme.selectedText : theme.text} bg={selected() ? theme.selected : undefined} wrapMode="none">
-                  {selected() ? ">" : " "} [{checked() ? "x" : " "}] {stagedChangeText(change, state.issues[change.issueKey]?.title ?? "Unknown issue")}
+                  {selected() ? ">" : " "} [{checked() ? "x" : " "}] {stagedChangeText(change, issueByKey(state, change.issueKey)?.title ?? "Unknown issue")}
                 </text>
               )
             }}
@@ -168,9 +171,11 @@ function StagedDiscardPopup() {
 }
 
 function RemoteApplyPopup() {
-  const { state } = useAppState()
+  const appState = useAppState()
+  const { state } = appState
   const theme = useTheme()
   const changes = () => stagedChanges(state)
+  useRemoteApplyKeyboard(appState)
 
   return (
     <Show when={state.remoteApplyOpen}>
@@ -184,7 +189,7 @@ function RemoteApplyPopup() {
           <For each={changes()}>
             {(change) => (
               <text fg={change.kind === "delete" ? theme.danger : theme.text} wrapMode="none">
-                {change.kind === "delete" ? "-" : "~"} {stagedChangeText(change, state.issues[change.issueKey]?.title ?? "Unknown issue")}
+                {change.kind === "delete" ? "-" : "~"} {stagedChangeText(change, issueByKey(state, change.issueKey)?.title ?? "Unknown issue")}
               </text>
             )}
           </For>
@@ -193,6 +198,68 @@ function RemoteApplyPopup() {
       </ModalFrame>
     </Show>
   )
+}
+
+function useStagedDiscardKeyboard(appState: ReturnType<typeof useAppState>) {
+  const renderer = useRenderer()
+  onMount(() => {
+    const handler = (event: KeyEvent) => {
+      if (!appState.state.stagedDiscardOpen) return
+      if (event.name === "return") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.confirmStagedDiscard()
+        return
+      }
+      if (event.name === "space") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.toggleStagedDiscardSelection()
+        return
+      }
+      if (event.name === "j" || event.name === "down") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.moveStagedDiscardSelection(1)
+        return
+      }
+      if (event.name === "k" || event.name === "up") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.moveStagedDiscardSelection(-1)
+        return
+      }
+      if (event.name === "escape" || event.name === "q") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.closeStagedDiscard()
+      }
+    }
+    renderer.keyInput.prependListener("keypress", handler)
+    onCleanup(() => renderer.keyInput.off("keypress", handler))
+  })
+}
+
+function useRemoteApplyKeyboard(appState: ReturnType<typeof useAppState>) {
+  const renderer = useRenderer()
+  onMount(() => {
+    const handler = (event: KeyEvent) => {
+      if (!appState.state.remoteApplyOpen) return
+      if (event.name === "w" && event.shift) {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.confirmRemoteIssueApply()
+        return
+      }
+      if (event.name === "escape" || event.name === "q") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.closeRemoteIssueApply()
+      }
+    }
+    renderer.keyInput.prependListener("keypress", handler)
+    onCleanup(() => renderer.keyInput.off("keypress", handler))
+  })
 }
 
 function ModalFrame(props: { borderColor: string; width: number; children: JSX.Element }) {
@@ -237,10 +304,10 @@ function footerText(focusedPane: string, route: string, stagedDiscardOpen: boole
   if (remoteApplyOpen) return "remote write: W final apply placeholder  esc/q close"
   if (stagedDiscardOpen) return "discard staged: j/k choose  space mark  enter discard  esc/q close"
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
-  if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  ctrl-enter stage  x delete  X discard  w local  W Jira"
-  if (route === "issue-detail") return "detail: j/k line  d/u half-page  e edit body  ctrl-enter stage  X discard  w local  W Jira"
+  if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  ctrl-enter stage  x delete  X discard  w render  W Jira"
+  if (route === "issue-detail") return "detail: j/k line  d/u half-page  e edit body  ctrl-enter stage  X discard  w render  W Jira"
   if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  x delete  enter detail  e inspector  W Jira"
   if (route === "kanban") return "kanban: j/k same status  h/l next cell  n new  x delete  g group  enter detail  W Jira"
   if (route === "backlog") return "backlog: j/k row  h/l group  n new  x delete  enter detail  e inspector  W Jira"
-  return "1 workspace  2 sprint  3 backlog  4 kanban  n new  w local  W Jira  q quit"
+  return "1 workspace  2 sprint  3 backlog  4 kanban  n new  w render  W Jira  q quit"
 }

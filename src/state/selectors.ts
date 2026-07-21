@@ -1,4 +1,5 @@
 import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, StatusDefinition } from "./app-state"
+import { issueWithDraft } from "./issue-drafts"
 
 export const boardGroupModes: { id: BoardGroupBy; label: string }[] = [
   { id: "none", label: "None" },
@@ -31,7 +32,7 @@ export function activeSprint(state: AppState) {
 }
 
 export function allIssues(state: AppState) {
-  return Object.values(state.issues)
+  return Object.values(state.issues).map((issue) => issueWithDraft(state, issue))
 }
 
 export function issueList(state: AppState) {

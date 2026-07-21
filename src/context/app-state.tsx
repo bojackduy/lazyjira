@@ -1,9 +1,10 @@
-import { createStore } from "solid-js/store"
+import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
 import type { AppState, BacklogGroupBy, BoardGroupBy, FocusPane, IssueSummary, QuickFilterId } from "../state/app-state"
 import { sidebarRoutes, type AppRoute } from "../state/routes"
-import { applyIssueDraft, isEditableField, issueFieldDisplayValue, issueFields, selectedIssueField } from "../state/issue-fields"
-import { stagedChanges } from "../state/staged-changes"
+import { issueByKey } from "../state/issue-drafts"
+import { isEditableField, issueFieldDisplayValue, issueFields, selectedIssueField } from "../state/issue-fields"
+import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from "../state/staged-changes"
 import { useToast } from "./toast"
 
 export type AppStateContext = {
@@ -123,7 +124,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("inspectorEditValue", choices[(currentIndex + delta + choices.length) % choices.length]!)
     },
     startInspectorEdit() {
-      const issue = state.issues[state.selectedIssueKey]
+      const issue = issueByKey(state, state.selectedIssueKey)
       const field = selectedIssueField(state)
       if (!issue || !field || !field.editable || !isEditableField(field.id)) return
       setState("inspectorEditingFieldId", field.id)
@@ -150,7 +151,10 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       if (!field || !isEditableField(field.id)) return
       const draft = { ...(state.issueDrafts[issueKey] ?? {}) }
       delete draft[field.id]
-      setState("issueDrafts", { ...state.issueDrafts, [issueKey]: draft })
+      const drafts = { ...state.issueDrafts }
+      if (Object.keys(draft).length) drafts[issueKey] = draft
+      else delete drafts[issueKey]
+      setState("issueDrafts", reconcile(drafts))
       if (state.inspectorEditingFieldId === field.id) context.cancelInspectorEdit()
     },
     requestIssueDelete() {
@@ -165,7 +169,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("pendingDeleteIssueKey", undefined)
       const drafts = { ...state.issueDrafts }
       delete drafts[issueKey]
-      setState("issueDrafts", drafts)
+      setState("issueDrafts", reconcile(drafts))
     },
     cancelIssueDelete() {
       setState("pendingDeleteIssueKey", undefined)
@@ -185,7 +189,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       toast.show(changeCount ? "Jira write path is not wired yet; staged changes kept" : "No staged changes to write")
     },
     startDetailBodyEdit() {
-      const issue = state.issues[state.selectedIssueKey]
+      const issue = issueByKey(state, state.selectedIssueKey)
       if (!issue || state.route !== "issue-detail") return
       setState("detailBodyEditValue", detailBodyInitialValue(state, issue))
       setState("detailBodyEditing", true)
@@ -230,13 +234,19 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
     },
     confirmStagedDiscard() {
       const changes = stagedChanges(state)
-      const fallback = changes[state.stagedDiscardSelectedIndex]?.id
-      const selectedIds = state.stagedDiscardSelections.length ? new Set(state.stagedDiscardSelections) : new Set(fallback ? [fallback] : [])
-      if (!selectedIds.size) return
+      const selectedIds = stagedDiscardTargetIds(changes, state.stagedDiscardSelectedIndex, state.stagedDiscardSelections)
+      if (!selectedIds.size) {
+        context.closeStagedDiscard()
+        toast.show("No staged changes to discard")
+        return
+      }
+      let discardedCount = 0
+      const editorsToClear = discardedActiveEditors(changes, selectedIds, state.selectedIssueKey, state.inspectorEditingFieldId, state.detailBodyEditing)
       const issueDrafts = { ...state.issueDrafts }
       let issueDeletes = [...state.issueDeletes]
       for (const change of changes) {
         if (!selectedIds.has(change.id)) continue
+        discardedCount += 1
         if (change.kind === "delete") {
           issueDeletes = issueDeletes.filter((issueKey) => issueKey !== change.issueKey)
           continue
@@ -246,35 +256,25 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
         if (Object.keys(draft).length) issueDrafts[change.issueKey] = draft
         else delete issueDrafts[change.issueKey]
       }
-      setState("issueDrafts", issueDrafts)
+      setState("issueDrafts", reconcile(issueDrafts))
       setState("issueDeletes", issueDeletes)
+      if (editorsToClear.inspector) {
+        setState("inspectorEditingFieldId", undefined)
+        setState("inspectorEditValue", "")
+      }
+      if (editorsToClear.detailBody) {
+        setState("detailBodyEditing", false)
+        setState("detailBodyEditValue", "")
+      }
       context.closeStagedDiscard()
+      toast.show(`Discarded ${discardedCount} staged change${discardedCount === 1 ? "" : "s"}`)
     },
     applyIssueChanges() {
       const changeCount = stagedChanges(state).length
       if (!changeCount) {
-        toast.show("No staged changes to apply locally")
+        toast.show("No staged changes to render")
         return
       }
-      const drafts = { ...state.issueDrafts }
-      const deletedIssueKeys = new Set(state.issueDeletes)
-      for (const [issueKey, draft] of Object.entries(drafts)) {
-        if (deletedIssueKeys.has(issueKey)) continue
-        const issue = state.issues[issueKey]
-        if (!issue || !Object.keys(draft).length) continue
-        setState("issues", issueKey, applyIssueDraft(issue, draft, state))
-      }
-      if (deletedIssueKeys.size) {
-        const issues = Object.fromEntries(Object.entries(state.issues).filter(([issueKey]) => !deletedIssueKeys.has(issueKey)))
-        setState("issues", issues)
-        if (deletedIssueKeys.has(state.selectedIssueKey)) {
-          const nextIssueKey = Object.keys(issues)[0]
-          if (nextIssueKey) setState("selectedIssueKey", nextIssueKey)
-          if (state.route === "issue-detail") context.closeIssueDetail()
-        }
-      }
-      setState("issueDrafts", {})
-      setState("issueDeletes", [])
       setState("pendingDeleteIssueKey", undefined)
       setState("remoteApplyOpen", false)
       setState("stagedDiscardOpen", false)
@@ -284,7 +284,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("inspectorEditValue", "")
       setState("detailBodyEditing", false)
       setState("detailBodyEditValue", "")
-      toast.show(`Applied ${changeCount} staged change${changeCount === 1 ? "" : "s"} locally`)
+      toast.show(`${changeCount} staged change${changeCount === 1 ? "" : "s"} rendered; X can discard, W writes Jira`)
     },
     createDraftIssue(issue) {
       setState("issues", issue.key, issue)

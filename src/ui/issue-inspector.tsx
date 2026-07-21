@@ -3,6 +3,7 @@ import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
+import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldColor, issueFieldDisplayValue, issueFields, type IssueFieldDefinition } from "../state/issue-fields"
 import { issueTypeColor, statusColor, statusName } from "../state/selectors"
 
@@ -11,7 +12,7 @@ export function IssueInspector(props: { compact: boolean }) {
   const { state } = appState
   const theme = useTheme()
   let scrollbox: ScrollBoxRenderable | undefined
-  const issue = () => state.issues[state.selectedIssueKey]
+  const issue = () => issueByKey(state, state.selectedIssueKey)
   const focused = () => state.focusedPane === "inspector"
   const stagedCount = () => Object.values(state.issueDrafts).reduce((total, draft) => total + Object.keys(draft).length, 0) + state.issueDeletes.length
 
@@ -56,7 +57,7 @@ export function IssueInspector(props: { compact: boolean }) {
               <text fg={theme.text} wrapMode="none">{selectedIssue().title}</text>
               <text fg={issueTypeColor(state, selectedIssue())} wrapMode="none">■ {selectedIssue().type} <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span></text>
               <Show when={state.issueDeletes.includes(selectedIssue().key)}>
-                <text fg={theme.danger} wrapMode="none">Delete staged · w local apply · W write Jira</text>
+                <text fg={theme.danger} wrapMode="none">Delete staged · w render · W write Jira</text>
               </Show>
             </box>
             <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} flexGrow={1} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
@@ -86,7 +87,7 @@ function IssueFieldRow(props: { field: IssueFieldDefinition; index: number }) {
   const appState = useAppState()
   const { state } = appState
   const theme = useTheme()
-  const issue = () => state.issues[state.selectedIssueKey]
+  const issue = () => issueByKey(state, state.selectedIssueKey)
   const selected = () => state.focusedPane === "inspector" && state.inspectorSelectedFieldIndex === props.index
   const editing = () => state.inspectorEditingFieldId === props.field.id
   const dirty = () => issue() && isEditableField(props.field.id) && state.issueDrafts[issue()!.key]?.[props.field.id] !== undefined
