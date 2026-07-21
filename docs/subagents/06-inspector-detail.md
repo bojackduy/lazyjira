@@ -1,8 +1,8 @@
-# Subagent Task: Inspector And Issue Detail
+# Subagent Task: Inspector And Issue Editing
 
 ## Objective
 
-Build the selected issue inspector and rich detail surface used by board and backlog screens.
+Build the selected issue inspector and editing surface used by board and backlog screens.
 
 ## Parallel Status
 
@@ -10,7 +10,7 @@ Can start after issue demo data exists. It can proceed independently from real J
 
 ## Inputs
 
-- Product screen spec: `README.md` Issue Detail section.
+- Product screen spec: `README.md` Issue Inspector section.
 - OpenTUI Markdown notes: `docs/OPENTUI_REFERENCE.md`.
 - Domain/demo data from `02-domain-demo-data`.
 - Command names from `03-keymap-command-system`.
@@ -18,21 +18,20 @@ Can start after issue demo data exists. It can proceed independently from real J
 ## Suggested Scope
 
 - Render persistent inspector for selected issue.
-- Render detail drawer, overlay, or full-screen route based on available space.
+- Make the right inspector pane the canonical issue detail/edit/create surface.
 - Render markdown issue description.
 - Render comments, subtasks, links, attachments, and activity sections.
-- Add action affordances for transition, assign, priority, comment, edit, copy, and open browser.
-- Keep board/backlog context visible when detail is opened on wide screens.
+- Add staged edit/create affordances plus transition, assign, priority, comment, copy, and open browser actions.
+- Keep board/backlog context visible while inspecting or editing issues.
 
 ## Suggested Files
 
-- `src/ui/inspector.tsx`
-- `src/routes/issue-detail.tsx`
-- `src/ui/detail/detail-view.tsx`
-- `src/ui/detail/description.tsx`
-- `src/ui/detail/comments.tsx`
-- `src/ui/detail/links.tsx`
-- `src/ui/detail/activity.tsx`
+- `src/ui/issue-inspector.tsx`
+- `src/state/issue-fields.ts`
+- `src/ui/inspector/description.tsx`
+- `src/ui/inspector/comments.tsx`
+- `src/ui/inspector/links.tsx`
+- `src/ui/inspector/activity.tsx`
 
 ## OpenTUI References
 
@@ -45,17 +44,20 @@ Can start after issue demo data exists. It can proceed independently from real J
 ## Checklist
 
 - [ ] Inspector updates when selected issue changes.
-- [ ] Detail opens from board and backlog selection.
-- [ ] `q` closes detail and returns to previous context.
+- [ ] `Enter` focuses the inspector from board and backlog selection.
+- [ ] `e` or `Enter` edits the selected inspector field.
+- [ ] `w` applies staged changes locally before Jira write integration exists.
+- [ ] `x` discards the selected staged field.
+- [ ] `n` creates a draft issue with context-aware defaults.
 - [ ] Rich markdown description renders with headings, lists, code blocks, links, and tables.
 - [ ] Comments and linked issue sections render from demo data.
-- [ ] Detail scroll behavior uses lazy-family keys.
+- [ ] Inspector scroll behavior uses lazy-family keys.
 - [ ] Empty description/comments/links states are handled.
-- [ ] Narrow terminal detail behavior is intentional.
+- [ ] Narrow terminal inspector behavior is intentional.
 
 ## Handoff
 
-Return detail route/overlay behavior and any props/state needed by board and backlog screens.
+Return inspector field/edit behavior and any state needed by board and backlog screens.
 
 ## Avoid
 

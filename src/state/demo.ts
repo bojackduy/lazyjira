@@ -386,10 +386,11 @@ Images and videos can come later.`,
 
 export function loadDemoWorkspace(): AppState {
   const activeSprintId = "sprint-24"
-  const issueMap = Object.fromEntries(issues.map((issue) => [issue.key, issue]))
-  const activeSprintIssues = issues.filter((issue) => issue.sprintId === activeSprintId)
-  const done = issues.filter((issue) => statuses.find((status) => status.id === issue.statusId)?.category === "done").length
-  const inProgress = issues.filter((issue) =>
+  const enrichedIssues = issues.map(enrichIssue)
+  const issueMap = Object.fromEntries(enrichedIssues.map((issue) => [issue.key, issue]))
+  const activeSprintIssues = enrichedIssues.filter((issue) => issue.sprintId === activeSprintId)
+  const done = enrichedIssues.filter((issue) => statuses.find((status) => status.id === issue.statusId)?.category === "done").length
+  const inProgress = enrichedIssues.filter((issue) =>
     ["in-progress", "review", "blocked"].includes(statuses.find((status) => status.id === issue.statusId)?.category ?? ""),
   ).length
 
@@ -424,13 +425,32 @@ export function loadDemoWorkspace(): AppState {
     activeSprintStatusOffset: 0,
     kanbanStatusOffset: 0,
     selectedIssueKey: "PROJ-128",
+    inspectorSelectedFieldIndex: 1,
+    inspectorEditValue: "",
+    issueDrafts: {},
+    draftIssueCounter: 1,
     stats: {
-      todo: issues.filter((issue) => statuses.find((status) => status.id === issue.statusId)?.category === "todo").length,
+      todo: enrichedIssues.filter((issue) => statuses.find((status) => status.id === issue.statusId)?.category === "todo").length,
       inProgress,
       done,
-      blocked: issues.filter((issue) => issue.blocked || issue.statusId === "blocked").length,
-      stale: issues.filter((issue) => issue.staleDays >= 7).length,
-      unassigned: issues.filter((issue) => issue.assignee === "Unassigned").length,
+      blocked: enrichedIssues.filter((issue) => issue.blocked || issue.statusId === "blocked").length,
+      stale: enrichedIssues.filter((issue) => issue.staleDays >= 7).length,
+      unassigned: enrichedIssues.filter((issue) => issue.assignee === "Unassigned").length,
     },
+  }
+}
+
+function enrichIssue(issue: IssueSummary, index: number): IssueSummary {
+  const dueDay = String(8 + (index % 18)).padStart(2, "0")
+  return {
+    ...issue,
+    estimate: issue.storyPoints ? issue.storyPoints * 2 : undefined,
+    dueDate: `2026-08-${dueDay}`,
+    createdAt: `2026-07-${String(1 + (index % 12)).padStart(2, "0")}`,
+    updatedAt: `2026-07-${String(12 + (index % 10)).padStart(2, "0")}`,
+    resolution: statuses.find((status) => status.id === issue.statusId)?.category === "done" ? "Done" : undefined,
+    fixVersions: index % 3 === 0 ? ["2026.08"] : [],
+    affectsVersions: issue.type === "Bug" ? ["2026.07"] : [],
+    rank: `R-${String(index + 1).padStart(3, "0")}`,
   }
 }

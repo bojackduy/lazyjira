@@ -8,7 +8,6 @@ describe("routes", () => {
       "active-sprint",
       "backlog",
       "kanban",
-      "issue-detail",
     ])
   })
 

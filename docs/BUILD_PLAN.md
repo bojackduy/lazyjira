@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build an overview-first Jira terminal workspace: active sprint board, backlog, Kanban board, issue inspector, rich issue detail, command palette, and lazy-family keyboard workflows.
+Build an overview-first Jira terminal workspace: active sprint board, backlog, Kanban board, issue inspector/editor, command palette, and lazy-family keyboard workflows.
 
 The first executable milestone should use demo data. Real Jira API integration comes after the interaction model is working.
 
@@ -32,7 +32,7 @@ Once foundation exists, these can run mostly in parallel:
 - Keymap and command palette: `subagents/03-keymap-command-system.md`.
 - Active sprint board UI: `subagents/04-active-sprint-board.md`.
 - Backlog UI: `subagents/05-backlog-screen.md`.
-- Inspector and issue detail: `subagents/06-inspector-detail.md`.
+- Inspector and issue editing: `subagents/06-inspector-detail.md`.
 
 Integration contract for Wave 1:
 
@@ -52,7 +52,7 @@ Outputs:
 - Project/board discovery.
 - Active sprint loading.
 - Backlog loading.
-- Issue detail loading.
+- Issue detail loading into the inspector.
 - Clear API error mapping.
 - Demo mode still works without credentials.
 
@@ -79,7 +79,7 @@ Outputs:
 | Keymap and commands | After renderer exists | Foundation shell | keymap, command registry, help |
 | Active sprint board | After demo board data exists | Domain/demo data | board screen, cards, columns |
 | Backlog screen | After demo backlog data exists | Domain/demo data | backlog sections, rank preview |
-| Inspector/detail | After issue model exists | Domain/demo data | inspector, detail drawer, markdown |
+| Inspector/detail | After issue model exists | Domain/demo data | inspector, staged edits, markdown |
 | Read-only Jira API | After domain model stabilizes | Domain/demo data | api client, normalization, effects |
 | Quality integration | Any time after foundation | All tracks for final pass | tests, fixtures, docs |
 
@@ -102,7 +102,7 @@ Pass when:
 - `j/k` moves within a column.
 - `h/l` moves across columns.
 - Inspector updates with selected card.
-- `Enter` opens issue detail and `q` closes it.
+- `Enter` focuses the inspector and `e` edits the selected field.
 
 ### Checkpoint C: Backlog Is Useful
 
@@ -120,7 +120,7 @@ Pass when:
 
 - User can choose a project/board.
 - Active sprint and backlog load from Jira.
-- Issue detail loads from Jira.
+- Issue detail loads from Jira into the inspector.
 - Network/auth/Jira validation errors are actionable.
 - Demo mode still works.
 

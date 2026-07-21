@@ -5,7 +5,7 @@ import { useAppState } from "./context/app-state"
 import { useExit } from "./context/exit"
 import { AppShell } from "./ui/shell"
 import { sidebarRoutes } from "./state/routes"
-import type { BoardMode } from "./state/app-state"
+import type { BoardMode, IssueSummary } from "./state/app-state"
 import {
   boardCellIssueKeys,
   boardIssueKeyAtLocation,
@@ -16,6 +16,7 @@ import {
 } from "./state/board-navigation"
 import {
   boardGroupsForMode,
+  boardGroupByForMode,
   boardIssuesForMode,
   boardStatusOffsetForMode,
   boardStatusWindowSize,
@@ -41,14 +42,10 @@ export function App() {
       {
         name: "app.quit",
         run() {
-          if (appState.state.route === "issue-detail") {
-            appState.closeIssue()
-            return
-          }
           exit.exit()
         },
       },
-      { name: "detail.back", run: () => state.route === "issue-detail" && appState.closeIssue() },
+      { name: "edit.cancel", run: () => appState.cancelInspectorEdit() },
       { name: "route.workspace", run: () => appState.setRoute("workspace") },
       { name: "route.active-sprint", run: () => appState.setRoute("active-sprint") },
       { name: "route.backlog", run: () => appState.setRoute("backlog") },
@@ -62,11 +59,15 @@ export function App() {
       { name: "pane.enter", run: () => openFocusedItem() },
       { name: "sidebar.toggle-filter", run: () => state.focusedPane === "sidebar" && appState.toggleSidebarFilterSelection() },
       { name: "group.cycle", run: () => cycleGroup() },
+      { name: "issue.edit", run: () => editSelectedIssue() },
+      { name: "issue.new", run: () => createIssueFromContext() },
+      { name: "issue.apply", run: () => appState.applyIssueChanges() },
+      { name: "issue.discard-field", run: () => appState.discardInspectorFieldChange() },
     ],
     bindings: [
       { key: "q", cmd: "app.quit" },
       { key: { name: "c", ctrl: true }, cmd: "app.quit" },
-      { key: "backspace", cmd: "detail.back" },
+      { key: "escape", cmd: "edit.cancel" },
       { key: "tab", cmd: "focus.next" },
       { key: { name: "tab", shift: true }, cmd: "focus.previous" },
       { key: "1", cmd: "route.workspace" },
@@ -84,12 +85,20 @@ export function App() {
       { key: "return", cmd: "pane.enter" },
       { key: "space", cmd: "sidebar.toggle-filter" },
       { key: "g", cmd: "group.cycle" },
+      { key: "e", cmd: "issue.edit" },
+      { key: "n", cmd: "issue.new" },
+      { key: "w", cmd: "issue.apply" },
+      { key: "x", cmd: "issue.discard-field" },
     ],
   }))
 
   function moveVertical(delta: number) {
     if (state.focusedPane === "sidebar") {
       appState.moveSidebarSelection(delta)
+      return
+    }
+    if (state.focusedPane === "inspector") {
+      appState.moveInspectorSelection(delta)
       return
     }
     if (state.focusedPane !== "main") return
@@ -114,8 +123,12 @@ export function App() {
       if (state.sidebarSelectedIndex < sidebarRoutes.length) appState.setFocusedPane("main")
       return
     }
+    if (state.focusedPane === "inspector") {
+      appState.startInspectorEdit()
+      return
+    }
     if (state.focusedPane !== "main") return
-    if (isBoardRoute(state.route) || state.route === "backlog") appState.openIssue(state.selectedIssueKey)
+    if (isBoardRoute(state.route) || state.route === "backlog") appState.setFocusedPane("inspector")
   }
 
   function cycleGroup() {
@@ -129,6 +142,73 @@ export function App() {
       appState.setKanbanStatusOffset(0)
     }
     if (state.route === "backlog") appState.setBacklogGroupBy(nextBacklogGroupBy(state.backlogGroupBy))
+  }
+
+  function editSelectedIssue() {
+    if (state.focusedPane !== "inspector") {
+      appState.setFocusedPane("inspector")
+      return
+    }
+    appState.startInspectorEdit()
+  }
+
+  function createIssueFromContext() {
+    const current = state.issues[state.selectedIssueKey]
+    const boardMode = isBoardRoute(state.route) ? state.route : undefined
+    const location = boardMode ? selectedBoardLocation(state, boardMode) : undefined
+    const statusId = location ? state.statuses[location.statusIndex]?.id : current?.statusId
+    const key = `DRAFT-${state.draftIssueCounter}`
+    const groupDefaults = current && boardMode ? defaultsFromBoardGroup(current, boardGroupByForMode(state, boardMode)) : {}
+    const issue: IssueSummary = {
+      key,
+      title: "New issue",
+      type: groupDefaults.type ?? "Task",
+      priority: groupDefaults.priority ?? current?.priority ?? "Medium",
+      statusId: statusId ?? state.statuses[0]?.id ?? "todo",
+      assignee: groupDefaults.assignee ?? current?.assignee ?? state.currentUser,
+      reporter: state.currentUser,
+      epic: groupDefaults.epic ?? current?.epic,
+      feature: groupDefaults.feature ?? current?.feature,
+      space: groupDefaults.space ?? current?.space,
+      sprintId: state.route === "active-sprint" ? state.activeSprintId : current?.sprintId,
+      storyPoints: 0,
+      estimate: 0,
+      dueDate: "",
+      createdAt: "now",
+      updatedAt: "now",
+      resolution: undefined,
+      fixVersions: [],
+      affectsVersions: [],
+      rank: key,
+      isDraft: true,
+      labels: current?.labels ?? [],
+      components: current?.components ?? [],
+      blocked: false,
+      staleDays: 0,
+      description: "",
+      comments: [],
+      links: [],
+    }
+    appState.createDraftIssue(issue)
+  }
+
+  function defaultsFromBoardGroup(issue: IssueSummary, groupBy: ReturnType<typeof boardGroupByForMode>): Partial<IssueSummary> {
+    switch (groupBy) {
+      case "assignee":
+        return { assignee: issue.assignee }
+      case "epic":
+        return { epic: issue.epic }
+      case "feature":
+        return { feature: issue.feature }
+      case "space":
+        return { space: issue.space }
+      case "issueType":
+        return { type: issue.type }
+      case "priority":
+        return { priority: issue.priority }
+      case "none":
+        return {}
+    }
   }
 
   function moveBoardVertical(mode: BoardMode, delta: number) {

@@ -3,10 +3,9 @@ export const appRoutes = [
   { id: "active-sprint", label: "Active Sprint", shortLabel: "Sprint" },
   { id: "backlog", label: "Backlog", shortLabel: "Backlog" },
   { id: "kanban", label: "Kanban Board", shortLabel: "Kanban" },
-  { id: "issue-detail", label: "Issue Detail", shortLabel: "Detail" },
 ] as const
 
-export const sidebarRoutes = appRoutes.filter((route) => route.id !== "issue-detail")
+export const sidebarRoutes = appRoutes
 
 export type AppRoute = (typeof appRoutes)[number]["id"]
 

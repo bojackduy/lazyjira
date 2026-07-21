@@ -50,6 +50,31 @@ export type BoardMode = "active-sprint" | "kanban"
 
 export type BacklogGroupBy = "sprint" | Exclude<BoardGroupBy, "none">
 
+export type IssueEditableField =
+  | "title"
+  | "type"
+  | "statusId"
+  | "priority"
+  | "assignee"
+  | "reporter"
+  | "sprintId"
+  | "parentKey"
+  | "storyPoints"
+  | "estimate"
+  | "dueDate"
+  | "epic"
+  | "feature"
+  | "space"
+  | "labels"
+  | "components"
+  | "fixVersions"
+  | "affectsVersions"
+  | "links"
+  | "blocked"
+  | "description"
+
+export type IssueDraft = Partial<Record<IssueEditableField, string>>
+
 export type FocusPane = "sidebar" | "main" | "inspector"
 
 export type QuickFilterId = "mine" | "blocked" | "stale" | "unassigned"
@@ -73,6 +98,15 @@ export type IssueSummary = {
   sprintId?: string
   parentKey?: string
   storyPoints?: number
+  estimate?: number
+  dueDate?: string
+  createdAt?: string
+  updatedAt?: string
+  resolution?: string
+  fixVersions?: string[]
+  affectsVersions?: string[]
+  rank?: string
+  isDraft?: boolean
   labels: string[]
   components: string[]
   blocked: boolean
@@ -100,7 +134,6 @@ export type WorkspaceStats = {
 export type AppState = {
   demoMode: boolean
   route: AppRoute
-  previousRoute?: AppRoute
   focusedPane: FocusPane
   sidebarSelectedIndex: number
   project: ProjectSummary
@@ -120,5 +153,10 @@ export type AppState = {
   activeSprintStatusOffset: number
   kanbanStatusOffset: number
   selectedIssueKey: string
+  inspectorSelectedFieldIndex: number
+  inspectorEditingFieldId?: IssueEditableField
+  inspectorEditValue: string
+  issueDrafts: Record<string, IssueDraft>
+  draftIssueCounter: number
   stats: WorkspaceStats
 }

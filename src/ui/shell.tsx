@@ -7,7 +7,7 @@ import { useTheme } from "../context/theme"
 import { useToast } from "../context/toast"
 import { RouteSurface } from "../routes"
 import { routeLabel, sidebarRoutes } from "../state/routes"
-import { issueTypeColor, statusColor, statusName } from "../state/selectors"
+import { IssueInspector } from "./issue-inspector"
 
 export function AppShell() {
   const dimensions = useTerminalDimensions()
@@ -19,7 +19,7 @@ export function AppShell() {
       <box flexGrow={1} flexDirection={narrow() ? "column" : "row"} gap={1} padding={1}>
         <Sidebar />
         <MainSurface />
-        <Inspector compact={narrow()} />
+        <IssueInspector compact={narrow()} />
       </box>
       <Footer />
     </box>
@@ -102,36 +102,6 @@ function MainSurface() {
   )
 }
 
-function Inspector(props: { compact: boolean }) {
-  const { state, setFocusedPane } = useAppState()
-  const theme = useTheme()
-  const issue = () => state.issues[state.selectedIssueKey]
-  const focused = () => state.focusedPane === "inspector"
-
-  return (
-    <box borderStyle="rounded" borderColor={focused() ? theme.borderActive : theme.border} padding={1} width={props.compact ? "100%" : 30} flexShrink={0} onMouseUp={() => setFocusedPane("inspector")}>
-      <text attributes={TextAttributes.BOLD} fg={theme.text}>Inspector</text>
-      <Show when={issue()} fallback={<text fg={theme.textMuted}>No issue selected</text>}>
-        {(selectedIssue) => (
-          <box paddingTop={1} flexDirection="column" gap={1}>
-            <text fg={theme.accent}>{selectedIssue().key}</text>
-            <text fg={theme.text}>{selectedIssue().title}</text>
-            <text fg={issueTypeColor(state, selectedIssue())}>■ {selectedIssue().type} - {selectedIssue().priority}</text>
-            <text fg={statusColor(state, selectedIssue())}>● {statusName(state, selectedIssue())}</text>
-            <text fg={theme.textMuted}>Assignee: {selectedIssue().assignee}</text>
-            <text fg={theme.textMuted}>Feature: {selectedIssue().feature ?? "None"}</text>
-            <text fg={theme.textMuted}>Space: {selectedIssue().space ?? "None"}</text>
-            <text fg={selectedIssue().blocked ? theme.danger : theme.success}>
-              {selectedIssue().blocked ? "Blocked" : "Not blocked"}
-            </text>
-            <text fg={selectedIssue().staleDays >= 7 ? theme.warning : theme.textSubtle}>Stale: {selectedIssue().staleDays}d</text>
-          </box>
-        )}
-      </Show>
-    </box>
-  )
-}
-
 function Footer() {
   const { state } = useAppState()
   const theme = useTheme()
@@ -147,9 +117,9 @@ function Footer() {
 
 function footerText(focusedPane: string, route: string) {
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
-  if (route === "active-sprint") return "sprint: j/k card in column  h/l column  d/u scroll  enter detail  tab focus  q quit"
-  if (route === "kanban") return "kanban: j/k same status across groups  h/l status/next cell  d/u scroll  g group  enter detail"
-  if (route === "backlog") return "backlog: j/k row  h/l group  d/u scroll  g group  enter detail  tab focus  q quit"
-  if (route === "issue-detail") return "detail: u/d scroll  backspace/q back  tab focus"
-  return "1 workspace  2 sprint  3 backlog  4 kanban  tab focus  q quit"
+  if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  w apply staged  x discard  d/u scroll  tab focus"
+  if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  enter inspector  tab focus  q quit"
+  if (route === "kanban") return "kanban: j/k same status  h/l status/next cell  n new  g group  enter inspector"
+  if (route === "backlog") return "backlog: j/k row  h/l group  n new  enter inspector  tab focus  q quit"
+  return "1 workspace  2 sprint  3 backlog  4 kanban  n new  tab focus  q quit"
 }

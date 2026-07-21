@@ -17,7 +17,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [ ] `03-keymap-command-system`: lazy-style commands, keymap modes, help/command palette metadata.
 - [ ] `04-active-sprint-board`: active sprint board columns/cards/navigation.
 - [ ] `05-backlog-screen`: backlog sections, sprint health, rank/move interactions.
-- [ ] `06-inspector-detail`: inspector, detail drawer, rich description/comments/links.
+- [~] `06-inspector-detail`: inspector, staged edits, draft issue creation, rich description/comments/links.
 - [ ] Verify Checkpoint B in `BUILD_PLAN.md`.
 - [ ] Verify Checkpoint C in `BUILD_PLAN.md`.
 
