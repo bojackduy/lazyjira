@@ -429,6 +429,10 @@ export function loadDemoWorkspace(): AppState {
     inspectorSelectedFieldIndex: 1,
     inspectorEditValue: "",
     issueDrafts: {},
+    issueDeletes: [],
+    pendingDeleteIssueKey: undefined,
+    detailBodyEditing: false,
+    detailBodyEditValue: "",
     draftIssueCounter: 1,
     stats: {
       todo: enrichedIssues.filter((issue) => statuses.find((status) => status.id === issue.statusId)?.category === "todo").length,

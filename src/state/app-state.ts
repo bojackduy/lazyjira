@@ -158,6 +158,10 @@ export type AppState = {
   inspectorEditingFieldId?: IssueEditableField
   inspectorEditValue: string
   issueDrafts: Record<string, IssueDraft>
+  issueDeletes: string[]
+  pendingDeleteIssueKey?: string
+  detailBodyEditing: boolean
+  detailBodyEditValue: string
   draftIssueCounter: number
   stats: WorkspaceStats
 }

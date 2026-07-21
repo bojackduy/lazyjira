@@ -69,7 +69,7 @@ Can start after foundation provides renderer/keymap providers. Should coordinate
 - [ ] `?`, `/`, `q`, `Esc`, `Tab`, `Enter`, `Space`, `g/G`, `Ctrl-u/d` are registered.
 - [ ] Board mode maps `h/l` to columns and `j/k` to cards.
 - [ ] Backlog mode maps `j/k` to rows and `J/K` to rank movement.
-- [ ] Detail mode maps `j/k` and `Ctrl-u/d` to document scrolling.
+- [ ] Detail mode maps `j/k` to line scrolling and `d/u` or `Ctrl-d/u` to half-page scrolling.
 - [ ] Dialog mode handles `Esc`, `Enter`, `j/k`, `/` where appropriate.
 - [ ] Help and command palette can show active shortcuts from metadata.
 - [ ] Keymap tests cover mode-specific behavior.

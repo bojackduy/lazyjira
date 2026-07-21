@@ -13,7 +13,7 @@ export function IssueInspector(props: { compact: boolean }) {
   let scrollbox: ScrollBoxRenderable | undefined
   const issue = () => state.issues[state.selectedIssueKey]
   const focused = () => state.focusedPane === "inspector"
-  const stagedCount = () => Object.values(state.issueDrafts).reduce((total, draft) => total + Object.keys(draft).length, 0)
+  const stagedCount = () => Object.values(state.issueDrafts).reduce((total, draft) => total + Object.keys(draft).length, 0) + state.issueDeletes.length
 
   useBindings(() => ({
     commands: [
@@ -51,6 +51,9 @@ export function IssueInspector(props: { compact: boolean }) {
               <text fg={theme.accent} wrapMode="none">{selectedIssue().key}{selectedIssue().isDraft ? " draft" : ""}</text>
               <text fg={theme.text} wrapMode="none">{selectedIssue().title}</text>
               <text fg={issueTypeColor(state, selectedIssue())} wrapMode="none">■ {selectedIssue().type} <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span></text>
+              <Show when={state.issueDeletes.includes(selectedIssue().key)}>
+                <text fg={theme.danger} wrapMode="none">Delete staged · w applies batch</text>
+              </Show>
             </box>
             <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} flexGrow={1} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
               <For each={issueFields}>
@@ -68,7 +71,7 @@ export function IssueInspector(props: { compact: boolean }) {
                 </For>
               </box>
             </scrollbox>
-            <text fg={theme.textSubtle} wrapMode="none">j/k field · e edit · w apply · x discard</text>
+            <text fg={theme.textSubtle} wrapMode="none">j/k field · e edit · x delete · X discard · w apply</text>
           </box>
         )}
       </Show>

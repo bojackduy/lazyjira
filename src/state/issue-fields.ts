@@ -35,7 +35,6 @@ export const issueFields: IssueFieldDefinition[] = [
   { id: "updatedAt", label: "Updated", editable: false, value: (issue) => issue.updatedAt ?? "" },
   { id: "rank", label: "Rank", editable: false, value: (issue) => issue.rank ?? "" },
   { id: "resolution", label: "Resolution", editable: false, value: (issue) => issue.resolution ?? "Unresolved" },
-  { id: "description", label: "Body", editable: true, multiline: true, value: (issue) => issue.description },
 ]
 
 export function issueFieldDisplayValue(state: AppState, issue: IssueSummary, field: IssueFieldDefinition) {

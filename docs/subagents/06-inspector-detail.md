@@ -20,9 +20,9 @@ Can start after issue demo data exists. It can proceed independently from real J
 - Render persistent inspector for selected issue.
 - Keep the right inspector pane as the quick issue/status/edit/create surface on overview routes.
 - Render an issue detail route in the main pane while keeping the right inspector visible.
-- Render markdown issue description.
+- Render and edit the issue body/description in the detail route, not the inspector.
 - Render comments, subtasks, links, attachments, and activity sections.
-- Add staged edit/create affordances plus transition, assign, priority, comment, copy, and open browser actions.
+- Add staged edit/create/delete affordances plus transition, assign, priority, comment, copy, and open browser actions.
 - Make status/type edits multiple-choice from current Jira/board metadata and keep their colors consistent with board/backlog views.
 - Keep board/backlog context visible while using the inspector; restore it with `q`/Backspace from detail.
 
@@ -31,7 +31,7 @@ Can start after issue demo data exists. It can proceed independently from real J
 - `src/ui/issue-inspector.tsx`
 - `src/routes/issue-detail.tsx`
 - `src/state/issue-fields.ts`
-- `src/ui/inspector/description.tsx`
+- `src/routes/issue-detail.tsx`
 - `src/ui/inspector/comments.tsx`
 - `src/ui/inspector/links.tsx`
 - `src/ui/inspector/activity.tsx`
@@ -50,10 +50,14 @@ Can start after issue demo data exists. It can proceed independently from real J
 - [ ] `Enter` opens full issue detail from board and backlog selection.
 - [ ] `q`/Backspace closes detail and returns to the previous overview.
 - [ ] The right inspector pane remains visible on full issue detail.
-- [ ] `e` or `Enter` edits the selected inspector field.
+- [ ] The inspector does not include the Body field.
+- [ ] In detail, `e` edits body and `Enter` stages it for batch apply.
+- [ ] In detail, `j/k` scroll one line and `d/u` scroll half a page.
+- [ ] In inspector, `e` or `Enter` edits the selected inspector field.
 - [ ] Status and type inspector edits use colored multiple-choice pickers.
 - [ ] `w` applies staged changes locally before Jira write integration exists.
-- [ ] `x` discards the selected staged field.
+- [ ] `x` asks for confirmation, then stages selected issue deletion for batch apply.
+- [ ] `X` discards the selected staged field.
 - [ ] `n` creates a draft issue with context-aware defaults.
 - [ ] Rich markdown description renders with headings, lists, code blocks, links, and tables.
 - [ ] Comments and linked issue sections render from demo data.

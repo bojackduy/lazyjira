@@ -42,6 +42,10 @@ export function App() {
       {
         name: "app.quit",
         run() {
+          if (state.pendingDeleteIssueKey) {
+            appState.cancelIssueDelete()
+            return
+          }
           if (state.route === "issue-detail") {
             appState.closeIssueDetail()
             return
@@ -50,7 +54,14 @@ export function App() {
         },
       },
       { name: "app.force-quit", run: () => exit.exit() },
-      { name: "edit.cancel", run: () => appState.cancelInspectorEdit() },
+      {
+        name: "edit.cancel",
+        run() {
+          if (state.pendingDeleteIssueKey) appState.cancelIssueDelete()
+          else if (state.detailBodyEditing) appState.cancelDetailBodyEdit()
+          else appState.cancelInspectorEdit()
+        },
+      },
       { name: "detail.back", run: () => appState.closeIssueDetail() },
       { name: "route.workspace", run: () => appState.setRoute("workspace") },
       { name: "route.active-sprint", run: () => appState.setRoute("active-sprint") },
@@ -68,6 +79,9 @@ export function App() {
       { name: "issue.edit", run: () => editSelectedIssue() },
       { name: "issue.new", run: () => createIssueFromContext() },
       { name: "issue.apply", run: () => appState.applyIssueChanges() },
+      { name: "issue.delete", run: () => appState.requestIssueDelete() },
+      { name: "issue.confirm-delete", run: () => appState.confirmIssueDelete() },
+      { name: "issue.cancel-delete", run: () => appState.cancelIssueDelete() },
       { name: "issue.discard-field", run: () => appState.discardInspectorFieldChange() },
     ],
     bindings: [
@@ -95,7 +109,9 @@ export function App() {
       { key: "e", cmd: "issue.edit" },
       { key: "n", cmd: "issue.new" },
       { key: "w", cmd: "issue.apply" },
-      { key: "x", cmd: "issue.discard-field" },
+      { key: "x", cmd: "issue.delete" },
+      { key: "y", cmd: "issue.confirm-delete" },
+      { key: "X", cmd: "issue.discard-field" },
     ],
   }))
 
@@ -142,6 +158,10 @@ export function App() {
       appState.startInspectorEdit()
       return
     }
+    if (state.route === "issue-detail" && state.focusedPane === "main" && state.detailBodyEditing) {
+      appState.commitDetailBodyEdit()
+      return
+    }
     if (state.focusedPane !== "main") return
     if (isBoardRoute(state.route) || state.route === "backlog") appState.openIssueDetail(state.selectedIssueKey)
   }
@@ -160,6 +180,10 @@ export function App() {
   }
 
   function editSelectedIssue() {
+    if (state.route === "issue-detail" && state.focusedPane === "main") {
+      appState.startDetailBodyEdit()
+      return
+    }
     if (state.focusedPane !== "inspector") {
       appState.setFocusedPane("inspector")
       return
@@ -168,6 +192,10 @@ export function App() {
   }
 
   function createIssueFromContext() {
+    if (state.pendingDeleteIssueKey) {
+      appState.cancelIssueDelete()
+      return
+    }
     if (state.route === "issue-detail") return
     const current = state.issues[state.selectedIssueKey]
     const boardMode = isBoardRoute(state.route) ? state.route : undefined

@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { For } from "solid-js"
+import { For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useConfig } from "../context/config"
 import { useTheme } from "../context/theme"
@@ -22,6 +22,7 @@ export function AppShell() {
         <MainSurface />
         <IssueInspector compact={narrow()} />
       </box>
+      <DeleteConfirm />
       <Footer />
     </box>
   )
@@ -116,12 +117,29 @@ function Footer() {
   )
 }
 
+function DeleteConfirm() {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const issue = () => state.pendingDeleteIssueKey ? state.issues[state.pendingDeleteIssueKey] : undefined
+
+  return (
+    <Show when={issue()}>
+      {(selectedIssue) => (
+        <box borderStyle="rounded" borderColor={theme.danger} paddingLeft={1} paddingRight={1} marginLeft={1} marginRight={1} flexDirection="row" justifyContent="space-between">
+          <text fg={theme.danger} wrapMode="none">Delete {selectedIssue().key}: {selectedIssue().title}?</text>
+          <text fg={theme.text} wrapMode="none">y stage delete · n/Esc cancel · w apply batch</text>
+        </box>
+      )}
+    </Show>
+  )
+}
+
 function footerText(focusedPane: string, route: string) {
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
-  if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  w apply staged  x discard  d/u scroll  tab focus"
-  if (route === "issue-detail") return "detail: d/u scroll  e inspector  backspace/q back  tab focus"
-  if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  enter detail  e inspector  tab focus"
-  if (route === "kanban") return "kanban: j/k same status  h/l status/next cell  n new  g group  enter detail"
-  if (route === "backlog") return "backlog: j/k row  h/l group  n new  enter detail  e inspector  tab focus"
+  if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  x delete  X discard field  w apply staged  tab focus"
+  if (route === "issue-detail") return "detail: j/k line  d/u half-page  e edit body  x delete  backspace/q back"
+  if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  x delete  enter detail  e inspector"
+  if (route === "kanban") return "kanban: j/k same status  h/l next cell  n new  x delete  g group  enter detail"
+  if (route === "backlog") return "backlog: j/k row  h/l group  n new  x delete  enter detail  e inspector"
   return "1 workspace  2 sprint  3 backlog  4 kanban  n new  tab focus  q quit"
 }

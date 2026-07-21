@@ -147,7 +147,7 @@ Purpose: inspect, edit, create, and deeply read one selected item without losing
 Should show:
 
 - Summary, type, status, priority, assignee, reporter, sprint, labels, components.
-- Description as rich document content.
+- Body/description as rich document content in the detail route.
 - Comments.
 - Subtasks.
 - Linked issues.
@@ -159,7 +159,7 @@ Should show:
 - Colored type/status fields that match board/backlog rendering.
 - Status/type multiple-choice editing from the current board/Jira metadata.
 
-The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. `e` focuses it, `n` creates a draft issue with context-aware defaults, and `w` applies staged changes. `Enter` opens the full issue detail route for reading; `q`/Backspace returns to the previous overview.
+The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. Body editing lives in the detail route, not the inspector: in detail, `e` edits body, `j/k` scroll one line, and `d/u` scroll half a page. `n` creates a draft issue with context-aware defaults, `x` asks to stage an issue delete, and `w` applies staged edits/deletes as one batch. `Enter` opens the full issue detail route for reading; `q`/Backspace returns to the previous overview.
 
 ### 6. Search And Command Palette
 
@@ -231,7 +231,7 @@ Goal: prove the main experience without depending on real Jira data.
 - Active sprint board with columns and cards.
 - Backlog with active/future/backlog sections.
 - Inspector for selected issue.
-- Right-pane issue inspector/editor plus a main-pane issue detail route.
+- Right-pane issue inspector/editor plus a main-pane issue detail route with body editing.
 - Help surface and command palette.
 - Keyboard navigation across board columns, backlog rows, and inspector fields.
 
@@ -251,7 +251,7 @@ Goal: load real Jira overview data safely.
 - Active sprint issues.
 - Backlog issues.
 - Future sprints.
-- Issue detail in the inspector.
+- Issue detail in the inspector and full detail route.
 - Comments, links, subtasks, attachments, and activity.
 - Saved filters and quick filters.
 
@@ -325,7 +325,7 @@ Success criteria:
 
 - Default landing screen: Active Sprint, Backlog, or Workspace Home.
 - How much of the inspector should always be visible on narrow terminals.
-- How much rich issue content belongs directly in the inspector versus a future reading overlay.
+- How much rich issue content belongs directly in the detail route versus future linked-doc reading surfaces.
 - How to represent swimlanes without making the board visually noisy.
 - Which bulk operations are safe enough for early versions.
 - How aggressively to mirror Jira web behavior versus designing terminal-native flows.

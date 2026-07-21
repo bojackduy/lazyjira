@@ -3,6 +3,10 @@ import { applyIssueDraft, issueFieldColor, issueFieldDisplayValue, issueFields }
 import { loadDemoWorkspace } from "./demo"
 
 describe("issue fields", () => {
+  test("keeps body editing out of the inspector field list", () => {
+    expect(issueFields.some((field) => field.id === "description")).toBe(false)
+  })
+
   test("applies staged field changes to an issue", () => {
     const state = loadDemoWorkspace()
     const issue = state.issues[state.selectedIssueKey]!

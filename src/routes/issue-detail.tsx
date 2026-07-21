@@ -1,6 +1,6 @@
-import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
+import { TextAttributes, type ScrollBoxRenderable, type TextareaRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { For, Show } from "solid-js"
+import { createEffect, For, Show } from "solid-js"
 import type { JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
@@ -9,7 +9,8 @@ import type { IssueSummary } from "../state/app-state"
 import { issueTypeColor, statusColor, statusName } from "../state/selectors"
 
 export function IssueDetailRoute() {
-  const { state } = useAppState()
+  const appState = useAppState()
+  const { state } = appState
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
@@ -18,20 +19,35 @@ export function IssueDetailRoute() {
 
   useBindings(() => ({
     commands: [
-      { name: "detail.scroll.down", run: () => scrollPage(1) },
-      { name: "detail.scroll.up", run: () => scrollPage(-1) },
+      { name: "detail.scroll.down", run: () => scrollLine(1) },
+      { name: "detail.scroll.up", run: () => scrollLine(-1) },
+      { name: "detail.scroll.half-down", run: () => scrollHalfPage(1) },
+      { name: "detail.scroll.half-up", run: () => scrollHalfPage(-1) },
     ],
     bindings: [
-      { key: "d", cmd: "detail.scroll.down" },
-      { key: { name: "d", ctrl: true }, cmd: "detail.scroll.down" },
-      { key: "u", cmd: "detail.scroll.up" },
-      { key: { name: "u", ctrl: true }, cmd: "detail.scroll.up" },
+      { key: "j", cmd: "detail.scroll.down" },
+      { key: "down", cmd: "detail.scroll.down" },
+      { key: "k", cmd: "detail.scroll.up" },
+      { key: "up", cmd: "detail.scroll.up" },
+      { key: "d", cmd: "detail.scroll.half-down" },
+      { key: { name: "d", ctrl: true }, cmd: "detail.scroll.half-down" },
+      { key: "u", cmd: "detail.scroll.half-up" },
+      { key: { name: "u", ctrl: true }, cmd: "detail.scroll.half-up" },
     ],
   }))
 
-  function scrollPage(delta: 1 | -1) {
-    if (state.route !== "issue-detail" || state.focusedPane !== "main") return
-    scrollbox?.scrollBy(delta, "viewport")
+  function scrollLine(delta: 1 | -1) {
+    if (!canScrollDetail()) return
+    scrollbox?.scrollBy(delta, "step")
+  }
+
+  function scrollHalfPage(delta: 1 | -1) {
+    if (!canScrollDetail()) return
+    scrollbox?.scrollBy(delta * Math.max(1, Math.floor(bodyHeight() / 2)), "step")
+  }
+
+  function canScrollDetail() {
+    return state.route === "issue-detail" && state.focusedPane === "main" && !state.detailBodyEditing
   }
 
   return (
@@ -39,8 +55,8 @@ export function IssueDetailRoute() {
       {(selectedIssue) => (
         <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
           <IssueHeader issue={selectedIssue()} />
-          <DetailSection title="Description">
-            <text fg={theme.textMuted}>{selectedIssue().description || "No description"}</text>
+          <DetailSection title="Body">
+            <BodyEditor issue={selectedIssue()} />
           </DetailSection>
           <DetailSection title="Fields">
             <FieldLine label="Assignee" value={selectedIssue().assignee} />
@@ -78,6 +94,49 @@ export function IssueDetailRoute() {
   )
 }
 
+function BodyEditor(props: { issue: IssueSummary }) {
+  const appState = useAppState()
+  const { state } = appState
+  const theme = useTheme()
+  let textarea: TextareaRenderable | undefined
+  const body = () => state.issueDrafts[props.issue.key]?.description ?? props.issue.description
+
+  createEffect(() => {
+    if (!state.detailBodyEditing) return
+    setTimeout(() => textarea && !textarea.isDestroyed && textarea.focus(), 1)
+  })
+
+  return (
+    <Show when={state.detailBodyEditing} fallback={
+      <box flexDirection="column" gap={1}>
+        <Show when={state.issueDrafts[props.issue.key]?.description !== undefined}>
+          <text fg={theme.warning} wrapMode="none">Body staged · w applies batch</text>
+        </Show>
+        <text fg={theme.textMuted}>{body() || "No description"}</text>
+        <text fg={theme.textSubtle} wrapMode="none">e edit body · j/k line scroll · d/u half page</text>
+      </box>
+    }>
+      <box flexDirection="column" gap={1}>
+        <textarea
+          ref={(element: TextareaRenderable) => (textarea = element)}
+          height={12}
+          initialValue={state.detailBodyEditValue}
+          onContentChange={() => appState.updateDetailBodyEditValue(textarea?.plainText ?? "")}
+          onSubmit={() => appState.commitDetailBodyEdit()}
+          placeholder="Issue body"
+          placeholderColor={theme.textSubtle}
+          textColor={theme.text}
+          focusedTextColor={theme.text}
+          cursorColor={theme.accent}
+          backgroundColor={theme.panel}
+          focusedBackgroundColor={theme.panel}
+        />
+        <text fg={theme.textSubtle} wrapMode="none">Enter stage body · Esc cancel · w apply batch</text>
+      </box>
+    </Show>
+  )
+}
+
 function IssueHeader(props: { issue: IssueSummary }) {
   const { state } = useAppState()
   const theme = useTheme()
@@ -92,7 +151,7 @@ function IssueHeader(props: { issue: IssueSummary }) {
         <text fg={props.issue.blocked ? theme.danger : theme.textSubtle} wrapMode="none">{props.issue.blocked ? "Blocked" : "Not blocked"}</text>
         <text fg={props.issue.staleDays >= 7 ? theme.warning : theme.textSubtle} wrapMode="none">Stale {props.issue.staleDays}d</text>
       </box>
-      <text fg={theme.textSubtle}>Full issue page keeps the board/backlog route available via q/backspace. Quick issue/status edits stay in the right pane on overview routes.</text>
+      <text fg={theme.textSubtle}>j/k line scroll · d/u half page · e edit body · q/backspace back</text>
     </box>
   )
 }

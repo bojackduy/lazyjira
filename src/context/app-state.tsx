@@ -23,6 +23,13 @@ export type AppStateContext = {
   commitInspectorEdit: () => void
   cancelInspectorEdit: () => void
   discardInspectorFieldChange: () => void
+  requestIssueDelete: () => void
+  confirmIssueDelete: () => void
+  cancelIssueDelete: () => void
+  startDetailBodyEdit: () => void
+  updateDetailBodyEditValue: (value: string) => void
+  commitDetailBodyEdit: () => void
+  cancelDetailBodyEdit: () => void
   applyIssueChanges: () => void
   createDraftIssue: (issue: IssueSummary) => void
   setActiveSprintGroupBy: (groupBy: BoardGroupBy) => void
@@ -135,19 +142,75 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("issueDrafts", { ...state.issueDrafts, [issueKey]: draft })
       if (state.inspectorEditingFieldId === field.id) context.cancelInspectorEdit()
     },
+    requestIssueDelete() {
+      if (state.inspectorEditingFieldId || state.detailBodyEditing) return
+      if (!state.issues[state.selectedIssueKey]) return
+      setState("pendingDeleteIssueKey", state.selectedIssueKey)
+    },
+    confirmIssueDelete() {
+      const issueKey = state.pendingDeleteIssueKey
+      if (!issueKey) return
+      setState("issueDeletes", (issueDeletes) => (issueDeletes.includes(issueKey) ? issueDeletes : [...issueDeletes, issueKey]))
+      setState("pendingDeleteIssueKey", undefined)
+      const drafts = { ...state.issueDrafts }
+      delete drafts[issueKey]
+      setState("issueDrafts", drafts)
+    },
+    cancelIssueDelete() {
+      setState("pendingDeleteIssueKey", undefined)
+    },
+    startDetailBodyEdit() {
+      const issue = state.issues[state.selectedIssueKey]
+      if (!issue || state.route !== "issue-detail") return
+      setState("detailBodyEditing", true)
+      setState("detailBodyEditValue", state.issueDrafts[issue.key]?.description ?? issue.description)
+      setState("focusedPane", "main")
+    },
+    updateDetailBodyEditValue(value) {
+      setState("detailBodyEditValue", value)
+    },
+    commitDetailBodyEdit() {
+      if (!state.detailBodyEditing) return
+      const issueKey = state.selectedIssueKey
+      setState("issueDrafts", { ...state.issueDrafts, [issueKey]: { ...(state.issueDrafts[issueKey] ?? {}), description: state.detailBodyEditValue } })
+      setState("detailBodyEditing", false)
+      setState("detailBodyEditValue", "")
+    },
+    cancelDetailBodyEdit() {
+      setState("detailBodyEditing", false)
+      setState("detailBodyEditValue", "")
+    },
     applyIssueChanges() {
       const drafts = { ...state.issueDrafts }
       if (state.inspectorEditingFieldId) {
         drafts[state.selectedIssueKey] = { ...(drafts[state.selectedIssueKey] ?? {}), [state.inspectorEditingFieldId]: state.inspectorEditValue }
       }
+      if (state.detailBodyEditing) {
+        drafts[state.selectedIssueKey] = { ...(drafts[state.selectedIssueKey] ?? {}), description: state.detailBodyEditValue }
+      }
+      const deletedIssueKeys = new Set(state.issueDeletes)
       for (const [issueKey, draft] of Object.entries(drafts)) {
+        if (deletedIssueKeys.has(issueKey)) continue
         const issue = state.issues[issueKey]
         if (!issue || !Object.keys(draft).length) continue
         setState("issues", issueKey, applyIssueDraft(issue, draft, state))
       }
+      if (deletedIssueKeys.size) {
+        const issues = Object.fromEntries(Object.entries(state.issues).filter(([issueKey]) => !deletedIssueKeys.has(issueKey)))
+        setState("issues", issues)
+        if (deletedIssueKeys.has(state.selectedIssueKey)) {
+          const nextIssueKey = Object.keys(issues)[0]
+          if (nextIssueKey) setState("selectedIssueKey", nextIssueKey)
+          if (state.route === "issue-detail") context.closeIssueDetail()
+        }
+      }
       setState("issueDrafts", {})
+      setState("issueDeletes", [])
+      setState("pendingDeleteIssueKey", undefined)
       setState("inspectorEditingFieldId", undefined)
       setState("inspectorEditValue", "")
+      setState("detailBodyEditing", false)
+      setState("detailBodyEditValue", "")
     },
     createDraftIssue(issue) {
       setState("issues", issue.key, issue)
