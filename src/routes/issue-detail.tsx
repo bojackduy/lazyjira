@@ -47,7 +47,7 @@ export function IssueDetailRoute() {
   }
 
   function canScrollDetail() {
-    return state.route === "issue-detail" && state.focusedPane === "main" && !state.detailBodyEditing
+    return state.route === "issue-detail" && state.focusedPane === "main" && !state.detailBodyEditing && !state.remoteApplyOpen && !state.stagedDiscardOpen
   }
 
   return (

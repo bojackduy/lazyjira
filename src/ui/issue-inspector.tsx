@@ -34,7 +34,7 @@ export function IssueInspector(props: { compact: boolean }) {
   })
 
   function scrollPage(delta: 1 | -1) {
-    if (!focused() || state.stagedDiscardOpen || isPlainTextInspectorEditing()) return false
+    if (!focused() || state.remoteApplyOpen || state.stagedDiscardOpen || isPlainTextInspectorEditing()) return false
     scrollbox?.scrollBy(delta, "viewport")
   }
 

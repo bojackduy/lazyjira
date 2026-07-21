@@ -1,5 +1,5 @@
 import { TextAttributes } from "@opentui/core"
-import { Portal, useRenderer, useTerminalDimensions } from "@opentui/solid"
+import { useTerminalDimensions } from "@opentui/solid"
 import { For, Show, type JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useConfig } from "../context/config"
@@ -24,9 +24,9 @@ export function AppShell() {
         <IssueInspector compact={narrow()} />
       </box>
       <DeleteConfirm />
+      <Footer />
       <StagedDiscardPopup />
       <RemoteApplyPopup />
-      <Footer />
     </box>
   )
 }
@@ -196,19 +196,34 @@ function RemoteApplyPopup() {
 }
 
 function ModalFrame(props: { borderColor: string; width: number; children: JSX.Element }) {
-  const renderer = useRenderer()
   const dimensions = useTerminalDimensions()
   const theme = useTheme()
   const width = () => Math.min(props.width, Math.max(40, dimensions().width - 4))
-  const left = () => Math.max(0, Math.floor((dimensions().width - width()) / 2))
   const top = () => Math.max(1, Math.floor(dimensions().height * 0.2))
 
   return (
-    <Portal mount={renderer.root}>
-      <box position="absolute" left={left()} top={top()} width={width()} borderStyle="rounded" borderColor={props.borderColor} backgroundColor={theme.panel} padding={1} flexDirection="column" gap={1}>
+    <box
+      position="absolute"
+      zIndex={3000}
+      left={0}
+      top={0}
+      width={dimensions().width}
+      height={dimensions().height}
+      alignItems="center"
+      paddingTop={top()}
+    >
+      <box
+        width={width()}
+        borderStyle="rounded"
+        borderColor={props.borderColor}
+        backgroundColor={theme.panel}
+        padding={1}
+        flexDirection="column"
+        gap={1}
+      >
         {props.children}
       </box>
-    </Portal>
+    </box>
   )
 }
 

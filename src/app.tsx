@@ -123,10 +123,10 @@ export function App() {
       { key: "e", cmd: "issue.edit", preventDefault: false },
       { key: "n", cmd: "issue.new", preventDefault: false },
       { key: "w", cmd: "issue.apply", preventDefault: false },
-      { key: "w", shift: true, cmd: "issue.remote-apply", preventDefault: false },
+      { key: { name: "w", shift: true }, cmd: "issue.remote-apply", preventDefault: false },
       { key: "x", cmd: "issue.delete", preventDefault: false },
       { key: "y", cmd: "issue.confirm-delete", preventDefault: false },
-      { key: "x", shift: true, cmd: "staged-discard.open", preventDefault: false },
+      { key: { name: "x", shift: true }, cmd: "staged-discard.open", preventDefault: false },
     ],
   }))
 
