@@ -159,7 +159,7 @@ Should show:
 - Colored type/status fields that match board/backlog rendering.
 - Status/type multiple-choice editing from the current board/Jira metadata.
 
-The right inspector pane is the quick issue/status/edit surface on overview routes. `e` focuses it, `n` creates a draft issue with context-aware defaults, and `w` applies staged changes. `Enter` opens the full issue detail route for reading; that route uses the full width and hides the right pane until `q`/Backspace returns to the previous overview.
+The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. `e` focuses it, `n` creates a draft issue with context-aware defaults, and `w` applies staged changes. `Enter` opens the full issue detail route for reading; `q`/Backspace returns to the previous overview.
 
 ### 6. Search And Command Palette
 
@@ -231,7 +231,7 @@ Goal: prove the main experience without depending on real Jira data.
 - Active sprint board with columns and cards.
 - Backlog with active/future/backlog sections.
 - Inspector for selected issue.
-- Right-pane issue inspector/editor plus a full-width issue detail route.
+- Right-pane issue inspector/editor plus a main-pane issue detail route.
 - Help surface and command palette.
 - Keyboard navigation across board columns, backlog rows, and inspector fields.
 

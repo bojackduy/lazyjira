@@ -160,7 +160,6 @@ export function App() {
   }
 
   function editSelectedIssue() {
-    if (state.route === "issue-detail") return
     if (state.focusedPane !== "inspector") {
       appState.setFocusedPane("inspector")
       return

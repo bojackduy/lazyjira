@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { For, Show } from "solid-js"
+import { For } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useConfig } from "../context/config"
 import { useTheme } from "../context/theme"
@@ -20,9 +20,7 @@ export function AppShell() {
       <box flexGrow={1} flexDirection={narrow() ? "column" : "row"} gap={1} padding={1}>
         <Sidebar />
         <MainSurface />
-        <Show when={state.route !== "issue-detail"}>
-          <IssueInspector compact={narrow()} />
-        </Show>
+        <IssueInspector compact={narrow()} />
       </box>
       <Footer />
     </box>
@@ -121,7 +119,7 @@ function Footer() {
 function footerText(focusedPane: string, route: string) {
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
   if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  w apply staged  x discard  d/u scroll  tab focus"
-  if (route === "issue-detail") return "detail: d/u scroll  backspace/q back  tab focus"
+  if (route === "issue-detail") return "detail: d/u scroll  e inspector  backspace/q back  tab focus"
   if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  enter detail  e inspector  tab focus"
   if (route === "kanban") return "kanban: j/k same status  h/l status/next cell  n new  g group  enter detail"
   if (route === "backlog") return "backlog: j/k row  h/l group  n new  enter detail  e inspector  tab focus"

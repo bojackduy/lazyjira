@@ -19,7 +19,7 @@ Can start after issue demo data exists. It can proceed independently from real J
 
 - Render persistent inspector for selected issue.
 - Keep the right inspector pane as the quick issue/status/edit/create surface on overview routes.
-- Render a full-width issue detail route and hide the right pane on that route.
+- Render an issue detail route in the main pane while keeping the right inspector visible.
 - Render markdown issue description.
 - Render comments, subtasks, links, attachments, and activity sections.
 - Add staged edit/create affordances plus transition, assign, priority, comment, copy, and open browser actions.
@@ -49,7 +49,7 @@ Can start after issue demo data exists. It can proceed independently from real J
 - [ ] Inspector updates when selected issue changes.
 - [ ] `Enter` opens full issue detail from board and backlog selection.
 - [ ] `q`/Backspace closes detail and returns to the previous overview.
-- [ ] The right inspector pane is hidden on full issue detail.
+- [ ] The right inspector pane remains visible on full issue detail.
 - [ ] `e` or `Enter` edits the selected inspector field.
 - [ ] Status and type inspector edits use colored multiple-choice pickers.
 - [ ] `w` applies staged changes locally before Jira write integration exists.

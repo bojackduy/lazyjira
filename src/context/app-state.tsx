@@ -52,7 +52,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("focusedPane", pane)
     },
     focusNextPane(delta) {
-      const panes: FocusPane[] = state.route === "issue-detail" ? ["sidebar", "main"] : ["sidebar", "main", "inspector"]
+      const panes: FocusPane[] = ["sidebar", "main", "inspector"]
       const currentIndex = Math.max(0, panes.indexOf(state.focusedPane))
       setState("focusedPane", panes[(currentIndex + delta + panes.length) % panes.length]!)
     },
