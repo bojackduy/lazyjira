@@ -159,7 +159,7 @@ Should show:
 - Colored type/status fields that match board/backlog rendering.
 - Status/type multiple-choice editing from the current board/Jira metadata.
 
-The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. Body editing lives in the detail route, not the inspector: in detail, `e` edits body, `j/k` scroll one line, and `d/u` scroll half a page. `n` creates a draft issue with context-aware defaults, `x` asks to stage an issue delete, and `w` applies staged edits/deletes as one batch. `Enter` opens the full issue detail route for reading; `q`/Backspace returns to the previous overview.
+The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. Body editing lives in the detail route, not the inspector: in detail, `e` edits body, `j/k` scroll one line, and `d/u` scroll half a page. In text edit mode, printable keys go to the editor and `Ctrl-Enter` stages the current edit. `n` creates a draft issue with context-aware defaults, `x` asks to stage an issue delete, `X` opens a staged-discard popup, `w` applies staged edits/deletes locally, and `W` opens the Jira write review popup. Inside the Jira write popup, `W` is the final remote-apply key; until Jira API writes are wired, it shows a placeholder and keeps staged changes intact. `Enter` opens the full issue detail route for reading; `q`/Backspace returns to the previous overview.
 
 ### 6. Search And Command Palette
 

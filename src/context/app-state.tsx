@@ -3,6 +3,8 @@ import { createRequiredContext, type ProviderProps } from "./helper"
 import type { AppState, BacklogGroupBy, BoardGroupBy, FocusPane, IssueSummary, QuickFilterId } from "../state/app-state"
 import { sidebarRoutes, type AppRoute } from "../state/routes"
 import { applyIssueDraft, isEditableField, issueFieldDisplayValue, issueFields, selectedIssueField } from "../state/issue-fields"
+import { stagedChanges } from "../state/staged-changes"
+import { useToast } from "./toast"
 
 export type AppStateContext = {
   state: AppState
@@ -26,10 +28,18 @@ export type AppStateContext = {
   requestIssueDelete: () => void
   confirmIssueDelete: () => void
   cancelIssueDelete: () => void
+  openRemoteIssueApply: () => void
+  closeRemoteIssueApply: () => void
+  confirmRemoteIssueApply: () => void
   startDetailBodyEdit: () => void
   updateDetailBodyEditValue: (value: string) => void
   commitDetailBodyEdit: () => void
   cancelDetailBodyEdit: () => void
+  openStagedDiscard: () => void
+  closeStagedDiscard: () => void
+  moveStagedDiscardSelection: (delta: number) => void
+  toggleStagedDiscardSelection: () => void
+  confirmStagedDiscard: () => void
   applyIssueChanges: () => void
   createDraftIssue: (issue: IssueSummary) => void
   setActiveSprintGroupBy: (groupBy: BoardGroupBy) => void
@@ -45,6 +55,7 @@ export { useAppState }
 
 export function AppStateProvider(props: ProviderProps<{ initialState: AppState }>) {
   const [state, setState] = createStore<AppState>(props.initialState)
+  const toast = useToast()
 
   const context: AppStateContext = {
     state,
@@ -159,6 +170,20 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
     cancelIssueDelete() {
       setState("pendingDeleteIssueKey", undefined)
     },
+    openRemoteIssueApply() {
+      setState("remoteApplyOpen", true)
+      setState("stagedDiscardOpen", false)
+      setState("stagedDiscardSelectedIndex", 0)
+      setState("stagedDiscardSelections", [])
+    },
+    closeRemoteIssueApply() {
+      setState("remoteApplyOpen", false)
+    },
+    confirmRemoteIssueApply() {
+      const changeCount = stagedChanges(state).length
+      setState("remoteApplyOpen", false)
+      toast.show(changeCount ? "Jira write path is not wired yet; staged changes kept" : "No staged changes to write")
+    },
     startDetailBodyEdit() {
       const issue = state.issues[state.selectedIssueKey]
       if (!issue || state.route !== "issue-detail") return
@@ -180,14 +205,58 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("detailBodyEditing", false)
       setState("detailBodyEditValue", "")
     },
+    openStagedDiscard() {
+      setState("stagedDiscardOpen", true)
+      setState("remoteApplyOpen", false)
+      setState("stagedDiscardSelectedIndex", 0)
+      setState("stagedDiscardSelections", [])
+    },
+    closeStagedDiscard() {
+      setState("stagedDiscardOpen", false)
+      setState("stagedDiscardSelectedIndex", 0)
+      setState("stagedDiscardSelections", [])
+    },
+    moveStagedDiscardSelection(delta) {
+      const changes = stagedChanges(state)
+      if (!changes.length) return
+      setState("stagedDiscardSelectedIndex", (state.stagedDiscardSelectedIndex + delta + changes.length) % changes.length)
+    },
+    toggleStagedDiscardSelection() {
+      const change = stagedChanges(state)[state.stagedDiscardSelectedIndex]
+      if (!change) return
+      setState("stagedDiscardSelections", (selections) =>
+        selections.includes(change.id) ? selections.filter((id) => id !== change.id) : [...selections, change.id],
+      )
+    },
+    confirmStagedDiscard() {
+      const changes = stagedChanges(state)
+      const fallback = changes[state.stagedDiscardSelectedIndex]?.id
+      const selectedIds = state.stagedDiscardSelections.length ? new Set(state.stagedDiscardSelections) : new Set(fallback ? [fallback] : [])
+      if (!selectedIds.size) return
+      const issueDrafts = { ...state.issueDrafts }
+      let issueDeletes = [...state.issueDeletes]
+      for (const change of changes) {
+        if (!selectedIds.has(change.id)) continue
+        if (change.kind === "delete") {
+          issueDeletes = issueDeletes.filter((issueKey) => issueKey !== change.issueKey)
+          continue
+        }
+        const draft = { ...(issueDrafts[change.issueKey] ?? {}) }
+        delete draft[change.fieldId]
+        if (Object.keys(draft).length) issueDrafts[change.issueKey] = draft
+        else delete issueDrafts[change.issueKey]
+      }
+      setState("issueDrafts", issueDrafts)
+      setState("issueDeletes", issueDeletes)
+      context.closeStagedDiscard()
+    },
     applyIssueChanges() {
+      const changeCount = stagedChanges(state).length
+      if (!changeCount) {
+        toast.show("No staged changes to apply locally")
+        return
+      }
       const drafts = { ...state.issueDrafts }
-      if (state.inspectorEditingFieldId) {
-        drafts[state.selectedIssueKey] = { ...(drafts[state.selectedIssueKey] ?? {}), [state.inspectorEditingFieldId]: state.inspectorEditValue }
-      }
-      if (state.detailBodyEditing) {
-        drafts[state.selectedIssueKey] = { ...(drafts[state.selectedIssueKey] ?? {}), description: state.detailBodyEditValue }
-      }
       const deletedIssueKeys = new Set(state.issueDeletes)
       for (const [issueKey, draft] of Object.entries(drafts)) {
         if (deletedIssueKeys.has(issueKey)) continue
@@ -207,10 +276,15 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("issueDrafts", {})
       setState("issueDeletes", [])
       setState("pendingDeleteIssueKey", undefined)
+      setState("remoteApplyOpen", false)
+      setState("stagedDiscardOpen", false)
+      setState("stagedDiscardSelectedIndex", 0)
+      setState("stagedDiscardSelections", [])
       setState("inspectorEditingFieldId", undefined)
       setState("inspectorEditValue", "")
       setState("detailBodyEditing", false)
       setState("detailBodyEditValue", "")
+      toast.show(`Applied ${changeCount} staged change${changeCount === 1 ? "" : "s"} locally`)
     },
     createDraftIssue(issue) {
       setState("issues", issue.key, issue)

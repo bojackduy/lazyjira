@@ -25,24 +25,24 @@ export function IssueDetailRoute() {
       { name: "detail.scroll.half-up", run: () => scrollHalfPage(-1) },
     ],
     bindings: [
-      { key: "j", cmd: "detail.scroll.down" },
-      { key: "down", cmd: "detail.scroll.down" },
-      { key: "k", cmd: "detail.scroll.up" },
-      { key: "up", cmd: "detail.scroll.up" },
-      { key: "d", cmd: "detail.scroll.half-down" },
+      { key: "j", cmd: "detail.scroll.down", preventDefault: false },
+      { key: "down", cmd: "detail.scroll.down", preventDefault: false },
+      { key: "k", cmd: "detail.scroll.up", preventDefault: false },
+      { key: "up", cmd: "detail.scroll.up", preventDefault: false },
+      { key: "d", cmd: "detail.scroll.half-down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "detail.scroll.half-down" },
-      { key: "u", cmd: "detail.scroll.half-up" },
+      { key: "u", cmd: "detail.scroll.half-up", preventDefault: false },
       { key: { name: "u", ctrl: true }, cmd: "detail.scroll.half-up" },
     ],
   }))
 
   function scrollLine(delta: 1 | -1) {
-    if (!canScrollDetail()) return
+    if (!canScrollDetail()) return false
     scrollbox?.scrollBy(delta, "step")
   }
 
   function scrollHalfPage(delta: 1 | -1) {
-    if (!canScrollDetail()) return
+    if (!canScrollDetail()) return false
     scrollbox?.scrollBy(delta * Math.max(1, Math.floor(bodyHeight() / 2)), "step")
   }
 
@@ -110,7 +110,7 @@ function BodyEditor(props: { issue: IssueSummary }) {
     <Show when={state.detailBodyEditing} fallback={
       <box flexDirection="column" gap={1}>
         <Show when={state.issueDrafts[props.issue.key]?.description !== undefined}>
-          <text fg={theme.warning} wrapMode="none">Body staged · w applies batch</text>
+          <text fg={theme.warning} wrapMode="none">Body staged · w local apply · W write Jira</text>
         </Show>
         <text fg={theme.textMuted}>{body() || "No description"}</text>
         <text fg={theme.textSubtle} wrapMode="none">e edit body · j/k line scroll · d/u half page</text>
@@ -123,6 +123,7 @@ function BodyEditor(props: { issue: IssueSummary }) {
           initialValue={state.detailBodyEditValue}
           onContentChange={() => appState.updateDetailBodyEditValue(textarea?.plainText ?? "")}
           onSubmit={() => appState.commitDetailBodyEdit()}
+          keyBindings={[{ name: "return", ctrl: true, action: "submit" }]}
           placeholder="Issue body"
           placeholderColor={theme.textSubtle}
           textColor={theme.text}
@@ -131,7 +132,7 @@ function BodyEditor(props: { issue: IssueSummary }) {
           backgroundColor={theme.panel}
           focusedBackgroundColor={theme.panel}
         />
-        <text fg={theme.textSubtle} wrapMode="none">Enter stage body · Esc cancel · w apply batch</text>
+        <text fg={theme.textSubtle} wrapMode="none">Ctrl-Enter stage body · Esc cancel · w local apply · W write Jira</text>
       </box>
     </Show>
   )

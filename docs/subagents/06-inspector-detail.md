@@ -51,13 +51,15 @@ Can start after issue demo data exists. It can proceed independently from real J
 - [ ] `q`/Backspace closes detail and returns to the previous overview.
 - [ ] The right inspector pane remains visible on full issue detail.
 - [ ] The inspector does not include the Body field.
-- [ ] In detail, `e` edits body and `Enter` stages it for batch apply.
+- [ ] In detail, `e` edits body and `Ctrl-Enter` stages it for batch apply.
 - [ ] In detail, `j/k` scroll one line and `d/u` scroll half a page.
 - [ ] In inspector, `e` or `Enter` edits the selected inspector field.
 - [ ] Status and type inspector edits use colored multiple-choice pickers.
 - [ ] `w` applies staged changes locally before Jira write integration exists.
+- [ ] `W` opens the Jira write review popup and `W` inside that popup is the final remote-apply key.
 - [ ] `x` asks for confirmation, then stages selected issue deletion for batch apply.
-- [ ] `X` discards the selected staged field.
+- [ ] `X` opens a staged-discard popup with `j/k`, `space`, `Enter`, and `Esc` controls, including an empty state when nothing is staged.
+- [ ] Plain text edit mode lets printable shortcut keys reach the editor and uses `Ctrl-Enter` to stage.
 - [ ] `n` creates a draft issue with context-aware defaults.
 - [ ] Rich markdown description renders with headings, lists, code blocks, links, and tables.
 - [ ] Comments and linked issue sections render from demo data.

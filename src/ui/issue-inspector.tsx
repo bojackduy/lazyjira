@@ -21,9 +21,9 @@ export function IssueInspector(props: { compact: boolean }) {
       { name: "inspector.scroll.up", run: () => scrollPage(-1) },
     ],
     bindings: [
-      { key: "d", cmd: "inspector.scroll.down" },
+      { key: "d", cmd: "inspector.scroll.down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "inspector.scroll.down" },
-      { key: "u", cmd: "inspector.scroll.up" },
+      { key: "u", cmd: "inspector.scroll.up", preventDefault: false },
       { key: { name: "u", ctrl: true }, cmd: "inspector.scroll.up" },
     ],
   }))
@@ -34,8 +34,12 @@ export function IssueInspector(props: { compact: boolean }) {
   })
 
   function scrollPage(delta: 1 | -1) {
-    if (!focused()) return
+    if (!focused() || state.stagedDiscardOpen || isPlainTextInspectorEditing()) return false
     scrollbox?.scrollBy(delta, "viewport")
+  }
+
+  function isPlainTextInspectorEditing() {
+    return !!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type"
   }
 
   return (
@@ -52,7 +56,7 @@ export function IssueInspector(props: { compact: boolean }) {
               <text fg={theme.text} wrapMode="none">{selectedIssue().title}</text>
               <text fg={issueTypeColor(state, selectedIssue())} wrapMode="none">■ {selectedIssue().type} <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span></text>
               <Show when={state.issueDeletes.includes(selectedIssue().key)}>
-                <text fg={theme.danger} wrapMode="none">Delete staged · w applies batch</text>
+                <text fg={theme.danger} wrapMode="none">Delete staged · w local apply · W write Jira</text>
               </Show>
             </box>
             <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} flexGrow={1} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
@@ -71,7 +75,6 @@ export function IssueInspector(props: { compact: boolean }) {
                 </For>
               </box>
             </scrollbox>
-            <text fg={theme.textSubtle} wrapMode="none">j/k field · e edit · x delete · X discard · w apply</text>
           </box>
         )}
       </Show>
@@ -90,7 +93,7 @@ function IssueFieldRow(props: { field: IssueFieldDefinition; index: number }) {
   const value = () => (issue() ? issueFieldDisplayValue(state, issue()!, props.field) : "")
 
   return (
-    <box id={`inspector-field-${props.index}`} flexDirection="column" flexShrink={0} marginBottom={1} backgroundColor={selected() ? theme.selected : undefined} paddingLeft={1} paddingRight={1}>
+    <box id={`inspector-field-${props.index}`} flexDirection="column" flexShrink={0} marginBottom={1} backgroundColor={selected() && !editing() ? theme.selected : undefined} paddingLeft={1} paddingRight={1}>
       <box flexDirection="row" justifyContent="space-between">
         <text fg={selected() ? theme.selectedText : props.field.editable ? theme.text : theme.textSubtle} wrapMode="none">
           {selected() ? ">" : " "} {props.field.label}{dirty() ? " *" : ""}
@@ -168,7 +171,6 @@ function ChoiceEditor(props: { field: IssueFieldDefinition }) {
 
   return (
     <box flexDirection="column" gap={1}>
-      <text fg={theme.textSubtle} wrapMode="none">j/k choose · enter stage · esc cancel</text>
       <For each={choices()}>
         {(choice) => {
           const selected = () => state.inspectorEditValue === choice.value

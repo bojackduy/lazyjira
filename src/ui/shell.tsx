@@ -1,12 +1,13 @@
 import { TextAttributes } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/solid"
-import { For, Show } from "solid-js"
+import { Portal, useRenderer, useTerminalDimensions } from "@opentui/solid"
+import { For, Show, type JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useConfig } from "../context/config"
 import { useTheme } from "../context/theme"
 import { useToast } from "../context/toast"
 import { RouteSurface } from "../routes"
 import { routeLabel, sidebarRoutes } from "../state/routes"
+import { stagedChanges, type StagedChange } from "../state/staged-changes"
 import { IssueInspector } from "./issue-inspector"
 
 export function AppShell() {
@@ -23,6 +24,8 @@ export function AppShell() {
         <IssueInspector compact={narrow()} />
       </box>
       <DeleteConfirm />
+      <StagedDiscardPopup />
+      <RemoteApplyPopup />
       <Footer />
     </box>
   )
@@ -111,7 +114,7 @@ function Footer() {
 
   return (
     <box height={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.panel} flexDirection="row" justifyContent="space-between">
-      <text fg={theme.textMuted}>{footerText(state.focusedPane, state.route)}</text>
+      <text fg={theme.textMuted}>{footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen)}</text>
       <text fg={theme.textSubtle}>{toast.message() ?? "demo scaffold"}</text>
     </box>
   )
@@ -127,19 +130,102 @@ function DeleteConfirm() {
       {(selectedIssue) => (
         <box borderStyle="rounded" borderColor={theme.danger} paddingLeft={1} paddingRight={1} marginLeft={1} marginRight={1} flexDirection="row" justifyContent="space-between">
           <text fg={theme.danger} wrapMode="none">Delete {selectedIssue().key}: {selectedIssue().title}?</text>
-          <text fg={theme.text} wrapMode="none">y stage delete · n/Esc cancel · w apply batch</text>
+          <text fg={theme.text} wrapMode="none">y stage delete · n/Esc cancel · w local apply · W write Jira</text>
         </box>
       )}
     </Show>
   )
 }
 
-function footerText(focusedPane: string, route: string) {
+function StagedDiscardPopup() {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const changes = () => stagedChanges(state)
+
+  return (
+    <Show when={state.stagedDiscardOpen}>
+      <ModalFrame borderColor={theme.warning} width={84}>
+        <box flexDirection="row" justifyContent="space-between">
+          <text attributes={TextAttributes.BOLD} fg={theme.warning}>Discard Staged Changes</text>
+          <text fg={theme.textSubtle}>j/k choose · space mark · enter discard · esc/q close</text>
+        </box>
+        <Show when={changes().length} fallback={<text fg={theme.textMuted}>No staged changes to discard.</text>}>
+          <For each={changes()}>
+            {(change, index) => {
+              const selected = () => state.stagedDiscardSelectedIndex === index()
+              const checked = () => state.stagedDiscardSelections.includes(change.id)
+              return (
+                <text fg={change.kind === "delete" ? theme.danger : selected() ? theme.selectedText : theme.text} bg={selected() ? theme.selected : undefined} wrapMode="none">
+                  {selected() ? ">" : " "} [{checked() ? "x" : " "}] {stagedChangeText(change, state.issues[change.issueKey]?.title ?? "Unknown issue")}
+                </text>
+              )
+            }}
+          </For>
+        </Show>
+      </ModalFrame>
+    </Show>
+  )
+}
+
+function RemoteApplyPopup() {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const changes = () => stagedChanges(state)
+
+  return (
+    <Show when={state.remoteApplyOpen}>
+      <ModalFrame borderColor={theme.danger} width={86}>
+        <box flexDirection="row" justifyContent="space-between">
+          <text attributes={TextAttributes.BOLD} fg={theme.danger}>Apply To Jira</text>
+          <text fg={theme.textSubtle}>W final apply · esc/q cancel</text>
+        </box>
+        <text fg={theme.textMuted}>Review staged writes before the future Jira API call.</text>
+        <Show when={changes().length} fallback={<text fg={theme.textMuted}>No staged writes. Edit a field and stage it before using W.</text>}>
+          <For each={changes()}>
+            {(change) => (
+              <text fg={change.kind === "delete" ? theme.danger : theme.text} wrapMode="none">
+                {change.kind === "delete" ? "-" : "~"} {stagedChangeText(change, state.issues[change.issueKey]?.title ?? "Unknown issue")}
+              </text>
+            )}
+          </For>
+        </Show>
+        <text fg={theme.warning} wrapMode="none">Jira API is not wired yet; confirming now keeps staged changes intact.</text>
+      </ModalFrame>
+    </Show>
+  )
+}
+
+function ModalFrame(props: { borderColor: string; width: number; children: JSX.Element }) {
+  const renderer = useRenderer()
+  const dimensions = useTerminalDimensions()
+  const theme = useTheme()
+  const width = () => Math.min(props.width, Math.max(40, dimensions().width - 4))
+  const left = () => Math.max(0, Math.floor((dimensions().width - width()) / 2))
+  const top = () => Math.max(1, Math.floor(dimensions().height * 0.2))
+
+  return (
+    <Portal mount={renderer.root}>
+      <box position="absolute" left={left()} top={top()} width={width()} borderStyle="rounded" borderColor={props.borderColor} backgroundColor={theme.panel} padding={1} flexDirection="column" gap={1}>
+        {props.children}
+      </box>
+    </Portal>
+  )
+}
+
+function stagedChangeText(change: StagedChange, issueTitle: string) {
+  if (change.kind === "delete") return `${change.issueKey} delete issue · ${issueTitle}`
+  const preview = change.value.replace(/\s+/g, " ").slice(0, 48)
+  return `${change.issueKey} ${change.label} · ${preview}`
+}
+
+function footerText(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean) {
+  if (remoteApplyOpen) return "remote write: W final apply placeholder  esc/q close"
+  if (stagedDiscardOpen) return "discard staged: j/k choose  space mark  enter discard  esc/q close"
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
-  if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  x delete  X discard field  w apply staged  tab focus"
-  if (route === "issue-detail") return "detail: j/k line  d/u half-page  e edit body  x delete  backspace/q back"
-  if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  x delete  enter detail  e inspector"
-  if (route === "kanban") return "kanban: j/k same status  h/l next cell  n new  x delete  g group  enter detail"
-  if (route === "backlog") return "backlog: j/k row  h/l group  n new  x delete  enter detail  e inspector"
-  return "1 workspace  2 sprint  3 backlog  4 kanban  n new  tab focus  q quit"
+  if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  ctrl-enter stage  x delete  X discard  w local  W Jira"
+  if (route === "issue-detail") return "detail: j/k line  d/u half-page  e edit body  ctrl-enter stage  X discard  w local  W Jira"
+  if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  x delete  enter detail  e inspector  W Jira"
+  if (route === "kanban") return "kanban: j/k same status  h/l next cell  n new  x delete  g group  enter detail  W Jira"
+  if (route === "backlog") return "backlog: j/k row  h/l group  n new  x delete  enter detail  e inspector  W Jira"
+  return "1 workspace  2 sprint  3 backlog  4 kanban  n new  w local  W Jira  q quit"
 }

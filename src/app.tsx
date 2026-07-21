@@ -42,6 +42,15 @@ export function App() {
       {
         name: "app.quit",
         run() {
+          if (state.remoteApplyOpen) {
+            appState.closeRemoteIssueApply()
+            return
+          }
+          if (state.stagedDiscardOpen) {
+            appState.closeStagedDiscard()
+            return
+          }
+          if (isPlainTextEditing()) return false
           if (state.pendingDeleteIssueKey) {
             appState.cancelIssueDelete()
             return
@@ -57,65 +66,77 @@ export function App() {
       {
         name: "edit.cancel",
         run() {
-          if (state.pendingDeleteIssueKey) appState.cancelIssueDelete()
+          if (state.remoteApplyOpen) appState.closeRemoteIssueApply()
+          else if (state.stagedDiscardOpen) appState.closeStagedDiscard()
+          else if (state.pendingDeleteIssueKey) appState.cancelIssueDelete()
           else if (state.detailBodyEditing) appState.cancelDetailBodyEdit()
           else appState.cancelInspectorEdit()
         },
       },
-      { name: "detail.back", run: () => appState.closeIssueDetail() },
-      { name: "route.workspace", run: () => appState.setRoute("workspace") },
-      { name: "route.active-sprint", run: () => appState.setRoute("active-sprint") },
-      { name: "route.backlog", run: () => appState.setRoute("backlog") },
-      { name: "route.kanban", run: () => appState.setRoute("kanban") },
-      { name: "focus.next", run: () => appState.focusNextPane(1) },
-      { name: "focus.previous", run: () => appState.focusNextPane(-1) },
+      { name: "edit.stage", run: () => stageCurrentEdit() },
+      { name: "detail.back", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.closeIssueDetail()) },
+      { name: "route.workspace", run: () => (canRunGlobalShortcut() ? appState.setRoute("workspace") : false) },
+      { name: "route.active-sprint", run: () => (canRunGlobalShortcut() ? appState.setRoute("active-sprint") : false) },
+      { name: "route.backlog", run: () => (canRunGlobalShortcut() ? appState.setRoute("backlog") : false) },
+      { name: "route.kanban", run: () => (canRunGlobalShortcut() ? appState.setRoute("kanban") : false) },
+      { name: "focus.next", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(1)) },
+      { name: "focus.previous", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(-1)) },
       { name: "pane.down", run: () => moveVertical(1) },
       { name: "pane.up", run: () => moveVertical(-1) },
       { name: "pane.right", run: () => moveHorizontal(1) },
       { name: "pane.left", run: () => moveHorizontal(-1) },
       { name: "pane.enter", run: () => openFocusedItem() },
-      { name: "sidebar.toggle-filter", run: () => state.focusedPane === "sidebar" && appState.toggleSidebarFilterSelection() },
+      { name: "sidebar.toggle-filter", run: () => toggleSpaceAction() },
       { name: "group.cycle", run: () => cycleGroup() },
       { name: "issue.edit", run: () => editSelectedIssue() },
       { name: "issue.new", run: () => createIssueFromContext() },
-      { name: "issue.apply", run: () => appState.applyIssueChanges() },
-      { name: "issue.delete", run: () => appState.requestIssueDelete() },
-      { name: "issue.confirm-delete", run: () => appState.confirmIssueDelete() },
-      { name: "issue.cancel-delete", run: () => appState.cancelIssueDelete() },
-      { name: "issue.discard-field", run: () => appState.discardInspectorFieldChange() },
+      { name: "issue.apply", run: () => (canRunGlobalShortcut() ? appState.applyIssueChanges() : false) },
+      { name: "issue.remote-apply", run: () => remoteApplyAction() },
+      { name: "issue.delete", run: () => (canRunGlobalShortcut() ? appState.requestIssueDelete() : false) },
+      { name: "issue.confirm-delete", run: () => (canRunGlobalShortcut() ? appState.confirmIssueDelete() : false) },
+      { name: "issue.cancel-delete", run: () => (canRunGlobalShortcut() ? appState.cancelIssueDelete() : false) },
+      { name: "staged-discard.open", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.openStagedDiscard()) },
     ],
     bindings: [
-      { key: "q", cmd: "app.quit" },
+      { key: "q", cmd: "app.quit", preventDefault: false },
       { key: { name: "c", ctrl: true }, cmd: "app.force-quit" },
       { key: "escape", cmd: "edit.cancel" },
-      { key: "backspace", cmd: "detail.back" },
-      { key: "tab", cmd: "focus.next" },
-      { key: { name: "tab", shift: true }, cmd: "focus.previous" },
-      { key: "1", cmd: "route.workspace" },
-      { key: "2", cmd: "route.active-sprint" },
-      { key: "3", cmd: "route.backlog" },
-      { key: "4", cmd: "route.kanban" },
-      { key: "j", cmd: "pane.down" },
-      { key: "down", cmd: "pane.down" },
-      { key: "k", cmd: "pane.up" },
-      { key: "up", cmd: "pane.up" },
-      { key: "l", cmd: "pane.right" },
-      { key: "right", cmd: "pane.right" },
-      { key: "h", cmd: "pane.left" },
-      { key: "left", cmd: "pane.left" },
-      { key: "return", cmd: "pane.enter" },
-      { key: "space", cmd: "sidebar.toggle-filter" },
-      { key: "g", cmd: "group.cycle" },
-      { key: "e", cmd: "issue.edit" },
-      { key: "n", cmd: "issue.new" },
-      { key: "w", cmd: "issue.apply" },
-      { key: "x", cmd: "issue.delete" },
-      { key: "y", cmd: "issue.confirm-delete" },
-      { key: "X", cmd: "issue.discard-field" },
+      { key: { name: "return", ctrl: true }, cmd: "edit.stage" },
+      { key: "backspace", cmd: "detail.back", preventDefault: false },
+      { key: "tab", cmd: "focus.next", preventDefault: false },
+      { key: { name: "tab", shift: true }, cmd: "focus.previous", preventDefault: false },
+      { key: "1", cmd: "route.workspace", preventDefault: false },
+      { key: "2", cmd: "route.active-sprint", preventDefault: false },
+      { key: "3", cmd: "route.backlog", preventDefault: false },
+      { key: "4", cmd: "route.kanban", preventDefault: false },
+      { key: "j", cmd: "pane.down", preventDefault: false },
+      { key: "down", cmd: "pane.down", preventDefault: false },
+      { key: "k", cmd: "pane.up", preventDefault: false },
+      { key: "up", cmd: "pane.up", preventDefault: false },
+      { key: "l", cmd: "pane.right", preventDefault: false },
+      { key: "right", cmd: "pane.right", preventDefault: false },
+      { key: "h", cmd: "pane.left", preventDefault: false },
+      { key: "left", cmd: "pane.left", preventDefault: false },
+      { key: "return", cmd: "pane.enter", preventDefault: false },
+      { key: "space", cmd: "sidebar.toggle-filter", preventDefault: false },
+      { key: "g", cmd: "group.cycle", preventDefault: false },
+      { key: "e", cmd: "issue.edit", preventDefault: false },
+      { key: "n", cmd: "issue.new", preventDefault: false },
+      { key: "w", cmd: "issue.apply", preventDefault: false },
+      { key: "w", shift: true, cmd: "issue.remote-apply", preventDefault: false },
+      { key: "x", cmd: "issue.delete", preventDefault: false },
+      { key: "y", cmd: "issue.confirm-delete", preventDefault: false },
+      { key: "x", shift: true, cmd: "staged-discard.open", preventDefault: false },
     ],
   }))
 
   function moveVertical(delta: number) {
+    if (state.remoteApplyOpen) return false
+    if (state.stagedDiscardOpen) {
+      appState.moveStagedDiscardSelection(delta)
+      return
+    }
+    if (isPlainTextEditing()) return false
     if (state.focusedPane === "sidebar") {
       appState.moveSidebarSelection(delta)
       return
@@ -134,6 +155,7 @@ export function App() {
   }
 
   function moveHorizontal(delta: number) {
+    if (isPlainTextEditing() || isPopupOpen()) return false
     if (state.focusedPane === "sidebar" && delta > 0) {
       appState.openSidebarSelection()
       if (state.sidebarSelectedIndex < sidebarRoutes.length) appState.setFocusedPane("main")
@@ -145,6 +167,12 @@ export function App() {
   }
 
   function openFocusedItem() {
+    if (state.remoteApplyOpen) return false
+    if (state.stagedDiscardOpen) {
+      appState.confirmStagedDiscard()
+      return
+    }
+    if (isPlainTextEditing()) return false
     if (state.focusedPane === "sidebar") {
       appState.openSidebarSelection()
       if (state.sidebarSelectedIndex < sidebarRoutes.length) appState.setFocusedPane("main")
@@ -158,15 +186,12 @@ export function App() {
       appState.startInspectorEdit()
       return
     }
-    if (state.route === "issue-detail" && state.focusedPane === "main" && state.detailBodyEditing) {
-      appState.commitDetailBodyEdit()
-      return
-    }
     if (state.focusedPane !== "main") return
     if (isBoardRoute(state.route) || state.route === "backlog") appState.openIssueDetail(state.selectedIssueKey)
   }
 
   function cycleGroup() {
+    if (!canRunGlobalShortcut()) return false
     if (state.focusedPane !== "main") return
     if (state.route === "active-sprint") {
       appState.setActiveSprintGroupBy(nextBoardGroupBy(state.activeSprintGroupBy))
@@ -180,18 +205,21 @@ export function App() {
   }
 
   function editSelectedIssue() {
+    if (isPlainTextEditing() || isPopupOpen()) return false
     if (state.route === "issue-detail" && state.focusedPane === "main") {
       appState.startDetailBodyEdit()
       return
     }
     if (state.focusedPane !== "inspector") {
       appState.setFocusedPane("inspector")
+      appState.startInspectorEdit()
       return
     }
     appState.startInspectorEdit()
   }
 
   function createIssueFromContext() {
+    if (isPlainTextEditing() || isPopupOpen()) return false
     if (state.pendingDeleteIssueKey) {
       appState.cancelIssueDelete()
       return
@@ -234,6 +262,50 @@ export function App() {
       links: [],
     }
     appState.createDraftIssue(issue)
+  }
+
+  function toggleSpaceAction() {
+    if (state.remoteApplyOpen) return false
+    if (state.stagedDiscardOpen) {
+      appState.toggleStagedDiscardSelection()
+      return
+    }
+    if (isPlainTextEditing()) return false
+    if (state.focusedPane === "sidebar") appState.toggleSidebarFilterSelection()
+  }
+
+  function stageCurrentEdit() {
+    if (isPopupOpen()) return false
+    if (state.detailBodyEditing) {
+      appState.commitDetailBodyEdit()
+      return
+    }
+    if (state.inspectorEditingFieldId) {
+      appState.commitInspectorEdit()
+      return
+    }
+    return false
+  }
+
+  function canRunGlobalShortcut() {
+    return !isPlainTextEditing() && !isPopupOpen()
+  }
+
+  function remoteApplyAction() {
+    if (isPlainTextEditing() || state.stagedDiscardOpen) return false
+    if (state.remoteApplyOpen) {
+      appState.confirmRemoteIssueApply()
+      return
+    }
+    appState.openRemoteIssueApply()
+  }
+
+  function isPopupOpen() {
+    return state.remoteApplyOpen || state.stagedDiscardOpen
+  }
+
+  function isPlainTextEditing() {
+    return state.detailBodyEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
   }
 
   function defaultsFromBoardGroup(issue: IssueSummary, groupBy: ReturnType<typeof boardGroupByForMode>): Partial<IssueSummary> {

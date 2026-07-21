@@ -160,6 +160,10 @@ export type AppState = {
   issueDrafts: Record<string, IssueDraft>
   issueDeletes: string[]
   pendingDeleteIssueKey?: string
+  remoteApplyOpen: boolean
+  stagedDiscardOpen: boolean
+  stagedDiscardSelectedIndex: number
+  stagedDiscardSelections: string[]
   detailBodyEditing: boolean
   detailBodyEditValue: string
   draftIssueCounter: number
