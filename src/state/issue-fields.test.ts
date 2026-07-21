@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { detailBodyInitialValue } from "../context/app-state"
 import { applyIssueDraft, issueFieldColor, issueFieldDisplayValue, issueFields } from "./issue-fields"
 import { loadDemoWorkspace } from "./demo"
 
@@ -32,5 +33,13 @@ describe("issue fields", () => {
 
     expect(issueFieldDisplayValue(state, issue, statusField)).toBe("Code Review")
     expect(issueFieldColor(state, issue, statusField)).toBe("#A78BFA")
+  })
+
+  test("opens body editor with existing issue body", () => {
+    const state = loadDemoWorkspace()
+    const issue = state.issues[state.selectedIssueKey]!
+
+    expect(detailBodyInitialValue(state, issue)).toBe(issue.description)
+    expect(detailBodyInitialValue(state, issue).length).toBeGreaterThan(0)
   })
 })

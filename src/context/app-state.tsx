@@ -162,8 +162,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
     startDetailBodyEdit() {
       const issue = state.issues[state.selectedIssueKey]
       if (!issue || state.route !== "issue-detail") return
+      setState("detailBodyEditValue", detailBodyInitialValue(state, issue))
       setState("detailBodyEditing", true)
-      setState("detailBodyEditValue", state.issueDrafts[issue.key]?.description ?? issue.description)
       setState("focusedPane", "main")
     },
     updateDetailBodyEditValue(value) {
@@ -243,4 +243,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
 
 function clampOffset(offset: number, statusCount: number) {
   return Math.max(0, Math.min(offset, Math.max(0, statusCount - 1)))
+}
+
+export function detailBodyInitialValue(state: AppState, issue: IssueSummary) {
+  return state.issueDrafts[issue.key]?.description ?? issue.description
 }
