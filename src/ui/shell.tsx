@@ -13,13 +13,16 @@ export function AppShell() {
   const dimensions = useTerminalDimensions()
   const narrow = () => dimensions().width < 100
   const theme = useTheme()
+  const { state } = useAppState()
 
   return (
     <box width="100%" height="100%" backgroundColor={theme.background} flexDirection="column">
       <box flexGrow={1} flexDirection={narrow() ? "column" : "row"} gap={1} padding={1}>
         <Sidebar />
         <MainSurface />
-        <IssueInspector compact={narrow()} />
+        <Show when={state.route !== "issue-detail"}>
+          <IssueInspector compact={narrow()} />
+        </Show>
       </box>
       <Footer />
     </box>
@@ -118,8 +121,9 @@ function Footer() {
 function footerText(focusedPane: string, route: string) {
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
   if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  w apply staged  x discard  d/u scroll  tab focus"
-  if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  enter inspector  tab focus  q quit"
-  if (route === "kanban") return "kanban: j/k same status  h/l status/next cell  n new  g group  enter inspector"
-  if (route === "backlog") return "backlog: j/k row  h/l group  n new  enter inspector  tab focus  q quit"
+  if (route === "issue-detail") return "detail: d/u scroll  backspace/q back  tab focus"
+  if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  enter detail  e inspector  tab focus"
+  if (route === "kanban") return "kanban: j/k same status  h/l status/next cell  n new  g group  enter detail"
+  if (route === "backlog") return "backlog: j/k row  h/l group  n new  enter detail  e inspector  tab focus"
   return "1 workspace  2 sprint  3 backlog  4 kanban  n new  tab focus  q quit"
 }

@@ -14,7 +14,10 @@ export type AppStateContext = {
   toggleSidebarFilterSelection: () => void
   toggleQuickFilter: (filterId: QuickFilterId) => void
   selectIssue: (issueKey: string) => void
+  openIssueDetail: (issueKey?: string) => void
+  closeIssueDetail: () => void
   moveInspectorSelection: (delta: number) => void
+  moveInspectorChoice: (delta: number) => void
   startInspectorEdit: () => void
   updateInspectorEditValue: (value: string) => void
   commitInspectorEdit: () => void
@@ -42,12 +45,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("route", route)
       const index = sidebarRoutes.findIndex((candidate) => candidate.id === route)
       if (index !== -1) setState("sidebarSelectedIndex", index)
+      if (route === "issue-detail") setState("focusedPane", "main")
+      if (route !== "issue-detail") setState("previousRoute", undefined)
     },
     setFocusedPane(pane) {
       setState("focusedPane", pane)
     },
     focusNextPane(delta) {
-      const panes: FocusPane[] = ["sidebar", "main", "inspector"]
+      const panes: FocusPane[] = state.route === "issue-detail" ? ["sidebar", "main"] : ["sidebar", "main", "inspector"]
       const currentIndex = Math.max(0, panes.indexOf(state.focusedPane))
       setState("focusedPane", panes[(currentIndex + delta + panes.length) % panes.length]!)
     },
@@ -75,16 +80,36 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
     selectIssue(issueKey) {
       setState("selectedIssueKey", issueKey)
     },
+    openIssueDetail(issueKey) {
+      if (issueKey) setState("selectedIssueKey", issueKey)
+      if (state.route !== "issue-detail") setState("previousRoute", state.route)
+      setState("route", "issue-detail")
+      setState("focusedPane", "main")
+    },
+    closeIssueDetail() {
+      if (state.route !== "issue-detail") return
+      setState("route", state.previousRoute ?? "active-sprint")
+      setState("previousRoute", undefined)
+      setState("focusedPane", "main")
+    },
     moveInspectorSelection(delta) {
       const nextIndex = (state.inspectorSelectedFieldIndex + delta + issueFields.length) % issueFields.length
       setState("inspectorSelectedFieldIndex", nextIndex)
+    },
+    moveInspectorChoice(delta) {
+      const fieldId = state.inspectorEditingFieldId
+      if (fieldId !== "statusId" && fieldId !== "type") return
+      const choices = fieldId === "statusId" ? state.statuses.map((status) => status.id) : state.issueTypes.map((type) => type.id)
+      if (!choices.length) return
+      const currentIndex = Math.max(0, choices.findIndex((choice) => choice === state.inspectorEditValue))
+      setState("inspectorEditValue", choices[(currentIndex + delta + choices.length) % choices.length]!)
     },
     startInspectorEdit() {
       const issue = state.issues[state.selectedIssueKey]
       const field = selectedIssueField(state)
       if (!issue || !field || !field.editable || !isEditableField(field.id)) return
       setState("inspectorEditingFieldId", field.id)
-      setState("inspectorEditValue", issueFieldDisplayValue(state, issue, field))
+      setState("inspectorEditValue", field.id === "statusId" ? issue.statusId : field.id === "type" ? issue.type : issueFieldDisplayValue(state, issue, field))
     },
     updateInspectorEditValue(value) {
       setState("inspectorEditValue", value)

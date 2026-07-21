@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { appRoutes, isAppRoute, routeLabel } from "./routes"
+import { appRoutes, isAppRoute, routeLabel, sidebarRoutes } from "./routes"
 
 describe("routes", () => {
   test("defines the foundation routes", () => {
@@ -8,7 +8,12 @@ describe("routes", () => {
       "active-sprint",
       "backlog",
       "kanban",
+      "issue-detail",
     ])
+  })
+
+  test("keeps issue detail out of primary sidebar routes", () => {
+    expect(sidebarRoutes.map((route) => route.id)).toEqual(["workspace", "active-sprint", "backlog", "kanban"])
   })
 
   test("guards route ids", () => {

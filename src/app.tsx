@@ -42,10 +42,16 @@ export function App() {
       {
         name: "app.quit",
         run() {
+          if (state.route === "issue-detail") {
+            appState.closeIssueDetail()
+            return
+          }
           exit.exit()
         },
       },
+      { name: "app.force-quit", run: () => exit.exit() },
       { name: "edit.cancel", run: () => appState.cancelInspectorEdit() },
+      { name: "detail.back", run: () => appState.closeIssueDetail() },
       { name: "route.workspace", run: () => appState.setRoute("workspace") },
       { name: "route.active-sprint", run: () => appState.setRoute("active-sprint") },
       { name: "route.backlog", run: () => appState.setRoute("backlog") },
@@ -66,8 +72,9 @@ export function App() {
     ],
     bindings: [
       { key: "q", cmd: "app.quit" },
-      { key: { name: "c", ctrl: true }, cmd: "app.quit" },
+      { key: { name: "c", ctrl: true }, cmd: "app.force-quit" },
       { key: "escape", cmd: "edit.cancel" },
+      { key: "backspace", cmd: "detail.back" },
       { key: "tab", cmd: "focus.next" },
       { key: { name: "tab", shift: true }, cmd: "focus.previous" },
       { key: "1", cmd: "route.workspace" },
@@ -98,6 +105,10 @@ export function App() {
       return
     }
     if (state.focusedPane === "inspector") {
+      if (state.inspectorEditingFieldId === "statusId" || state.inspectorEditingFieldId === "type") {
+        appState.moveInspectorChoice(delta)
+        return
+      }
       appState.moveInspectorSelection(delta)
       return
     }
@@ -124,11 +135,15 @@ export function App() {
       return
     }
     if (state.focusedPane === "inspector") {
+      if (state.inspectorEditingFieldId) {
+        appState.commitInspectorEdit()
+        return
+      }
       appState.startInspectorEdit()
       return
     }
     if (state.focusedPane !== "main") return
-    if (isBoardRoute(state.route) || state.route === "backlog") appState.setFocusedPane("inspector")
+    if (isBoardRoute(state.route) || state.route === "backlog") appState.openIssueDetail(state.selectedIssueKey)
   }
 
   function cycleGroup() {
@@ -145,6 +160,7 @@ export function App() {
   }
 
   function editSelectedIssue() {
+    if (state.route === "issue-detail") return
     if (state.focusedPane !== "inspector") {
       appState.setFocusedPane("inspector")
       return
@@ -153,6 +169,7 @@ export function App() {
   }
 
   function createIssueFromContext() {
+    if (state.route === "issue-detail") return
     const current = state.issues[state.selectedIssueKey]
     const boardMode = isBoardRoute(state.route) ? state.route : undefined
     const location = boardMode ? selectedBoardLocation(state, boardMode) : undefined

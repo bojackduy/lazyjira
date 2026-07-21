@@ -20,7 +20,7 @@ Start first. Most other implementation work depends on this task defining the pr
 - Add package/runtime scaffolding.
 - Add app entrypoint.
 - Add root app shell.
-- Add placeholder route/screen state for workspace, active sprint, backlog, board, and the persistent issue inspector.
+- Add placeholder route/screen state for workspace, active sprint, backlog, board, issue detail, and the persistent issue inspector.
 - Add provider placeholders for config, theme, keymap, data, dialog/toast, and routing.
 - Add basic dev/typecheck/test commands.
 - Add a demo mode path that does not require Jira credentials.
@@ -49,7 +49,7 @@ Start first. Most other implementation work depends on this task defining the pr
 - [ ] App renders a workspace shell with sidebar, main surface, inspector area, and footer placeholders.
 - [ ] Renderer lifecycle is clean: startup, exit, cleanup.
 - [ ] Basic responsive layout exists for wide and narrow terminal sizes.
-- [ ] Shared state shape has routes for `workspace`, `active-sprint`, `backlog`, and `kanban`, plus persistent inspector state.
+- [ ] Shared state shape has routes for `workspace`, `active-sprint`, `backlog`, `kanban`, and `issue-detail`, plus persistent inspector state.
 - [ ] Test/typecheck/dev scripts are documented in `package.json`.
 - [ ] No Jira API calls exist in rendering components.
 

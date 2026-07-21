@@ -1,8 +1,8 @@
-# Subagent Task: Inspector And Issue Editing
+# Subagent Task: Inspector And Issue Detail
 
 ## Objective
 
-Build the selected issue inspector and editing surface used by board and backlog screens.
+Build the selected issue inspector/editing surface and the full issue detail route used by board and backlog screens.
 
 ## Parallel Status
 
@@ -10,7 +10,7 @@ Can start after issue demo data exists. It can proceed independently from real J
 
 ## Inputs
 
-- Product screen spec: `README.md` Issue Inspector section.
+- Product screen spec: `README.md` Issue Detail And Inspector section.
 - OpenTUI Markdown notes: `docs/OPENTUI_REFERENCE.md`.
 - Domain/demo data from `02-domain-demo-data`.
 - Command names from `03-keymap-command-system`.
@@ -18,15 +18,18 @@ Can start after issue demo data exists. It can proceed independently from real J
 ## Suggested Scope
 
 - Render persistent inspector for selected issue.
-- Make the right inspector pane the canonical issue detail/edit/create surface.
+- Keep the right inspector pane as the quick issue/status/edit/create surface on overview routes.
+- Render a full-width issue detail route and hide the right pane on that route.
 - Render markdown issue description.
 - Render comments, subtasks, links, attachments, and activity sections.
 - Add staged edit/create affordances plus transition, assign, priority, comment, copy, and open browser actions.
-- Keep board/backlog context visible while inspecting or editing issues.
+- Make status/type edits multiple-choice from current Jira/board metadata and keep their colors consistent with board/backlog views.
+- Keep board/backlog context visible while using the inspector; restore it with `q`/Backspace from detail.
 
 ## Suggested Files
 
 - `src/ui/issue-inspector.tsx`
+- `src/routes/issue-detail.tsx`
 - `src/state/issue-fields.ts`
 - `src/ui/inspector/description.tsx`
 - `src/ui/inspector/comments.tsx`
@@ -44,8 +47,11 @@ Can start after issue demo data exists. It can proceed independently from real J
 ## Checklist
 
 - [ ] Inspector updates when selected issue changes.
-- [ ] `Enter` focuses the inspector from board and backlog selection.
+- [ ] `Enter` opens full issue detail from board and backlog selection.
+- [ ] `q`/Backspace closes detail and returns to the previous overview.
+- [ ] The right inspector pane is hidden on full issue detail.
 - [ ] `e` or `Enter` edits the selected inspector field.
+- [ ] Status and type inspector edits use colored multiple-choice pickers.
 - [ ] `w` applies staged changes locally before Jira write integration exists.
 - [ ] `x` discards the selected staged field.
 - [ ] `n` creates a draft issue with context-aware defaults.
@@ -57,7 +63,7 @@ Can start after issue demo data exists. It can proceed independently from real J
 
 ## Handoff
 
-Return inspector field/edit behavior and any state needed by board and backlog screens.
+Return detail route behavior, inspector field/edit behavior, and any state needed by board and backlog screens.
 
 ## Avoid
 

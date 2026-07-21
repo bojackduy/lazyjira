@@ -1,5 +1,5 @@
 import type { AppState, IssueDraft, IssueEditableField, IssueSummary } from "./app-state"
-import { statusName } from "./selectors"
+import { issueTypeColor, statusColor, statusName } from "./selectors"
 
 export type IssueFieldDefinition = {
   id: IssueEditableField | "key" | "createdAt" | "updatedAt" | "rank" | "resolution"
@@ -40,7 +40,15 @@ export const issueFields: IssueFieldDefinition[] = [
 
 export function issueFieldDisplayValue(state: AppState, issue: IssueSummary, field: IssueFieldDefinition) {
   const draftValue = isEditableField(field.id) ? state.issueDrafts[issue.key]?.[field.id] : undefined
+  if (draftValue !== undefined && field.id === "statusId") return state.statuses.find((status) => status.id === draftValue)?.name ?? draftValue
+  if (draftValue !== undefined && field.id === "type") return state.issueTypes.find((type) => type.id === draftValue)?.name ?? draftValue
   return draftValue ?? field.value(issue, state)
+}
+
+export function issueFieldColor(state: AppState, issue: IssueSummary, field: IssueFieldDefinition) {
+  if (field.id === "statusId") return statusColor(state, issueWithDraftValue(issue, "statusId", state.issueDrafts[issue.key]?.statusId))
+  if (field.id === "type") return issueTypeColor(state, issueWithDraftValue(issue, "type", state.issueDrafts[issue.key]?.type))
+  return undefined
 }
 
 export function selectedIssueField(state: AppState) {
@@ -94,6 +102,11 @@ function applyIssueField(issue: IssueSummary, fieldId: IssueEditableField, value
     case "blocked":
       return { ...issue, blocked: ["1", "true", "yes", "y", "blocked"].includes(trimmed.toLowerCase()) }
   }
+}
+
+function issueWithDraftValue(issue: IssueSummary, fieldId: "statusId" | "type", value?: string): IssueSummary {
+  if (!value) return issue
+  return { ...issue, [fieldId]: value }
 }
 
 function priorityValue(value: string) {

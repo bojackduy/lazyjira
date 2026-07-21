@@ -397,6 +397,7 @@ export function loadDemoWorkspace(): AppState {
   return {
     demoMode: true,
     route: "active-sprint",
+    previousRoute: undefined,
     focusedPane: "main",
     sidebarSelectedIndex: 1,
     project: { key: "PROJ", name: "Product App" },

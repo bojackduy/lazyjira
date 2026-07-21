@@ -134,6 +134,7 @@ export type WorkspaceStats = {
 export type AppState = {
   demoMode: boolean
   route: AppRoute
+  previousRoute?: AppRoute
   focusedPane: FocusPane
   sidebarSelectedIndex: number
   project: ProjectSummary

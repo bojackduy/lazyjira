@@ -2,6 +2,7 @@ import { Match, Switch } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { ActiveSprintRoute } from "./active-sprint"
 import { BacklogRoute } from "./backlog"
+import { IssueDetailRoute } from "./issue-detail"
 import { KanbanRoute } from "./kanban"
 import { WorkspaceRoute } from "./workspace"
 
@@ -21,6 +22,9 @@ export function RouteSurface() {
       </Match>
       <Match when={state.route === "kanban"}>
         <KanbanRoute />
+      </Match>
+      <Match when={state.route === "issue-detail"}>
+        <IssueDetailRoute />
       </Match>
     </Switch>
   )

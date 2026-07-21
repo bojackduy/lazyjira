@@ -89,7 +89,7 @@ Example direction:
 │ > Only My Issues          ││ │ Story · Low   │   │ Bug · Medium  │                                      ││ c comment               │
 │   Blocked                 ││ └───────────────┘   └───────────────┘                                      ││ e edit                  │
 └───────────────────────────┘└──────────────────────────────────────────────────────────────────────────┘└─────────────────────────┘
-? help  / search  j/k card  h/l column  n new  enter inspector  e edit  w apply
+? help  / search  j/k card  h/l column  n new  enter detail  e inspector  w apply
 ```
 
 ### 3. Backlog
@@ -125,7 +125,7 @@ Example direction:
 │                         ││ ┌────────────────────────────────────────────────────────────────┐ ││ n new issue             │
 │                         ││ │   PROJ-160  Task  Low   Cleanup labels        Unassigned     │ ││ m move to sprint        │
 └─────────────────────────┘└────────────────────────────────────────────────────────────────────┘└─────────────────────────┘
-j/k move  J/K rank  m move to sprint  s transition  / filter  enter inspector  tab focus
+j/k move  J/K rank  m move to sprint  s transition  / filter  enter detail  tab focus
 ```
 
 ### 4. Kanban Board
@@ -140,9 +140,9 @@ Should show:
 - Blocker/stale signals.
 - Fast transition and assignment actions.
 
-### 5. Issue Inspector
+### 5. Issue Detail And Inspector
 
-Purpose: inspect, edit, and create one selected item without losing board/backlog context.
+Purpose: inspect, edit, create, and deeply read one selected item without losing board/backlog context.
 
 Should show:
 
@@ -156,8 +156,10 @@ Should show:
 - Activity/history.
 - Actions for transition, assign, priority, comment, edit, copy, and open in browser.
 - Staged local edits before applying Jira writes.
+- Colored type/status fields that match board/backlog rendering.
+- Status/type multiple-choice editing from the current board/Jira metadata.
 
-The right inspector pane is the canonical issue detail surface. `Enter` focuses it from board/backlog rows, `e` edits the selected field, `n` creates a draft issue with context-aware defaults, and `w` applies staged changes.
+The right inspector pane is the quick issue/status/edit surface on overview routes. `e` focuses it, `n` creates a draft issue with context-aware defaults, and `w` applies staged changes. `Enter` opens the full issue detail route for reading; that route uses the full width and hides the right pane until `q`/Backspace returns to the previous overview.
 
 ### 6. Search And Command Palette
 
@@ -229,7 +231,7 @@ Goal: prove the main experience without depending on real Jira data.
 - Active sprint board with columns and cards.
 - Backlog with active/future/backlog sections.
 - Inspector for selected issue.
-- Right-pane issue detail/editor for one issue.
+- Right-pane issue inspector/editor plus a full-width issue detail route.
 - Help surface and command palette.
 - Keyboard navigation across board columns, backlog rows, and inspector fields.
 

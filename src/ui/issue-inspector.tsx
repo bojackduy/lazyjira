@@ -3,7 +3,7 @@ import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
-import { isEditableField, issueFieldDisplayValue, issueFields, type IssueFieldDefinition } from "../state/issue-fields"
+import { isEditableField, issueFieldColor, issueFieldDisplayValue, issueFields, type IssueFieldDefinition } from "../state/issue-fields"
 import { issueTypeColor, statusColor, statusName } from "../state/selectors"
 
 export function IssueInspector(props: { compact: boolean }) {
@@ -94,26 +94,28 @@ function IssueFieldRow(props: { field: IssueFieldDefinition; index: number }) {
         </text>
         <text fg={props.field.editable ? theme.textSubtle : theme.textSubtle}>{props.field.editable ? "edit" : "read"}</text>
       </box>
-      <Show when={editing()} fallback={<FieldValue field={props.field} value={value()} selected={selected()} />}>
+      <Show when={editing()} fallback={<FieldValue field={props.field} value={value()} selected={selected()} color={issue() ? issueFieldColor(state, issue()!, props.field) : undefined} />}>
         <FieldEditor field={props.field} />
       </Show>
     </box>
   )
 }
 
-function FieldValue(props: { field: IssueFieldDefinition; value: string; selected: boolean }) {
+function FieldValue(props: { field: IssueFieldDefinition; value: string; selected: boolean; color?: string }) {
   const theme = useTheme()
+  const color = () => props.color ?? (props.selected ? theme.selectedText : theme.textMuted)
   if (props.field.multiline) {
     const preview = props.value.split("\n").slice(0, 8).join("\n") || "empty"
-    return <text fg={props.selected ? theme.selectedText : theme.textMuted}>{preview}</text>
+    return <text fg={color()}>{preview}</text>
   }
-  return <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">{props.value || "empty"}</text>
+  return <text fg={color()} wrapMode="none">{props.value || "empty"}</text>
 }
 
 function FieldEditor(props: { field: IssueFieldDefinition }) {
   const appState = useAppState()
   const { state } = appState
   const theme = useTheme()
+  if (props.field.id === "statusId" || props.field.id === "type") return <ChoiceEditor field={props.field} />
   if (props.field.multiline) {
     let textarea: TextareaRenderable | undefined
     return (
@@ -150,5 +152,30 @@ function FieldEditor(props: { field: IssueFieldDefinition }) {
       backgroundColor={theme.panel}
       focusedBackgroundColor={theme.panel}
     />
+  )
+}
+
+function ChoiceEditor(props: { field: IssueFieldDefinition }) {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const choices = () =>
+    props.field.id === "statusId"
+      ? state.statuses.map((status) => ({ value: status.id, label: status.name, color: status.color }))
+      : state.issueTypes.map((type) => ({ value: type.id, label: type.name, color: type.color }))
+
+  return (
+    <box flexDirection="column" gap={1}>
+      <text fg={theme.textSubtle} wrapMode="none">j/k choose · enter stage · esc cancel</text>
+      <For each={choices()}>
+        {(choice) => {
+          const selected = () => state.inspectorEditValue === choice.value
+          return (
+            <text fg={choice.color} bg={selected() ? theme.selected : undefined} wrapMode="none">
+              {selected() ? ">" : " "} {props.field.id === "statusId" ? "●" : "■"} {choice.label}
+            </text>
+          )
+        }}
+      </For>
+    </box>
   )
 }
