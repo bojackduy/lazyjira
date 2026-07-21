@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { AppState, IssueSummary, StatusDefinition } from "./app-state"
-import { boardIssueKeyAtLocation, nextKanbanHorizontalLocation, selectedBoardLocation } from "./board-navigation"
+import { boardCellIssueKeys, boardIssueKeyAtLocation, nextKanbanHorizontalLocation, selectedBoardLocation } from "./board-navigation"
 import { loadDemoWorkspace } from "./demo"
 
 const statuses: StatusDefinition[] = [
@@ -26,6 +26,22 @@ describe("board navigation", () => {
     expect(nextKanbanIssue(state, "C", -1)).toBe("B")
     expect(nextKanbanIssue(state, "B", -1)).toBe("A")
     expect(nextKanbanIssue(state, "A", -1)).toBeUndefined()
+  })
+
+  test("locates staged status changes in the rendered board column", () => {
+    const state = loadDemoWorkspace()
+    state.issueDrafts["PROJ-128"] = { statusId: "code-review" }
+
+    expect(state.issues["PROJ-128"]?.statusId).toBe("blocked")
+    expect(selectedBoardLocation(state, "active-sprint", "PROJ-128")).toEqual({ groupIndex: 0, statusIndex: 2, itemIndex: 0 })
+  })
+
+  test("reads board cells from staged render state", () => {
+    const state = loadDemoWorkspace()
+    state.issueDrafts["PROJ-128"] = { statusId: "code-review" }
+
+    expect(boardCellIssueKeys(state, "active-sprint", 0, 4)).not.toContain("PROJ-128")
+    expect(boardIssueKeyAtLocation(state, "active-sprint", { groupIndex: 0, statusIndex: 2, itemIndex: 0 })).toBe("PROJ-128")
   })
 })
 

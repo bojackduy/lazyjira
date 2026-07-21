@@ -4,6 +4,7 @@ import { useBindings } from "./context/keymap"
 import { useAppState } from "./context/app-state"
 import { useExit } from "./context/exit"
 import { AppShell } from "./ui/shell"
+import { issueByKey } from "./state/issue-drafts"
 import { sidebarRoutes } from "./state/routes"
 import type { BoardMode, IssueSummary } from "./state/app-state"
 import {
@@ -428,7 +429,7 @@ export function App() {
     const visibleStatusIds = new Set(visibleStatusesForBoard(state, mode, dimensions().width).map((status) => status.id))
     const keys: string[] = []
     for (const group of boardGroupsForMode(state, mode)) {
-      keys.push(...group.issueKeys.filter((issueKey) => visibleStatusIds.has(state.issues[issueKey]?.statusId ?? "")))
+      keys.push(...group.issueKeys.filter((issueKey) => visibleStatusIds.has(issueByKey(state, issueKey)?.statusId ?? "")))
     }
     return keys.length ? keys : boardIssuesForMode(state, mode).map((issue) => issue.key)
   }

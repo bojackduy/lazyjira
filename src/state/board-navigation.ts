@@ -1,4 +1,5 @@
 import type { AppState, BoardMode } from "./app-state"
+import { issueByKey } from "./issue-drafts"
 import { boardGroupsForMode } from "./selectors"
 
 export type BoardLocation = {
@@ -11,7 +12,7 @@ export function boardCellIssueKeys(state: AppState, mode: BoardMode, groupIndex:
   const group = boardGroupsForMode(state, mode)[groupIndex]
   const status = state.statuses[statusIndex]
   if (!group || !status) return []
-  return group.issueKeys.filter((issueKey) => state.issues[issueKey]?.statusId === status.id)
+  return group.issueKeys.filter((issueKey) => issueByKey(state, issueKey)?.statusId === status.id)
 }
 
 export function boardIssueKeyAtLocation(state: AppState, mode: BoardMode, location: BoardLocation) {
