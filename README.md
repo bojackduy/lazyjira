@@ -237,7 +237,7 @@ Implementation planning artifacts live under `docs/`:
 
 Atlassian API token auth needs one Jira site URL, email, and API token. `lazyjira` currently supports one local Jira account config.
 
-If no credentials are found, opening the TUI starts a guided onboarding walkthrough. You can skip it with `Esc` and stay in demo mode.
+If no credentials are found, opening the TUI stays in demo mode and uses mock project/board discovery for smoke testing. Use `lazyjira auth login` when you want to save real Jira credentials.
 
 The same setup is also available outside the TUI:
 
@@ -255,7 +255,9 @@ Credentials are stored at `~/.config/lazyjira/config.json` with user-only file p
 
 ### Jira Project Selection
 
-After credentials are saved, the TUI opens a Jira project picker. Choose one project, then choose a Scrum or Kanban board when the project has multiple boards. Press `P` later to switch the active project/board without editing config or restarting.
+After credentials are saved, the TUI opens a project picker. Until real Jira issue loading is wired, demo mode uses bundled mock project/board discovery even if credentials are saved. Press `P` later to switch the active project/board without editing config or restarting.
+
+For local smoke testing without Jira credentials, open the TUI and choose from the bundled mock Jira projects and boards. Press `P` later to reopen the same picker. Demo selections persist under `workspace` just like a real selection.
 
 The selected project and board are persisted under `workspace` in the same config file. Auth updates preserve the selected workspace, and workspace updates preserve the saved API token. Jira issue/sprint/backlog data loading is not wired yet, so the app still renders demo issues while showing the selected Jira context.
 

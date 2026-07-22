@@ -2,6 +2,7 @@ import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
 import { loadJiraAuthConfig, normalizeBaseUrl, saveJiraAuthConfig, saveJiraWorkspaceConfig } from "../auth/config"
 import { fetchAccessibleProjects, fetchProjectBoards } from "../jira/client"
+import { mockAccessibleProjects, mockProjectBoards } from "../jira/mock"
 import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, ProjectOption, QuickFilterId, StatusCategory } from "../state/app-state"
 import {
   colorableConfigSection,
@@ -180,7 +181,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       }
     },
     openProjectPicker() {
-      if (!state.jiraAuthReady) {
+      if (!state.jiraAuthReady && !state.demoMode) {
         context.openAuthOnboarding()
         return
       }
@@ -201,20 +202,20 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("projectPicker", "loading", true)
       setState("projectPicker", "error", undefined)
       try {
-        const auth = await loadJiraAuthConfig()
-        if (!auth) {
+        const auth = state.demoMode ? undefined : await loadJiraAuthConfig()
+        if (!auth && !state.demoMode) {
           setState("projectPicker", "open", false)
           context.openAuthOnboarding()
           return
         }
         if (state.projectPicker.step === "board" && state.projectPicker.selectedProject) {
-          const boards = await fetchProjectBoards(auth, state.projectPicker.selectedProject.key)
+          const boards = auth ? await fetchProjectBoards(auth, state.projectPicker.selectedProject.key) : mockProjectBoards(state.projectPicker.selectedProject.key)
           setState("projectPicker", "boards", boards)
           setState("projectPicker", "selectedIndex", 0)
           if (!boards.length) setState("projectPicker", "error", `No Jira Software boards found for ${state.projectPicker.selectedProject.key}`)
           return
         }
-        const projects = await fetchAccessibleProjects(auth)
+        const projects = auth ? await fetchAccessibleProjects(auth) : mockAccessibleProjects()
         setState("projectPicker", "projects", projects)
         setState("projectPicker", "selectedIndex", 0)
         if (!projects.length) setState("projectPicker", "error", "No accessible Jira projects found")
@@ -242,8 +243,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
     async selectProjectPickerItem() {
       if (state.projectPicker.loading || state.projectPicker.saving) return
       try {
-        const auth = await loadJiraAuthConfig()
-        if (!auth) {
+        const auth = state.demoMode ? undefined : await loadJiraAuthConfig()
+        if (!auth && !state.demoMode) {
           setState("projectPicker", "open", false)
           context.openAuthOnboarding()
           return
@@ -253,7 +254,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
           if (!project) return
           setState("projectPicker", "loading", true)
           setState("projectPicker", "error", undefined)
-          const boards = await fetchProjectBoards(auth, project.key)
+          const boards = auth ? await fetchProjectBoards(auth, project.key) : mockProjectBoards(project.key)
           if (!boards.length) {
             setState("projectPicker", "error", `No Jira Software boards found for ${project.key}`)
             return

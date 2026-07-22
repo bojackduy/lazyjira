@@ -21,7 +21,8 @@ const authConfig = await loadJiraAuthConfig().catch((error) => {
   return undefined
 })
 const initialState = loadDemoWorkspace()
-const workspaceConfig = authConfig ? savedConfig?.workspace : undefined
+const workspaceConfig = savedConfig?.workspace
+const shouldOpenProjectPicker = !workspaceConfig && (!!authConfig || initialState.demoMode)
 initialState.jiraAuthReady = !!authConfig
 initialState.jiraProjectReady = !!workspaceConfig
 if (workspaceConfig) {
@@ -29,7 +30,7 @@ if (workspaceConfig) {
   initialState.board = { id: workspaceConfig.boardId, name: workspaceConfig.boardName, type: workspaceConfig.boardType }
 }
 initialState.authOnboarding = {
-  open: !authConfig,
+  open: !authConfig && !initialState.demoMode,
   step: "baseUrl",
   baseUrl: authConfig?.baseUrl ?? "",
   email: authConfig?.email ?? "",
@@ -38,7 +39,7 @@ initialState.authOnboarding = {
   error: authLoadError,
 }
 initialState.projectPicker = {
-  open: !!authConfig && !workspaceConfig,
+  open: shouldOpenProjectPicker,
   step: "project",
   loading: false,
   saving: false,

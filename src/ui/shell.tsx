@@ -317,6 +317,9 @@ function ProjectPickerPopup() {
           <text fg={theme.textSubtle}>j/k choose · enter select · r reload · Esc close</text>
         </box>
         <text fg={theme.textMuted}>lazyjira keeps one active Jira project context at a time.</text>
+        <Show when={state.demoMode}>
+          <text fg={theme.warning}>Using mock Jira discovery data in demo mode; no Jira fetch is made here yet.</text>
+        </Show>
         <Show when={state.projectPicker.step === "board" && state.projectPicker.selectedProject}>
           {(project) => <text fg={theme.warning} wrapMode="none">Project: {project().key} {project().name} · h/backspace picks another project</text>}
         </Show>
@@ -523,7 +526,7 @@ function footerText(focusedPane: string, route: string, stagedDiscardOpen: boole
 function runtimeModeText(config: ReturnType<typeof useConfig>, jiraAuthReady = false, jiraProjectReady = false) {
   if (config.demoMode && jiraProjectReady) return "mock data · Jira project selected"
   if (config.demoMode && (config.jira || jiraAuthReady)) return "mock data · choose Jira project"
-  if (config.demoMode) return "mock data · run lazyjira auth login"
+  if (config.demoMode) return "mock data · P project · auth optional"
   return config.jira ? "jira mode" : "jira mode · no auth"
 }
 
