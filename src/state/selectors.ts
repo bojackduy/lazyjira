@@ -1,6 +1,7 @@
 import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, StatusDefinition } from "./app-state"
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { issueWithDraft } from "./issue-drafts"
+import { matchesIssueSearch } from "./issue-search"
 
 export const boardGroupModes: { id: BoardGroupBy; label: string }[] = [
   { id: "none", label: "None" },
@@ -37,7 +38,7 @@ export function allIssues(state: AppState) {
 }
 
 export function issueList(state: AppState) {
-  return allIssues(state).filter((issue) => matchesQuickFilters(state, issue))
+  return allIssues(state).filter((issue) => matchesQuickFilters(state, issue) && matchesIssueSearch(state, issue))
 }
 
 export function activeSprintIssues(state: AppState) {

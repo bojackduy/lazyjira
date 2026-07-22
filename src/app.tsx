@@ -52,6 +52,10 @@ export function App() {
             appState.closeStagedDiscard()
             return
           }
+          if (state.searchOpen) {
+            appState.closeSearch()
+            return
+          }
           if (isPlainTextEditing()) return false
           if (state.pendingDeleteIssueKey) {
             appState.cancelIssueDelete()
@@ -78,6 +82,7 @@ export function App() {
         run() {
           if (state.remoteApplyOpen) appState.closeRemoteIssueApply()
           else if (state.stagedDiscardOpen) appState.closeStagedDiscard()
+          else if (state.searchOpen) appState.closeSearch()
           else if (state.pendingDeleteIssueKey) appState.cancelIssueDelete()
           else if (state.route === "workspace" && state.workspaceFocusedArea === "results") appState.closeWorkspaceResults()
           else if (state.configEditing) appState.cancelConfigEdit()
@@ -92,6 +97,7 @@ export function App() {
       { name: "route.backlog", run: () => (canRunGlobalShortcut() ? appState.setRoute("backlog") : false) },
       { name: "route.kanban", run: () => (canRunGlobalShortcut() ? appState.setRoute("kanban") : false) },
       { name: "route.config", run: () => (canRunGlobalShortcut() ? appState.setRoute("config") : false) },
+      { name: "search.open", run: () => (canRunGlobalShortcut() && state.route !== "config" ? appState.openSearch() : false) },
       { name: "focus.next", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(1)) },
       { name: "focus.previous", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(-1)) },
       { name: "pane.down", run: () => moveVertical(1) },
@@ -116,7 +122,7 @@ export function App() {
       { name: "issue.cancel-delete", run: () => (canRunGlobalShortcut() ? appState.cancelIssueDelete() : false) },
       { name: "staged-discard.open", run: () => (isPlainTextEditing() || isPopupOpen() || isAnyEditing() ? false : appState.openStagedDiscard()) },
     ],
-    bindings: [
+    bindings: state.searchOpen ? searchBindings() : [
       { key: "q", cmd: "app.quit", preventDefault: false },
       { key: { name: "c", ctrl: true }, cmd: "app.force-quit" },
       { key: "escape", cmd: "edit.cancel" },
@@ -129,6 +135,7 @@ export function App() {
       { key: "3", cmd: "route.backlog", preventDefault: false },
       { key: "4", cmd: "route.kanban", preventDefault: false },
       { key: "5", cmd: "route.config", preventDefault: false },
+      { key: "/", cmd: "search.open", preventDefault: false },
       { key: "j", cmd: "staged-discard.down", preventDefault: false },
       { key: "down", cmd: "staged-discard.down", preventDefault: false },
       { key: "k", cmd: "staged-discard.up", preventDefault: false },
@@ -151,6 +158,10 @@ export function App() {
       { key: { name: "x", shift: true }, cmd: "staged-discard.open", preventDefault: false },
     ],
   }))
+
+  function searchBindings() {
+    return [{ key: "escape", cmd: "edit.cancel", preventDefault: false }]
+  }
 
   function moveVertical(delta: number) {
     if (state.remoteApplyOpen) return false
@@ -373,7 +384,7 @@ export function App() {
   }
 
   function isPlainTextEditing() {
-    return state.authOnboarding.open || state.detailBodyEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
+    return state.authOnboarding.open || state.searchOpen || state.detailBodyEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
   }
 
   function isAnyEditing() {

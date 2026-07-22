@@ -8,6 +8,7 @@ import { useToast } from "../context/toast"
 import { RouteSurface } from "../routes"
 import { issueByKey } from "../state/issue-drafts"
 import { routeLabel, sidebarRoutes } from "../state/routes"
+import { allIssues, issueList } from "../state/selectors"
 import { stagedChanges, type StagedChange } from "../state/staged-changes"
 import { IssueInspector } from "./issue-inspector"
 
@@ -104,10 +105,53 @@ function MainSurface() {
         <text attributes={TextAttributes.BOLD} fg={theme.text}>{routeLabel(state.route)}</text>
         <text fg={theme.textSubtle}>{state.board.name}</text>
       </box>
-      <box paddingTop={1} flexGrow={1} minHeight={0}>
-        <RouteSurface />
+      <box paddingTop={1} flexDirection="column" flexGrow={1} minHeight={0}>
+        <SearchBar />
+        <box paddingTop={state.route !== "config" && (state.searchOpen || state.searchQuery) ? 1 : 0} flexGrow={1} minHeight={0}>
+          <RouteSurface />
+        </box>
       </box>
     </box>
+  )
+}
+
+function SearchBar() {
+  const appState = useAppState()
+  const { state } = appState
+  const theme = useTheme()
+  let input: InputRenderable | undefined
+  const visible = () => state.route !== "config" && (state.searchOpen || !!state.searchQuery)
+  const filteredCount = () => issueList(state).length
+  const loadedCount = () => allIssues(state).length
+
+  return (
+    <Show when={visible()}>
+      <box borderStyle="rounded" borderColor={state.searchOpen ? theme.borderActive : theme.border} paddingLeft={1} paddingRight={1} height={3} flexShrink={0} flexDirection="row" gap={1} alignItems="center">
+        <text attributes={TextAttributes.BOLD} fg={theme.warning} wrapMode="none">Filter loaded</text>
+        <Show when={state.searchOpen} fallback={
+          <text fg={theme.textMuted} wrapMode="none">{state.searchQuery || "empty"} · {filteredCount()}/{loadedCount()} loaded · / edit · empty Enter clears</text>
+        }>
+          <input
+            value={state.searchDraft}
+            onInput={(value) => appState.updateSearchDraft(value)}
+            onSubmit={() => appState.commitSearch()}
+            ref={(element: InputRenderable) => {
+              input = element
+              setTimeout(() => input && !input.isDestroyed && input.focus(), 1)
+            }}
+            placeholder="status:blocked assignee:duy auth"
+            placeholderColor={theme.textSubtle}
+            textColor={theme.text}
+            focusedTextColor={theme.text}
+            cursorColor={theme.accent}
+            backgroundColor={theme.panel}
+            focusedBackgroundColor={theme.panel}
+            flexGrow={1}
+          />
+          <text fg={theme.textSubtle} wrapMode="none">{filteredCount()}/{loadedCount()} loaded</text>
+        </Show>
+      </box>
+    </Show>
   )
 }
 
@@ -118,7 +162,7 @@ function Footer() {
 
   return (
     <box height={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.panel} flexDirection="row" justifyContent="space-between">
-      <text fg={theme.textMuted}>{footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open)}</text>
+      <text fg={theme.textMuted}>{state.searchOpen ? "filter loaded: type query  enter apply  esc close  empty enter clears" : footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open)}</text>
       <text fg={theme.textSubtle}>{toast.message() ?? "demo scaffold"}</text>
     </box>
   )
@@ -376,12 +420,12 @@ function footerText(focusedPane: string, route: string, stagedDiscardOpen: boole
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
   if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  ctrl-enter stage  x delete  X discard  w render  W Jira"
   if (route === "issue-detail") return "detail: j/k line  d/u half-page  e edit body  ctrl-enter stage  X discard  w render  W Jira"
-  if (route === "workspace") return "workspace: j/k choose  d/u page  enter open  X discard staged  W write Jira"
+  if (route === "workspace") return "workspace: j/k choose  d/u page  enter open  / filter loaded  X discard staged  W write Jira"
   if (route === "config") return "config: j/k choose  h/l pane  a add  e rename  c color  x remove  X discard  W Jira"
-  if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  x delete  enter detail  e inspector  W Jira"
-  if (route === "kanban") return "kanban: j/k same status  h/l next cell  n new  x delete  g group  enter detail  W Jira"
-  if (route === "backlog") return "backlog: j/k row  h/l group  n new  x delete  enter detail  e inspector  W Jira"
-  return "1 workspace  2 sprint  3 backlog  4 kanban  n new  w render  W Jira  q quit"
+  if (route === "active-sprint") return "sprint: j/k card  h/l column  / filter  n new  x delete  enter detail  W Jira"
+  if (route === "kanban") return "kanban: j/k same status  h/l next cell  / filter  g group  enter detail  W Jira"
+  if (route === "backlog") return "backlog: j/k row  h/l group  / filter  n new  x delete  enter detail  W Jira"
+  return "1 workspace  2 sprint  3 backlog  4 kanban  / filter loaded  w render  W Jira  q quit"
 }
 
 function runtimeModeText(config: ReturnType<typeof useConfig>, jiraAuthReady = false) {

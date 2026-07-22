@@ -13,6 +13,7 @@ import {
   workspaceJumpTargets,
   workspacePendingItem,
   workspaceRecentItems,
+  workspaceSearchItems,
   workspaceSelectedItem,
   type WorkspaceItem,
   type WorkspaceResult,
@@ -43,7 +44,7 @@ export function WorkspaceRoute() {
       { name: "workspace.page.down", run: () => pageWorkspace(1) },
       { name: "workspace.page.up", run: () => pageWorkspace(-1) },
     ],
-    bindings: [
+    bindings: state.searchOpen ? [] : [
       { key: "d", cmd: "workspace.page.down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "workspace.page.down" },
       { key: "u", cmd: "workspace.page.up", preventDefault: false },
@@ -79,6 +80,13 @@ export function WorkspaceRoute() {
             <WorkspaceSection title="Pending Local">
               <WorkspaceCard item={workspacePendingItem(state)} selected={selected(workspacePendingItem(state))} active={cardsFocused()} tone={workspacePendingItem(state).count ? "danger" : "muted"} />
             </WorkspaceSection>
+            <Show when={workspaceSearchItems(state).length}>
+              <WorkspaceSection title="Search">
+                <For each={workspaceSearchItems(state)}>
+                  {(item) => <WorkspaceCard item={item} selected={selected(item)} active={cardsFocused()} tone={item.count ? "warning" : "muted"} />}
+                </For>
+              </WorkspaceSection>
+            </Show>
             <WorkspaceSection title="Attention Queues">
               <For each={workspaceAttentionQueues(state)}>
                 {(item) => <WorkspaceCard item={item} selected={selected(item)} active={cardsFocused()} tone={item.count ? "warning" : "muted"} />}

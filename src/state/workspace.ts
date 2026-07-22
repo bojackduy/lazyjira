@@ -1,11 +1,12 @@
 import type { AppRoute } from "./routes"
 import type { AppState, IssueSummary } from "./app-state"
-import { allIssues, activeSprint, groupModeLabel, statusName } from "./selectors"
+import { effectiveIssueSearchQuery } from "./issue-search"
+import { allIssues, activeSprint, groupModeLabel, issueList, statusName } from "./selectors"
 import { stagedChanges } from "./staged-changes"
 
 export type WorkspaceItem = {
   id: string
-  section: "jump" | "attention" | "pending" | "recent"
+  section: "jump" | "attention" | "pending" | "search" | "recent"
   title: string
   subtitle: string
   count?: number
@@ -26,6 +27,7 @@ export function workspaceItems(state: AppState): WorkspaceItem[] {
   return [
     ...workspaceJumpTargets(state),
     workspacePendingItem(state),
+    ...workspaceSearchItems(state),
     ...workspaceAttentionQueues(state),
     ...workspaceRecentItems(state),
   ]
@@ -88,6 +90,20 @@ export function workspacePendingItem(state: AppState): WorkspaceItem {
     subtitle: changes.length ? `${parts.join(" · ")} · X discard · W write Jira` : "No staged edits or deletes",
     count: changes.length,
   }
+}
+
+export function workspaceSearchItems(state: AppState): WorkspaceItem[] {
+  const query = effectiveIssueSearchQuery(state).trim()
+  if (!query) return []
+  const issues = issueList(state)
+  return [{
+    id: "search:loaded",
+    section: "search",
+    title: "Filtered Loaded",
+    subtitle: `${issues.length}/${allIssues(state).length} loaded issues · ${query}`,
+    count: issues.length,
+    issueKeys: issues.map((issue) => issue.key),
+  }]
 }
 
 export function workspaceAttentionQueues(state: AppState): WorkspaceItem[] {

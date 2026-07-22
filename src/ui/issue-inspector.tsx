@@ -22,7 +22,7 @@ export function IssueInspector(props: { compact: boolean }) {
       { name: "inspector.scroll.down", run: () => scrollPage(1) },
       { name: "inspector.scroll.up", run: () => scrollPage(-1) },
     ],
-    bindings: [
+    bindings: state.searchOpen ? [] : [
       { key: "d", cmd: "inspector.scroll.down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "inspector.scroll.down" },
       { key: "u", cmd: "inspector.scroll.up", preventDefault: false },

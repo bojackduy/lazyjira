@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { loadDemoWorkspace } from "./demo"
-import { workspaceAttentionQueues, workspaceItems, workspacePendingItem, workspaceRecentItems, workspaceResultsForItem } from "./workspace"
+import { workspaceAttentionQueues, workspaceItems, workspacePendingItem, workspaceRecentItems, workspaceResultsForItem, workspaceSearchItems } from "./workspace"
 
 describe("workspace dashboard", () => {
   test("builds jump, pending, attention, and recent items in order", () => {
@@ -36,6 +36,17 @@ describe("workspace dashboard", () => {
       "edit:PROJ-128:title",
       "delete:PROJ-181",
     ])
+  })
+
+  test("adds filtered loaded results when search is active", () => {
+    const state = loadDemoWorkspace()
+    state.searchQuery = "assignee:duy auth"
+
+    const searchItem = workspaceSearchItems(state)[0]
+
+    expect(searchItem?.id).toBe("search:loaded")
+    expect(searchItem?.issueKeys).toContain("PROJ-128")
+    expect(workspaceResultsForItem(state, searchItem).map((result) => result.issueKey)).toContain("PROJ-128")
   })
 
   test("includes attention queues for blocked, stale, unassigned, no sprint, and no estimate", () => {

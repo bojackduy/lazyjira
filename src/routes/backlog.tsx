@@ -23,7 +23,7 @@ export function BacklogRoute() {
       { name: "backlog.scroll.down", run: () => scrollPage(1) },
       { name: "backlog.scroll.up", run: () => scrollPage(-1) },
     ],
-    bindings: [
+    bindings: state.searchOpen ? [] : [
       { key: "d", cmd: "backlog.scroll.down" },
       { key: { name: "d", ctrl: true }, cmd: "backlog.scroll.down" },
       { key: "u", cmd: "backlog.scroll.up" },

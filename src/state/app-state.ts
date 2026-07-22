@@ -113,6 +113,8 @@ export type FocusPane = "sidebar" | "main" | "inspector"
 
 export type WorkspaceFocusArea = "cards" | "results"
 
+export type SearchMode = "loaded"
+
 export type QuickFilterId = "mine" | "blocked" | "stale" | "unassigned"
 
 export type QuickFilterDefinition = {
@@ -178,6 +180,10 @@ export type AppState = {
   workspaceSelectedIndex: number
   workspaceFocusedArea: WorkspaceFocusArea
   workspaceResultSelectedIndex: number
+  searchOpen: boolean
+  searchMode: SearchMode
+  searchQuery: string
+  searchDraft: string
   configSelectedSectionIndex: number
   configSelectedRowIndex: number
   configFocusedArea: ConfigFocusArea

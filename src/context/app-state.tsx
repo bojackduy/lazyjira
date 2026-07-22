@@ -38,6 +38,11 @@ export type AppStateContext = {
   openWorkspaceSelection: () => void
   focusWorkspaceResults: () => void
   closeWorkspaceResults: () => void
+  openSearch: () => void
+  closeSearch: () => void
+  updateSearchDraft: (value: string) => void
+  commitSearch: () => void
+  clearSearch: () => void
   moveConfigSelection: (delta: number) => void
   focusConfigArea: (area: ConfigFocusArea) => void
   startConfigAdd: () => void
@@ -216,6 +221,27 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
     closeWorkspaceResults() {
       setState("workspaceFocusedArea", "cards")
       setState("workspaceResultSelectedIndex", 0)
+    },
+    openSearch() {
+      setState("searchOpen", true)
+      setState("searchDraft", state.searchQuery)
+      setState("focusedPane", "main")
+    },
+    closeSearch() {
+      setState("searchOpen", false)
+      setState("searchDraft", state.searchQuery)
+    },
+    updateSearchDraft(value) {
+      setState("searchDraft", value)
+    },
+    commitSearch() {
+      setState("searchQuery", state.searchDraft.trim())
+      setState("searchOpen", false)
+    },
+    clearSearch() {
+      setState("searchQuery", "")
+      setState("searchDraft", "")
+      setState("searchOpen", false)
     },
     moveConfigSelection(delta) {
       const sectionId = configSectionIdAt(state.configSelectedSectionIndex)

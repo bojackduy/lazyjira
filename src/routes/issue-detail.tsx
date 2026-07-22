@@ -25,7 +25,7 @@ export function IssueDetailRoute() {
       { name: "detail.scroll.half-down", run: () => scrollHalfPage(1) },
       { name: "detail.scroll.half-up", run: () => scrollHalfPage(-1) },
     ],
-    bindings: [
+    bindings: state.searchOpen ? [] : [
       { key: "j", cmd: "detail.scroll.down", preventDefault: false },
       { key: "down", cmd: "detail.scroll.down", preventDefault: false },
       { key: "k", cmd: "detail.scroll.up", preventDefault: false },
