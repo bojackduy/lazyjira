@@ -400,6 +400,7 @@ export function loadDemoWorkspace(): AppState {
     previousRoute: undefined,
     focusedPane: "main",
     jiraAuthReady: false,
+    jiraProjectReady: false,
     authOnboarding: {
       open: false,
       step: "baseUrl",
@@ -407,6 +408,15 @@ export function loadDemoWorkspace(): AppState {
       email: "",
       apiToken: "",
       saving: false,
+    },
+    projectPicker: {
+      open: false,
+      step: "project",
+      loading: false,
+      saving: false,
+      selectedIndex: 0,
+      projects: [],
+      boards: [],
     },
     sidebarSelectedIndex: 1,
     workspaceSelectedIndex: 0,

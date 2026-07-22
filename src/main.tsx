@@ -3,7 +3,7 @@ import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { render } from "@opentui/solid"
 import { App } from "./app"
 import { runAuthCli } from "./auth/cli"
-import { jiraAuthSummary, loadJiraAuthConfig } from "./auth/config"
+import { jiraAuthSummary, loadJiraAuthConfig, loadLazyJiraConfig } from "./auth/config"
 import type { AppConfig } from "./context/config"
 import { LazyJiraKeymapProvider } from "./context/keymap"
 import { AppProviders } from "./context/providers"
@@ -12,12 +12,22 @@ import { loadDemoWorkspace } from "./state/demo"
 if (await runAuthCli(process.argv.slice(2))) process.exit(process.exitCode ?? 0)
 
 let authLoadError: string | undefined
+const savedConfig = await loadLazyJiraConfig().catch((error) => {
+  authLoadError = error instanceof Error ? error.message : String(error)
+  return undefined
+})
 const authConfig = await loadJiraAuthConfig().catch((error) => {
   authLoadError = error instanceof Error ? error.message : String(error)
   return undefined
 })
 const initialState = loadDemoWorkspace()
+const workspaceConfig = authConfig ? savedConfig?.workspace : undefined
 initialState.jiraAuthReady = !!authConfig
+initialState.jiraProjectReady = !!workspaceConfig
+if (workspaceConfig) {
+  initialState.project = { key: workspaceConfig.projectKey, name: workspaceConfig.projectName }
+  initialState.board = { id: workspaceConfig.boardId, name: workspaceConfig.boardName, type: workspaceConfig.boardType }
+}
 initialState.authOnboarding = {
   open: !authConfig,
   step: "baseUrl",
@@ -26,6 +36,15 @@ initialState.authOnboarding = {
   apiToken: "",
   saving: false,
   error: authLoadError,
+}
+initialState.projectPicker = {
+  open: !!authConfig && !workspaceConfig,
+  step: "project",
+  loading: false,
+  saving: false,
+  selectedIndex: 0,
+  projects: [],
+  boards: [],
 }
 const appConfig: AppConfig = {
   appName: "lazyjira",

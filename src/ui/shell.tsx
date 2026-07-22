@@ -1,12 +1,13 @@
 import { TextAttributes, type InputRenderable, type KeyEvent } from "@opentui/core"
 import { useRenderer, useTerminalDimensions } from "@opentui/solid"
-import { For, onCleanup, onMount, Show, type JSX } from "solid-js"
+import { createEffect, For, onCleanup, onMount, Show, type JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useConfig } from "../context/config"
 import { useTheme } from "../context/theme"
 import { useToast } from "../context/toast"
 import { RouteSurface } from "../routes"
 import { issueByKey } from "../state/issue-drafts"
+import type { AppState } from "../state/app-state"
 import { routeLabel, sidebarRoutes } from "../state/routes"
 import { allIssues, issueList } from "../state/selectors"
 import { stagedChanges, type StagedChange } from "../state/staged-changes"
@@ -30,6 +31,7 @@ export function AppShell() {
       <DeleteConfirm />
       <Footer />
       <AuthOnboardingPopup />
+      <ProjectPickerPopup />
       <StagedDiscardPopup />
       <RemoteApplyPopup />
     </box>
@@ -46,7 +48,7 @@ function Sidebar() {
     <box borderStyle="rounded" borderColor={focused() ? theme.borderActive : theme.border} padding={1} width={26} flexShrink={0} onMouseUp={() => setFocusedPane("sidebar")}>
         <text attributes={TextAttributes.BOLD} fg={theme.text}>{config.appName}</text>
         <text fg={theme.textMuted}>{state.project.key} {state.project.name}</text>
-        <text fg={theme.textSubtle}>{runtimeModeText(config, state.jiraAuthReady)}</text>
+        <text fg={theme.textSubtle}>{runtimeModeText(config, state.jiraAuthReady, state.jiraProjectReady)}</text>
       <box paddingTop={1} flexDirection="column">
         <text fg={theme.warning}>Views</text>
         <For each={sidebarRoutes}>
@@ -162,7 +164,7 @@ function Footer() {
 
   return (
     <box height={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.panel} flexDirection="row" justifyContent="space-between">
-      <text fg={theme.textMuted}>{state.searchOpen ? "filter loaded: type query  enter apply  esc close  empty enter clears" : footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open)}</text>
+      <text fg={theme.textMuted}>{state.searchOpen ? "filter loaded: type query  enter apply  esc close  empty enter clears" : footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open)}</text>
       <text fg={theme.textSubtle}>{toast.message() ?? "demo scaffold"}</text>
     </box>
   )
@@ -295,6 +297,49 @@ function AuthOnboardingPopup() {
   )
 }
 
+function ProjectPickerPopup() {
+  const appState = useAppState()
+  const { state } = appState
+  const theme = useTheme()
+  const rows = () => projectPickerRows(state)
+  useProjectPickerKeyboard(appState)
+
+  createEffect(() => {
+    if (!state.projectPicker.open || state.projectPicker.loading || state.projectPicker.error) return
+    if (state.projectPicker.step === "project" && !state.projectPicker.projects.length) void appState.refreshProjectPicker()
+  })
+
+  return (
+    <Show when={state.projectPicker.open}>
+      <ModalFrame borderColor={theme.accent} width={88}>
+        <box flexDirection="row" justifyContent="space-between">
+          <text attributes={TextAttributes.BOLD} fg={theme.accent}>{state.projectPicker.step === "project" ? "Choose Jira Project" : "Choose Jira Board"}</text>
+          <text fg={theme.textSubtle}>j/k choose · enter select · r reload · Esc close</text>
+        </box>
+        <text fg={theme.textMuted}>lazyjira keeps one active Jira project context at a time.</text>
+        <Show when={state.projectPicker.step === "board" && state.projectPicker.selectedProject}>
+          {(project) => <text fg={theme.warning} wrapMode="none">Project: {project().key} {project().name} · h/backspace picks another project</text>}
+        </Show>
+        <Show when={state.projectPicker.error}>
+          {(error) => <text fg={theme.danger} wrapMode="none">{error()}</text>}
+        </Show>
+        <Show when={state.projectPicker.loading || state.projectPicker.saving}>
+          <text fg={theme.textMuted}>{state.projectPicker.saving ? "Saving workspace..." : "Loading from Jira..."}</text>
+        </Show>
+        <Show when={rows().length} fallback={<text fg={theme.textMuted}>No options loaded. Press r to retry.</text>}>
+          <For each={visibleProjectPickerRows(rows(), state.projectPicker.selectedIndex)}>
+            {(row) => (
+              <text fg={row.selected ? theme.selectedText : theme.text} bg={row.selected ? theme.selected : undefined} wrapMode="none">
+                {row.selected ? ">" : " "} {row.title} · {row.subtitle}
+              </text>
+            )}
+          </For>
+        </Show>
+      </ModalFrame>
+    </Show>
+  )
+}
+
 function useStagedDiscardKeyboard(appState: ReturnType<typeof useAppState>) {
   const renderer = useRenderer()
   onMount(() => {
@@ -374,6 +419,52 @@ function useAuthOnboardingKeyboard(appState: ReturnType<typeof useAppState>) {
   })
 }
 
+function useProjectPickerKeyboard(appState: ReturnType<typeof useAppState>) {
+  const renderer = useRenderer()
+  onMount(() => {
+    const handler = (event: KeyEvent) => {
+      if (!appState.state.projectPicker.open) return
+      if (event.name === "return") {
+        event.preventDefault()
+        event.stopPropagation()
+        void appState.selectProjectPickerItem()
+        return
+      }
+      if (event.name === "j" || event.name === "down") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.moveProjectPickerSelection(1)
+        return
+      }
+      if (event.name === "k" || event.name === "up") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.moveProjectPickerSelection(-1)
+        return
+      }
+      if (event.name === "r") {
+        event.preventDefault()
+        event.stopPropagation()
+        void appState.refreshProjectPicker()
+        return
+      }
+      if ((event.name === "h" || event.name === "left" || event.name === "backspace") && appState.state.projectPicker.step === "board") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.backProjectPickerStep()
+        return
+      }
+      if (event.name === "escape" || event.name === "q") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.closeProjectPicker()
+      }
+    }
+    renderer.keyInput.prependListener("keypress", handler)
+    onCleanup(() => renderer.keyInput.off("keypress", handler))
+  })
+}
+
 function ModalFrame(props: { borderColor: string; width: number; children: JSX.Element }) {
   const dimensions = useTerminalDimensions()
   const theme = useTheme()
@@ -413,25 +504,50 @@ function stagedChangeText(change: StagedChange, issueTitle?: string) {
   return `${change.issueKey} ${change.label} · ${preview}`
 }
 
-function footerText(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean) {
+function footerText(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerOpen: boolean) {
   if (authOnboardingOpen) return "jira setup: Enter continue/save  Esc skip demo"
+  if (projectPickerOpen) return "project picker: j/k choose  enter select  r reload  esc/q close"
   if (remoteApplyOpen) return "remote write: W final apply placeholder  esc/q close"
   if (stagedDiscardOpen) return "discard staged: j/k choose  space mark  enter discard  esc/q close"
-  if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
+  if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  P project  q quit"
   if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  ctrl-enter stage  x delete  X discard  w render  W Jira"
   if (route === "issue-detail") return "detail: j/k line  d/u half-page  e edit body  ctrl-enter stage  X discard  w render  W Jira"
-  if (route === "workspace") return "workspace: j/k choose  d/u page  enter open  / filter loaded  X discard staged  W write Jira"
-  if (route === "config") return "config: j/k choose  h/l pane  a add  e rename  c color  x remove  X discard  W Jira"
-  if (route === "active-sprint") return "sprint: j/k card  h/l column  / filter  n new  x delete  enter detail  W Jira"
-  if (route === "kanban") return "kanban: j/k same status  h/l next cell  / filter  g group  enter detail  W Jira"
-  if (route === "backlog") return "backlog: j/k row  h/l group  / filter  n new  x delete  enter detail  W Jira"
-  return "1 workspace  2 sprint  3 backlog  4 kanban  / filter loaded  w render  W Jira  q quit"
+  if (route === "workspace") return "workspace: j/k choose  d/u page  enter open  / filter  P project  X discard  W Jira"
+  if (route === "config") return "config: j/k choose  h/l pane  a add  e rename  c color  P project  W Jira"
+  if (route === "active-sprint") return "sprint: j/k card  h/l column  / filter  P project  n new  W Jira"
+  if (route === "kanban") return "kanban: j/k same status  h/l next cell  / filter  P project  g group  W Jira"
+  if (route === "backlog") return "backlog: j/k row  h/l group  / filter  P project  n new  W Jira"
+  return "1 workspace  2 sprint  3 backlog  4 kanban  P project  / filter loaded  q quit"
 }
 
-function runtimeModeText(config: ReturnType<typeof useConfig>, jiraAuthReady = false) {
-  if (config.demoMode && (config.jira || jiraAuthReady)) return "mock data · Jira auth ready"
+function runtimeModeText(config: ReturnType<typeof useConfig>, jiraAuthReady = false, jiraProjectReady = false) {
+  if (config.demoMode && jiraProjectReady) return "mock data · Jira project selected"
+  if (config.demoMode && (config.jira || jiraAuthReady)) return "mock data · choose Jira project"
   if (config.demoMode) return "mock data · run lazyjira auth login"
   return config.jira ? "jira mode" : "jira mode · no auth"
+}
+
+function projectPickerRows(state: AppState) {
+  if (state.projectPicker.step === "project") {
+    return state.projectPicker.projects.map((project, index) => ({
+      id: project.id,
+      title: `${project.key} ${project.name}`,
+      subtitle: "project",
+      selected: index === state.projectPicker.selectedIndex,
+    }))
+  }
+  return state.projectPicker.boards.map((board, index) => ({
+    id: board.id,
+    title: board.name,
+    subtitle: `${board.type} board · ${board.id}`,
+    selected: index === state.projectPicker.selectedIndex,
+  }))
+}
+
+function visibleProjectPickerRows<T>(rows: T[], selectedIndex: number) {
+  const maxRows = 12
+  const start = Math.max(0, Math.min(selectedIndex - Math.floor(maxRows / 2), rows.length - maxRows))
+  return rows.slice(start, start + maxRows)
 }
 
 function authOnboardingField(step: "baseUrl" | "email" | "apiToken") {

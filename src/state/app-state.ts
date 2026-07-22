@@ -109,6 +109,30 @@ export type AuthOnboardingState = {
   error?: string
 }
 
+export type ProjectOption = {
+  id: string
+  key: string
+  name: string
+}
+
+export type BoardOption = {
+  id: string
+  name: string
+  type: "scrum" | "kanban"
+}
+
+export type ProjectPickerState = {
+  open: boolean
+  step: "project" | "board"
+  loading: boolean
+  saving: boolean
+  error?: string
+  selectedIndex: number
+  projects: ProjectOption[]
+  boards: BoardOption[]
+  selectedProject?: ProjectOption
+}
+
 export type FocusPane = "sidebar" | "main" | "inspector"
 
 export type WorkspaceFocusArea = "cards" | "results"
@@ -175,7 +199,9 @@ export type AppState = {
   previousRoute?: AppRoute
   focusedPane: FocusPane
   jiraAuthReady: boolean
+  jiraProjectReady: boolean
   authOnboarding: AuthOnboardingState
+  projectPicker: ProjectPickerState
   sidebarSelectedIndex: number
   workspaceSelectedIndex: number
   workspaceFocusedArea: WorkspaceFocusArea

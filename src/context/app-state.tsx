@@ -1,7 +1,8 @@
 import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
-import { normalizeBaseUrl, saveJiraAuthConfig } from "../auth/config"
-import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, QuickFilterId, StatusCategory } from "../state/app-state"
+import { loadJiraAuthConfig, normalizeBaseUrl, saveJiraAuthConfig, saveJiraWorkspaceConfig } from "../auth/config"
+import { fetchAccessibleProjects, fetchProjectBoards } from "../jira/client"
+import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, ProjectOption, QuickFilterId, StatusCategory } from "../state/app-state"
 import {
   colorableConfigSection,
   configDraftSummary,
@@ -27,6 +28,12 @@ export type AppStateContext = {
   closeAuthOnboarding: () => void
   updateAuthOnboardingValue: (value: string) => void
   submitAuthOnboarding: () => Promise<void>
+  openProjectPicker: () => void
+  closeProjectPicker: () => void
+  refreshProjectPicker: () => Promise<void>
+  backProjectPickerStep: () => void
+  moveProjectPickerSelection: (delta: number) => void
+  selectProjectPickerItem: () => Promise<void>
   setRoute: (route: AppRoute) => void
   setFocusedPane: (pane: FocusPane) => void
   focusNextPane: (delta: 1 | -1) => void
@@ -94,6 +101,28 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
   const [state, setState] = createStore<AppState>(props.initialState)
   const toast = useToast()
 
+  async function saveSelectedProjectContext(project: ProjectOption, board: BoardOption) {
+    setState("projectPicker", "saving", true)
+    try {
+      await saveJiraWorkspaceConfig({
+        projectKey: project.key,
+        projectName: project.name,
+        boardId: board.id,
+        boardName: board.name,
+        boardType: board.type,
+      })
+      setState("project", { key: project.key, name: project.name })
+      setState("board", { id: board.id, name: board.name, type: board.type })
+      setState("jiraProjectReady", true)
+      setState("projectPicker", "open", false)
+      setState("projectPicker", "error", undefined)
+      toast.show(`Project ${project.key} selected. Jira data fetch can be wired next.`)
+    } finally {
+      setState("projectPicker", "saving", false)
+      setState("projectPicker", "loading", false)
+    }
+  }
+
   const context: AppStateContext = {
     state,
     openAuthOnboarding() {
@@ -140,10 +169,114 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
         setState("authOnboarding", "saving", false)
         setState("authOnboarding", "error", undefined)
         setState("authOnboarding", "apiToken", "")
-        toast.show("Jira credentials saved. Read-only Jira sync can be wired next.")
+        setState("projectPicker", "open", true)
+        setState("projectPicker", "step", "project")
+        setState("projectPicker", "selectedIndex", 0)
+        toast.show("Jira credentials saved. Choose a project next.")
+        void context.refreshProjectPicker()
       } catch (error) {
         setState("authOnboarding", "saving", false)
         setState("authOnboarding", "error", error instanceof Error ? error.message : String(error))
+      }
+    },
+    openProjectPicker() {
+      if (!state.jiraAuthReady) {
+        context.openAuthOnboarding()
+        return
+      }
+      setState("projectPicker", "open", true)
+      setState("projectPicker", "step", "project")
+      setState("projectPicker", "error", undefined)
+      setState("projectPicker", "selectedIndex", 0)
+      if (!state.projectPicker.projects.length) void context.refreshProjectPicker()
+    },
+    closeProjectPicker() {
+      setState("projectPicker", "open", false)
+      setState("projectPicker", "loading", false)
+      setState("projectPicker", "saving", false)
+      setState("projectPicker", "error", undefined)
+    },
+    async refreshProjectPicker() {
+      if (state.projectPicker.loading) return
+      setState("projectPicker", "loading", true)
+      setState("projectPicker", "error", undefined)
+      try {
+        const auth = await loadJiraAuthConfig()
+        if (!auth) {
+          setState("projectPicker", "open", false)
+          context.openAuthOnboarding()
+          return
+        }
+        if (state.projectPicker.step === "board" && state.projectPicker.selectedProject) {
+          const boards = await fetchProjectBoards(auth, state.projectPicker.selectedProject.key)
+          setState("projectPicker", "boards", boards)
+          setState("projectPicker", "selectedIndex", 0)
+          if (!boards.length) setState("projectPicker", "error", `No Jira Software boards found for ${state.projectPicker.selectedProject.key}`)
+          return
+        }
+        const projects = await fetchAccessibleProjects(auth)
+        setState("projectPicker", "projects", projects)
+        setState("projectPicker", "selectedIndex", 0)
+        if (!projects.length) setState("projectPicker", "error", "No accessible Jira projects found")
+      } catch (error) {
+        setState("projectPicker", "error", error instanceof Error ? error.message : String(error))
+      } finally {
+        setState("projectPicker", "loading", false)
+      }
+    },
+    backProjectPickerStep() {
+      if (state.projectPicker.step !== "board") return
+      const selectedProject = state.projectPicker.selectedProject
+      const selectedIndex = selectedProject ? Math.max(0, state.projectPicker.projects.findIndex((project) => project.key === selectedProject.key)) : 0
+      setState("projectPicker", "step", "project")
+      setState("projectPicker", "selectedProject", undefined)
+      setState("projectPicker", "boards", [])
+      setState("projectPicker", "selectedIndex", selectedIndex)
+      setState("projectPicker", "error", undefined)
+    },
+    moveProjectPickerSelection(delta) {
+      const options = projectPickerOptions(state)
+      if (!options.length) return
+      setState("projectPicker", "selectedIndex", (state.projectPicker.selectedIndex + delta + options.length) % options.length)
+    },
+    async selectProjectPickerItem() {
+      if (state.projectPicker.loading || state.projectPicker.saving) return
+      try {
+        const auth = await loadJiraAuthConfig()
+        if (!auth) {
+          setState("projectPicker", "open", false)
+          context.openAuthOnboarding()
+          return
+        }
+        if (state.projectPicker.step === "project") {
+          const project = state.projectPicker.projects[state.projectPicker.selectedIndex]
+          if (!project) return
+          setState("projectPicker", "loading", true)
+          setState("projectPicker", "error", undefined)
+          const boards = await fetchProjectBoards(auth, project.key)
+          if (!boards.length) {
+            setState("projectPicker", "error", `No Jira Software boards found for ${project.key}`)
+            return
+          }
+          if (boards.length === 1) {
+            await saveSelectedProjectContext(project, boards[0]!)
+            return
+          }
+          setState("projectPicker", "selectedProject", project)
+          setState("projectPicker", "boards", boards)
+          setState("projectPicker", "step", "board")
+          setState("projectPicker", "selectedIndex", 0)
+          return
+        }
+
+        const project = state.projectPicker.selectedProject
+        const board = state.projectPicker.boards[state.projectPicker.selectedIndex]
+        if (!project || !board) return
+        await saveSelectedProjectContext(project, board)
+      } catch (error) {
+        setState("projectPicker", "error", error instanceof Error ? error.message : String(error))
+      } finally {
+        setState("projectPicker", "loading", false)
       }
     },
     setRoute(route) {
@@ -554,6 +687,10 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
 
 function clampOffset(offset: number, statusCount: number) {
   return Math.max(0, Math.min(offset, Math.max(0, statusCount - 1)))
+}
+
+function projectPickerOptions(state: AppState) {
+  return state.projectPicker.step === "project" ? state.projectPicker.projects : state.projectPicker.boards
 }
 
 export function detailBodyInitialValue(state: AppState, issue: IssueSummary) {

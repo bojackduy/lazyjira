@@ -200,6 +200,7 @@ The app should use lazy-family muscle memory, adapted to Jira's board and backlo
 | `Space` | Select/toggle for bulk work |
 | `r` | Refresh current screen |
 | `R` | Refresh all visible data |
+| `P` | Switch active Jira project/board |
 | `s` | Status/transition |
 | `a` | Assign |
 | `p` | Priority |
@@ -251,6 +252,12 @@ bun run auth:login
 ```
 
 Credentials are stored at `~/.config/lazyjira/config.json` with user-only file permissions. Set `LAZYJIRA_CONFIG=/path/to/config.json` to use a different file. Set `LAZYJIRA_API_TOKEN` to override only the saved token at runtime.
+
+### Jira Project Selection
+
+After credentials are saved, the TUI opens a Jira project picker. Choose one project, then choose a Scrum or Kanban board when the project has multiple boards. Press `P` later to switch the active project/board without editing config or restarting.
+
+The selected project and board are persisted under `workspace` in the same config file. Auth updates preserve the selected workspace, and workspace updates preserve the saved API token. Jira issue/sprint/backlog data loading is not wired yet, so the app still renders demo issues while showing the selected Jira context.
 
 ### Phase 1: Demo Board Foundation
 

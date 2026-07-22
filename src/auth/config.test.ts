@@ -1,13 +1,15 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtemp, rm, stat } from "node:fs/promises"
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import {
   jiraBasicAuthHeader,
   lazyJiraConfigPath,
+  loadLazyJiraConfig,
   loadJiraAuthConfig,
   removeJiraAuthConfig,
   saveJiraAuthConfig,
+  saveJiraWorkspaceConfig,
 } from "./config"
 
 describe("Jira auth config", () => {
@@ -44,6 +46,52 @@ describe("Jira auth config", () => {
       const loaded = await loadJiraAuthConfig({ ...env, LAZYJIRA_API_TOKEN: "env-token" })
 
       expect(loaded?.apiToken).toBe("env-token")
+    })
+  })
+
+  test("loads legacy flat credential files", async () => {
+    await withTempConfig(async (env, path) => {
+      await writeFile(path, JSON.stringify({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }))
+
+      const loaded = await loadJiraAuthConfig(env)
+
+      expect(loaded).toEqual({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" })
+    })
+  })
+
+  test("can overwrite invalid config when saving credentials", async () => {
+    await withTempConfig(async (env, path) => {
+      await writeFile(path, "not json")
+
+      await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }, env)
+
+      const loaded = await loadJiraAuthConfig(env)
+      expect(loaded).toEqual({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" })
+    })
+  })
+
+  test("preserves workspace context when auth is updated", async () => {
+    await withTempConfig(async (env) => {
+      await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "old-token" }, env)
+      await saveJiraWorkspaceConfig({ projectKey: "PROJ", projectName: "Product", boardId: "42", boardName: "Product Scrum", boardType: "scrum" }, env)
+
+      await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "new-token" }, env)
+
+      const loaded = await loadLazyJiraConfig(env)
+      expect(loaded?.jira?.apiToken).toBe("new-token")
+      expect(loaded?.workspace).toEqual({ projectKey: "PROJ", projectName: "Product", boardId: "42", boardName: "Product Scrum", boardType: "scrum" })
+    })
+  })
+
+  test("preserves auth when workspace context is updated", async () => {
+    await withTempConfig(async (env) => {
+      await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }, env)
+
+      await saveJiraWorkspaceConfig({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" }, env)
+
+      const loaded = await loadLazyJiraConfig(env)
+      expect(loaded?.jira).toEqual({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" })
+      expect(loaded?.workspace).toEqual({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" })
     })
   })
 

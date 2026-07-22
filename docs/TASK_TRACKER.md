@@ -23,8 +23,8 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 
 ## Wave 2
 
-- [ ] `07-readonly-jira-api`: read-only Jira client and normalization.
-- [ ] Wire project/board discovery into workspace state.
+- [~] `07-readonly-jira-api`: read-only Jira client and normalization.
+- [x] Wire project/board discovery into workspace state.
 - [ ] Wire active sprint/backlog/issue detail loading.
 - [ ] Keep demo mode independent from credentials.
 - [ ] Verify Checkpoint D in `BUILD_PLAN.md`.

@@ -52,6 +52,10 @@ export function App() {
             appState.closeStagedDiscard()
             return
           }
+          if (state.projectPicker.open) {
+            appState.closeProjectPicker()
+            return
+          }
           if (state.searchOpen) {
             appState.closeSearch()
             return
@@ -82,6 +86,7 @@ export function App() {
         run() {
           if (state.remoteApplyOpen) appState.closeRemoteIssueApply()
           else if (state.stagedDiscardOpen) appState.closeStagedDiscard()
+          else if (state.projectPicker.open) appState.closeProjectPicker()
           else if (state.searchOpen) appState.closeSearch()
           else if (state.pendingDeleteIssueKey) appState.cancelIssueDelete()
           else if (state.route === "workspace" && state.workspaceFocusedArea === "results") appState.closeWorkspaceResults()
@@ -97,6 +102,7 @@ export function App() {
       { name: "route.backlog", run: () => (canRunGlobalShortcut() ? appState.setRoute("backlog") : false) },
       { name: "route.kanban", run: () => (canRunGlobalShortcut() ? appState.setRoute("kanban") : false) },
       { name: "route.config", run: () => (canRunGlobalShortcut() ? appState.setRoute("config") : false) },
+      { name: "project.switch", run: () => (canRunGlobalShortcut() ? appState.openProjectPicker() : false) },
       { name: "search.open", run: () => (canRunGlobalShortcut() && state.route !== "config" ? appState.openSearch() : false) },
       { name: "focus.next", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(1)) },
       { name: "focus.previous", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(-1)) },
@@ -135,6 +141,7 @@ export function App() {
       { key: "3", cmd: "route.backlog", preventDefault: false },
       { key: "4", cmd: "route.kanban", preventDefault: false },
       { key: "5", cmd: "route.config", preventDefault: false },
+      { key: { name: "p", shift: true }, cmd: "project.switch", preventDefault: false },
       { key: "/", cmd: "search.open", preventDefault: false },
       { key: "j", cmd: "staged-discard.down", preventDefault: false },
       { key: "down", cmd: "staged-discard.down", preventDefault: false },
@@ -380,15 +387,15 @@ export function App() {
   }
 
   function isPopupOpen() {
-    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open
+    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.projectPicker.open
   }
 
   function isPlainTextEditing() {
-    return state.authOnboarding.open || state.searchOpen || state.detailBodyEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
+    return state.authOnboarding.open || state.projectPicker.open || state.searchOpen || state.detailBodyEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
   }
 
   function isAnyEditing() {
-    return state.authOnboarding.open || state.detailBodyEditing || !!state.inspectorEditingFieldId || !!state.configEditing
+    return state.authOnboarding.open || state.projectPicker.open || state.detailBodyEditing || !!state.inspectorEditingFieldId || !!state.configEditing
   }
 
   function addConfigRow() {
