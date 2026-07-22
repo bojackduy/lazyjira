@@ -97,6 +97,18 @@ export type ConfigDraft = {
   category?: StatusCategory
 }
 
+export type AuthOnboardingStep = "baseUrl" | "email" | "apiToken"
+
+export type AuthOnboardingState = {
+  open: boolean
+  step: AuthOnboardingStep
+  baseUrl: string
+  email: string
+  apiToken: string
+  saving: boolean
+  error?: string
+}
+
 export type FocusPane = "sidebar" | "main" | "inspector"
 
 export type WorkspaceFocusArea = "cards" | "results"
@@ -160,6 +172,8 @@ export type AppState = {
   route: AppRoute
   previousRoute?: AppRoute
   focusedPane: FocusPane
+  jiraAuthReady: boolean
+  authOnboarding: AuthOnboardingState
   sidebarSelectedIndex: number
   workspaceSelectedIndex: number
   workspaceFocusedArea: WorkspaceFocusArea

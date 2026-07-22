@@ -1,4 +1,4 @@
-import { TextAttributes, type KeyEvent } from "@opentui/core"
+import { TextAttributes, type InputRenderable, type KeyEvent } from "@opentui/core"
 import { useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { For, onCleanup, onMount, Show, type JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
@@ -28,6 +28,7 @@ export function AppShell() {
       </box>
       <DeleteConfirm />
       <Footer />
+      <AuthOnboardingPopup />
       <StagedDiscardPopup />
       <RemoteApplyPopup />
     </box>
@@ -42,9 +43,9 @@ function Sidebar() {
 
   return (
     <box borderStyle="rounded" borderColor={focused() ? theme.borderActive : theme.border} padding={1} width={26} flexShrink={0} onMouseUp={() => setFocusedPane("sidebar")}>
-      <text attributes={TextAttributes.BOLD} fg={theme.text}>lazyjira-rs</text>
-      <text fg={theme.textMuted}>{state.project.key} {state.project.name}</text>
-      <text fg={theme.textSubtle}>{config.demoMode ? "mock data" : "jira mode"}</text>
+        <text attributes={TextAttributes.BOLD} fg={theme.text}>{config.appName}</text>
+        <text fg={theme.textMuted}>{state.project.key} {state.project.name}</text>
+        <text fg={theme.textSubtle}>{runtimeModeText(config, state.jiraAuthReady)}</text>
       <box paddingTop={1} flexDirection="column">
         <text fg={theme.warning}>Views</text>
         <For each={sidebarRoutes}>
@@ -117,7 +118,7 @@ function Footer() {
 
   return (
     <box height={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.panel} flexDirection="row" justifyContent="space-between">
-      <text fg={theme.textMuted}>{footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen)}</text>
+      <text fg={theme.textMuted}>{footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open)}</text>
       <text fg={theme.textSubtle}>{toast.message() ?? "demo scaffold"}</text>
     </box>
   )
@@ -202,6 +203,54 @@ function RemoteApplyPopup() {
   )
 }
 
+function AuthOnboardingPopup() {
+  const appState = useAppState()
+  const { state } = appState
+  const theme = useTheme()
+  const step = () => state.authOnboarding.step
+  const value = () => state.authOnboarding[authOnboardingField(step())]
+  useAuthOnboardingKeyboard(appState)
+
+  return (
+    <Show when={state.authOnboarding.open}>
+      <ModalFrame borderColor={theme.accent} width={82}>
+        <box flexDirection="row" justifyContent="space-between">
+          <text attributes={TextAttributes.BOLD} fg={theme.accent}>Connect Jira</text>
+          <text fg={theme.textSubtle}>single local account · Esc skip demo</text>
+        </box>
+        <text fg={theme.textMuted}>lazyjira can use one saved Atlassian API token config for now.</text>
+        <text fg={theme.textSubtle}>Config file: ~/.config/lazyjira/config.json · CLI alternative: lazyjira auth login</text>
+        <text fg={theme.warning} wrapMode="none">Step {stepIndex(step())}/3 · {stepTitle(step())}</text>
+        <Show when={state.authOnboarding.error}>
+          {(error) => <text fg={theme.danger} wrapMode="none">{error()}</text>}
+        </Show>
+        <input
+          value={value()}
+          onInput={(nextValue) => appState.updateAuthOnboardingValue(nextValue)}
+          onSubmit={() => void appState.submitAuthOnboarding()}
+          ref={(element: InputRenderable) => {
+            setTimeout(() => !element.isDestroyed && element.focus(), 1)
+          }}
+          placeholder={stepPlaceholder(step())}
+          placeholderColor={theme.textSubtle}
+          textColor={theme.text}
+          focusedTextColor={theme.text}
+          cursorColor={theme.accent}
+          backgroundColor={theme.panel}
+          focusedBackgroundColor={theme.panel}
+        />
+        <Show when={step() === "apiToken"}>
+          <text fg={theme.warning}>Token entry is visible in this first TUI flow. Use `lazyjira auth login` if you prefer terminal-hidden entry.</text>
+        </Show>
+        <text fg={theme.textSubtle} wrapMode="none">Enter continue/save · Esc skip and stay in demo</text>
+        <Show when={state.authOnboarding.saving}>
+          <text fg={theme.textMuted}>Saving credentials...</text>
+        </Show>
+      </ModalFrame>
+    </Show>
+  )
+}
+
 function useStagedDiscardKeyboard(appState: ReturnType<typeof useAppState>) {
   const renderer = useRenderer()
   onMount(() => {
@@ -264,6 +313,23 @@ function useRemoteApplyKeyboard(appState: ReturnType<typeof useAppState>) {
   })
 }
 
+function useAuthOnboardingKeyboard(appState: ReturnType<typeof useAppState>) {
+  const renderer = useRenderer()
+  onMount(() => {
+    const handler = (event: KeyEvent) => {
+      if (!appState.state.authOnboarding.open) return
+      if (event.name === "escape") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.closeAuthOnboarding()
+        return
+      }
+    }
+    renderer.keyInput.prependListener("keypress", handler)
+    onCleanup(() => renderer.keyInput.off("keypress", handler))
+  })
+}
+
 function ModalFrame(props: { borderColor: string; width: number; children: JSX.Element }) {
   const dimensions = useTerminalDimensions()
   const theme = useTheme()
@@ -303,7 +369,8 @@ function stagedChangeText(change: StagedChange, issueTitle?: string) {
   return `${change.issueKey} ${change.label} · ${preview}`
 }
 
-function footerText(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean) {
+function footerText(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean) {
+  if (authOnboardingOpen) return "jira setup: Enter continue/save  Esc skip demo"
   if (remoteApplyOpen) return "remote write: W final apply placeholder  esc/q close"
   if (stagedDiscardOpen) return "discard staged: j/k choose  space mark  enter discard  esc/q close"
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
@@ -315,4 +382,32 @@ function footerText(focusedPane: string, route: string, stagedDiscardOpen: boole
   if (route === "kanban") return "kanban: j/k same status  h/l next cell  n new  x delete  g group  enter detail  W Jira"
   if (route === "backlog") return "backlog: j/k row  h/l group  n new  x delete  enter detail  e inspector  W Jira"
   return "1 workspace  2 sprint  3 backlog  4 kanban  n new  w render  W Jira  q quit"
+}
+
+function runtimeModeText(config: ReturnType<typeof useConfig>, jiraAuthReady = false) {
+  if (config.demoMode && (config.jira || jiraAuthReady)) return "mock data · Jira auth ready"
+  if (config.demoMode) return "mock data · run lazyjira auth login"
+  return config.jira ? "jira mode" : "jira mode · no auth"
+}
+
+function authOnboardingField(step: "baseUrl" | "email" | "apiToken") {
+  return step
+}
+
+function stepIndex(step: "baseUrl" | "email" | "apiToken") {
+  if (step === "baseUrl") return 1
+  if (step === "email") return 2
+  return 3
+}
+
+function stepTitle(step: "baseUrl" | "email" | "apiToken") {
+  if (step === "baseUrl") return "Jira site URL"
+  if (step === "email") return "Atlassian email"
+  return "API token"
+}
+
+function stepPlaceholder(step: "baseUrl" | "email" | "apiToken") {
+  if (step === "baseUrl") return "https://your-domain.atlassian.net"
+  if (step === "email") return "you@example.com"
+  return "Atlassian API token"
 }

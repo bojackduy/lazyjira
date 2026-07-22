@@ -1,6 +1,7 @@
 import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
-import type { AppState, BacklogGroupBy, BoardGroupBy, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, QuickFilterId, StatusCategory } from "../state/app-state"
+import { normalizeBaseUrl, saveJiraAuthConfig } from "../auth/config"
+import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, QuickFilterId, StatusCategory } from "../state/app-state"
 import {
   colorableConfigSection,
   configDraftSummary,
@@ -22,6 +23,10 @@ import { useToast } from "./toast"
 
 export type AppStateContext = {
   state: AppState
+  openAuthOnboarding: () => void
+  closeAuthOnboarding: () => void
+  updateAuthOnboardingValue: (value: string) => void
+  submitAuthOnboarding: () => Promise<void>
   setRoute: (route: AppRoute) => void
   setFocusedPane: (pane: FocusPane) => void
   focusNextPane: (delta: 1 | -1) => void
@@ -86,6 +91,56 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
 
   const context: AppStateContext = {
     state,
+    openAuthOnboarding() {
+      setState("authOnboarding", "open", true)
+      setState("authOnboarding", "error", undefined)
+    },
+    closeAuthOnboarding() {
+      setState("authOnboarding", "open", false)
+      setState("authOnboarding", "saving", false)
+      setState("authOnboarding", "error", undefined)
+      setState("authOnboarding", "apiToken", "")
+    },
+    updateAuthOnboardingValue(value) {
+      setState("authOnboarding", authOnboardingField(state.authOnboarding.step), value)
+      setState("authOnboarding", "error", undefined)
+    },
+    async submitAuthOnboarding() {
+      if (state.authOnboarding.saving) return
+      try {
+        const step = state.authOnboarding.step
+        if (step === "baseUrl") {
+          setState("authOnboarding", "baseUrl", normalizeBaseUrl(state.authOnboarding.baseUrl))
+          setState("authOnboarding", "step", "email")
+          setState("authOnboarding", "error", undefined)
+          return
+        }
+        if (step === "email") {
+          const email = state.authOnboarding.email.trim()
+          if (!email) throw new Error("Jira email is required")
+          setState("authOnboarding", "email", email)
+          setState("authOnboarding", "step", "apiToken")
+          setState("authOnboarding", "error", undefined)
+          return
+        }
+
+        setState("authOnboarding", "saving", true)
+        await saveJiraAuthConfig({
+          baseUrl: state.authOnboarding.baseUrl,
+          email: state.authOnboarding.email,
+          apiToken: state.authOnboarding.apiToken,
+        })
+        setState("jiraAuthReady", true)
+        setState("authOnboarding", "open", false)
+        setState("authOnboarding", "saving", false)
+        setState("authOnboarding", "error", undefined)
+        setState("authOnboarding", "apiToken", "")
+        toast.show("Jira credentials saved. Read-only Jira sync can be wired next.")
+      } catch (error) {
+        setState("authOnboarding", "saving", false)
+        setState("authOnboarding", "error", error instanceof Error ? error.message : String(error))
+      }
+    },
     setRoute(route) {
       setState("route", route)
       const index = sidebarRoutes.findIndex((candidate) => candidate.id === route)
@@ -529,4 +584,8 @@ function defaultStatusCategory(state: AppState, sectionId: ConfigDraft["sectionI
   if (sectionId === "issue-types") return
   const targetId = selectedConfigTargetId(state)
   return configuredStatuses(state).find((status) => status.id === targetId)?.category ?? "todo"
+}
+
+function authOnboardingField(step: AuthOnboardingStep): "baseUrl" | "email" | "apiToken" {
+  return step
 }

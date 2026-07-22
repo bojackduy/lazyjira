@@ -1,12 +1,15 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "lazyjira-rs",
+  "name": "lazyjira",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "bun --hot src/main.tsx",
     "start": "bun src/main.tsx",
+    "auth:login": "bun src/main.tsx auth login",
+    "auth:status": "bun src/main.tsx auth status",
+    "auth:logout": "bun src/main.tsx auth logout",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },

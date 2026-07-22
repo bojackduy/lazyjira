@@ -6,10 +6,11 @@ import { ThemeProvider } from "./theme"
 import { ToastProvider } from "./toast"
 import type { ProviderProps } from "./helper"
 import type { AppState } from "../state/app-state"
+import type { AppConfig } from "./config"
 
-export function AppProviders(props: ProviderProps<{ initialState: AppState; onExit: () => void }>) {
+export function AppProviders(props: ProviderProps<{ config: AppConfig; initialState: AppState; onExit: () => void }>) {
   return (
-    <ConfigProvider value={{ appName: "lazyjira-rs", demoMode: props.initialState.demoMode }}>
+    <ConfigProvider value={props.config}>
       <ExitProvider onExit={props.onExit}>
         <ThemeProvider>
           <ToastProvider>

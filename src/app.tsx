@@ -369,15 +369,15 @@ export function App() {
   }
 
   function isPopupOpen() {
-    return state.remoteApplyOpen || state.stagedDiscardOpen
+    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open
   }
 
   function isPlainTextEditing() {
-    return state.detailBodyEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
+    return state.authOnboarding.open || state.detailBodyEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
   }
 
   function isAnyEditing() {
-    return state.detailBodyEditing || !!state.inspectorEditingFieldId || !!state.configEditing
+    return state.authOnboarding.open || state.detailBodyEditing || !!state.inspectorEditingFieldId || !!state.configEditing
   }
 
   function addConfigRow() {

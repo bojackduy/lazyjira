@@ -1,6 +1,6 @@
-# lazyjira-rs
+# lazyjira
 
-`lazyjira-rs` is a keyboard-first Jira workspace for the terminal.
+`lazyjira` is a keyboard-first Jira workspace for the terminal.
 
 The goal is not to make a simple ticket browser. The goal is to bring the high-value Jira web workflows into a fast terminal UI: backlog grooming, Kanban tracking, active sprint overview, issue triage, and rich issue/document reading.
 
@@ -226,8 +226,31 @@ Implementation planning artifacts live under `docs/`:
 - `bun install`: install dependencies.
 - `bun run dev`: run the TUI in watch mode.
 - `bun run start`: run the TUI once.
+- `bun run auth:login`: save Jira URL, email, and API token to `~/.config/lazyjira/config.json`.
+- `bun run auth:status`: show configured Jira URL/email without printing the token.
+- `bun run auth:logout`: remove saved local Jira credentials.
 - `bun run typecheck`: validate TypeScript.
 - `bun test`: run tests.
+
+### Jira Auth
+
+Atlassian API token auth needs one Jira site URL, email, and API token. `lazyjira` currently supports one local Jira account config.
+
+If no credentials are found, opening the TUI starts a guided onboarding walkthrough. You can skip it with `Esc` and stay in demo mode.
+
+The same setup is also available outside the TUI:
+
+```bash
+lazyjira auth login
+```
+
+During development, use:
+
+```bash
+bun run auth:login
+```
+
+Credentials are stored at `~/.config/lazyjira/config.json` with user-only file permissions. Set `LAZYJIRA_CONFIG=/path/to/config.json` to use a different file. Set `LAZYJIRA_API_TOKEN` to override only the saved token at runtime.
 
 ### Phase 1: Demo Board Foundation
 
