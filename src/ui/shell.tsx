@@ -160,8 +160,8 @@ function StagedDiscardPopup() {
               const selected = () => state.stagedDiscardSelectedIndex === index()
               const checked = () => state.stagedDiscardSelections.includes(change.id)
               return (
-                <text fg={change.kind === "delete" ? theme.danger : selected() ? theme.selectedText : theme.text} bg={selected() ? theme.selected : undefined} wrapMode="none">
-                  {selected() ? ">" : " "} [{checked() ? "x" : " "}] {stagedChangeText(change, issueByKey(state, change.issueKey)?.title ?? "Unknown issue")}
+                  <text fg={change.kind === "delete" ? theme.danger : selected() ? theme.selectedText : theme.text} bg={selected() ? theme.selected : undefined} wrapMode="none">
+                    {selected() ? ">" : " "} [{checked() ? "x" : " "}] {stagedChangeText(change, change.kind === "config" ? undefined : issueByKey(state, change.issueKey)?.title)}
                 </text>
               )
             }}
@@ -190,8 +190,8 @@ function RemoteApplyPopup() {
         <Show when={changes().length} fallback={<text fg={theme.textMuted}>No staged writes. Edit a field and stage it before using W.</text>}>
           <For each={changes()}>
             {(change) => (
-              <text fg={change.kind === "delete" ? theme.danger : theme.text} wrapMode="none">
-                {change.kind === "delete" ? "-" : "~"} {stagedChangeText(change, issueByKey(state, change.issueKey)?.title ?? "Unknown issue")}
+              <text fg={change.kind === "delete" ? theme.danger : change.kind === "config" ? theme.warning : theme.text} wrapMode="none">
+                {change.kind === "delete" ? "-" : "~"} {stagedChangeText(change, change.kind === "config" ? undefined : issueByKey(state, change.issueKey)?.title)}
               </text>
             )}
           </For>
@@ -296,8 +296,9 @@ function ModalFrame(props: { borderColor: string; width: number; children: JSX.E
   )
 }
 
-function stagedChangeText(change: StagedChange, issueTitle: string) {
-  if (change.kind === "delete") return `${change.issueKey} delete issue · ${issueTitle}`
+function stagedChangeText(change: StagedChange, issueTitle?: string) {
+  if (change.kind === "config") return change.value
+  if (change.kind === "delete") return `${change.issueKey} delete issue · ${issueTitle ?? "Unknown issue"}`
   const preview = change.value.replace(/\s+/g, " ").slice(0, 48)
   return `${change.issueKey} ${change.label} · ${preview}`
 }
@@ -309,7 +310,7 @@ function footerText(focusedPane: string, route: string, stagedDiscardOpen: boole
   if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  ctrl-enter stage  x delete  X discard  w render  W Jira"
   if (route === "issue-detail") return "detail: j/k line  d/u half-page  e edit body  ctrl-enter stage  X discard  w render  W Jira"
   if (route === "workspace") return "workspace: j/k choose  d/u page  enter open  X discard staged  W write Jira"
-  if (route === "config") return "config: j/k section  tab focus  q quit"
+  if (route === "config") return "config: j/k choose  h/l pane  a add  e rename  c color  x remove  X discard  W Jira"
   if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  x delete  enter detail  e inspector  W Jira"
   if (route === "kanban") return "kanban: j/k same status  h/l next cell  n new  x delete  g group  enter detail  W Jira"
   if (route === "backlog") return "backlog: j/k row  h/l group  n new  x delete  enter detail  e inspector  W Jira"

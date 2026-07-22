@@ -5,6 +5,7 @@ import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { IssueSummary } from "../state/app-state"
+import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
 import {
   activeSprint,
@@ -27,8 +28,8 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   const groups = () => boardGroupsForMode(state, props.mode)
   const visibleStatuses = () => visibleStatusesForBoard(state, props.mode, dimensions().width)
   const statusOffset = () => boardStatusOffsetForMode(state, props.mode)
-  const statusWindowSize = () => boardStatusWindowSize(dimensions().width, state.statuses.length)
-  const displayedStatusStart = () => Math.min(statusOffset(), Math.max(0, state.statuses.length - statusWindowSize())) + 1
+  const statusWindowSize = () => boardStatusWindowSize(dimensions().width, configuredStatuses(state).length)
+  const displayedStatusStart = () => Math.min(statusOffset(), Math.max(0, configuredStatuses(state).length - statusWindowSize())) + 1
   const bodyHeight = () => Math.max(5, dimensions().height - 21)
   const compactHeader = () => dimensions().width < 145
   const title = () => (props.mode === "active-sprint" ? `Active Sprint: ${activeSprint(state)?.name ?? "Sprint"}` : "Kanban Board")
@@ -75,7 +76,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
         </box>
         <box flexDirection="column" alignItems={compactHeader() ? "flex-start" : "flex-end"}>
           <text fg={theme.text}>Group by: {groupModeLabel(groupBy())}</text>
-          <text fg={theme.textSubtle}>Statuses {displayedStatusStart()}-{Math.min(displayedStatusStart() + visibleStatuses().length - 1, state.statuses.length)}/{state.statuses.length}</text>
+          <text fg={theme.textSubtle}>Statuses {displayedStatusStart()}-{Math.min(displayedStatusStart() + visibleStatuses().length - 1, configuredStatuses(state).length)}/{configuredStatuses(state).length}</text>
         </box>
       </box>
       <Legend />
@@ -153,12 +154,12 @@ function Legend() {
   return (
     <box flexDirection="column" gap={1}>
       <box flexDirection="row" gap={1}>
-        <For each={state.issueTypes}>
+        <For each={configuredIssueTypes(state)}>
           {(issueType) => <text fg={theme.textSubtle} wrapMode="none"><span style={{ fg: issueType.color }}>■</span> {shortType(issueType.name)}</text>}
         </For>
       </box>
       <box flexDirection="row" gap={1}>
-        <For each={state.statuses}>
+        <For each={configuredStatuses(state)}>
           {(status) => <text fg={status.color} wrapMode="none">● {shortStatus(status.name)}</text>}
         </For>
       </box>

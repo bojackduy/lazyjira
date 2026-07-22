@@ -1,9 +1,11 @@
-import type { AppState, IssueEditableField } from "./app-state"
+import type { AppState, ConfigDraft, IssueEditableField } from "./app-state"
+import { configDraftSummary } from "./config-drafts"
 import { issueFields } from "./issue-fields"
 
 export type StagedChange =
   | { id: string; kind: "edit"; issueKey: string; fieldId: IssueEditableField; label: string; value: string }
   | { id: string; kind: "delete"; issueKey: string; label: string }
+  | { id: string; kind: "config"; draftId: string; label: string; value: string }
 
 export function stagedChanges(state: AppState): StagedChange[] {
   const changes: StagedChange[] = []
@@ -15,6 +17,9 @@ export function stagedChanges(state: AppState): StagedChange[] {
   for (const issueKey of state.issueDeletes) {
     changes.push({ id: stagedDeleteId(issueKey), kind: "delete", issueKey, label: "Delete issue" })
   }
+  for (const draft of state.configDrafts) {
+    changes.push({ id: stagedConfigId(draft), kind: "config", draftId: draft.id, label: "Config", value: configDraftSummary(draft) })
+  }
   return changes
 }
 
@@ -24,6 +29,10 @@ export function stagedEditId(issueKey: string, fieldId: IssueEditableField) {
 
 export function stagedDeleteId(issueKey: string) {
   return `delete:${issueKey}`
+}
+
+export function stagedConfigId(draft: Pick<ConfigDraft, "id">) {
+  return `config:${draft.id}`
 }
 
 export function stagedDiscardTargetIds(changes: StagedChange[], selectedIndex: number, selections: string[]) {

@@ -3,6 +3,7 @@ import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
+import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldColor, issueFieldDisplayValue, issueFields, type IssueFieldDefinition } from "../state/issue-fields"
 import { issueTypeColor, statusColor, statusName } from "../state/selectors"
@@ -167,8 +168,8 @@ function ChoiceEditor(props: { field: IssueFieldDefinition }) {
   const theme = useTheme()
   const choices = () =>
     props.field.id === "statusId"
-      ? state.statuses.map((status) => ({ value: status.id, label: status.name, color: status.color }))
-      : state.issueTypes.map((type) => ({ value: type.id, label: type.name, color: type.color }))
+      ? configuredStatuses(state).map((status) => ({ value: status.id, label: status.name, color: status.color }))
+      : configuredIssueTypes(state).map((type) => ({ value: type.id, label: type.name, color: type.color }))
 
   return (
     <box flexDirection="column" gap={1}>

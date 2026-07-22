@@ -1,4 +1,5 @@
 import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, StatusDefinition } from "./app-state"
+import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { issueWithDraft } from "./issue-drafts"
 
 export const boardGroupModes: { id: BoardGroupBy; label: string }[] = [
@@ -44,7 +45,7 @@ export function activeSprintIssues(state: AppState) {
 }
 
 export function kanbanIssues(state: AppState) {
-  return issueList(state).filter((issue) => state.statuses.some((status) => status.id === issue.statusId))
+  return issueList(state).filter((issue) => configuredStatuses(state).some((status) => status.id === issue.statusId))
 }
 
 export function boardIssuesForMode(state: AppState, mode: "active-sprint" | "kanban") {
@@ -69,10 +70,11 @@ export function boardStatusWindowSize(totalWidth: number, statusCount: number) {
 }
 
 export function visibleStatusesForBoard(state: AppState, mode: BoardMode, totalWidth: number) {
-  const windowSize = boardStatusWindowSize(totalWidth, state.statuses.length)
-  const maxOffset = Math.max(0, state.statuses.length - windowSize)
+  const statuses = configuredStatuses(state)
+  const windowSize = boardStatusWindowSize(totalWidth, statuses.length)
+  const maxOffset = Math.max(0, statuses.length - windowSize)
   const offset = Math.min(boardStatusOffsetForMode(state, mode), maxOffset)
-  return state.statuses.slice(offset, offset + windowSize)
+  return statuses.slice(offset, offset + windowSize)
 }
 
 export function boardGroupsForMode(state: AppState, mode: BoardMode) {
@@ -80,11 +82,15 @@ export function boardGroupsForMode(state: AppState, mode: BoardMode) {
 }
 
 export function statusById(state: AppState, statusId: string): StatusDefinition | undefined {
-  return state.statuses.find((status) => status.id === statusId)
+  return configuredStatuses(state).find((status) => status.id === statusId)
 }
 
 export function issueTypeColor(state: AppState, issue: IssueSummary) {
-  return state.issueTypes.find((type) => type.id === issue.type)?.color ?? "#94A3B8"
+  return configuredIssueTypes(state).find((type) => type.id === issue.type)?.color ?? "#94A3B8"
+}
+
+export function issueTypeName(state: AppState, issue: IssueSummary) {
+  return configuredIssueTypes(state).find((type) => type.id === issue.type)?.name ?? issue.type
 }
 
 export function statusColor(state: AppState, issue: IssueSummary) {

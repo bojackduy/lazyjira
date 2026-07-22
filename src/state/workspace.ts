@@ -78,11 +78,14 @@ export function workspacePendingItem(state: AppState): WorkspaceItem {
   const changes = stagedChanges(state)
   const editCount = changes.filter((change) => change.kind === "edit").length
   const deleteCount = changes.filter((change) => change.kind === "delete").length
+  const configCount = changes.filter((change) => change.kind === "config").length
+  const parts = [countLabel(editCount, "edit"), countLabel(deleteCount, "delete")]
+  if (configCount) parts.push(countLabel(configCount, "config"))
   return {
     id: "pending:staged",
     section: "pending",
     title: "Pending Local",
-    subtitle: changes.length ? `${countLabel(editCount, "edit")} · ${countLabel(deleteCount, "delete")} · X discard · W write Jira` : "No staged edits or deletes",
+    subtitle: changes.length ? `${parts.join(" · ")} · X discard · W write Jira` : "No staged edits or deletes",
     count: changes.length,
   }
 }
@@ -122,9 +125,9 @@ export function workspaceResultsForItem(state: AppState, item?: WorkspaceItem): 
     return stagedChanges(state).map((change) => ({
       id: change.id,
       kind: "change" as const,
-      title: change.kind === "delete" ? `${change.issueKey} delete issue` : `${change.issueKey} ${change.label}`,
-      subtitle: change.kind === "delete" ? (state.issues[change.issueKey]?.title ?? "Unknown issue") : change.value.replace(/\s+/g, " ").slice(0, 72),
-      issueKey: change.issueKey,
+      title: stagedResultTitle(change),
+      subtitle: stagedResultSubtitle(state, change),
+      issueKey: change.kind === "config" ? undefined : change.issueKey,
     }))
   }
   const issuesByKey = new Map(allIssues(state).map((issue) => [issue.key, issue]))
@@ -195,6 +198,18 @@ function missingEstimateIssues(issues: IssueSummary[]) {
 
 function countLabel(count: number, label: string) {
   return `${count} ${label}${count === 1 ? "" : "s"}`
+}
+
+function stagedResultTitle(change: ReturnType<typeof stagedChanges>[number]) {
+  if (change.kind === "config") return change.value
+  if (change.kind === "delete") return `${change.issueKey} delete issue`
+  return `${change.issueKey} ${change.label}`
+}
+
+function stagedResultSubtitle(state: AppState, change: ReturnType<typeof stagedChanges>[number]) {
+  if (change.kind === "config") return "Local metadata overlay"
+  if (change.kind === "delete") return state.issues[change.issueKey]?.title ?? "Unknown issue"
+  return change.value.replace(/\s+/g, " ").slice(0, 72)
 }
 
 function sprintLabel(state: AppState, issue: IssueSummary) {

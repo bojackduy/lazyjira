@@ -5,6 +5,7 @@ import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { IssueSummary } from "../state/app-state"
+import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
 import { groupBacklogIssues, groupModeLabel, issueTypeColor, statusColor, statusName } from "../state/selectors"
 
@@ -85,12 +86,12 @@ function BacklogLegend() {
   return (
     <box flexDirection="column" gap={1}>
       <box flexDirection="row" gap={1}>
-        <For each={state.issueTypes}>
+        <For each={configuredIssueTypes(state)}>
           {(issueType) => <text fg={theme.textSubtle} wrapMode="none"><span style={{ fg: issueType.color }}>■</span> {shortType(issueType.name)}</text>}
         </For>
       </box>
       <box flexDirection="row" gap={1}>
-        <For each={state.statuses}>
+        <For each={configuredStatuses(state)}>
           {(status) => <text fg={status.color} wrapMode="none">● {shortStatus(status.name)}</text>}
         </For>
       </box>

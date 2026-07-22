@@ -1,4 +1,5 @@
 import type { AppState, BoardMode } from "./app-state"
+import { configuredStatuses } from "./config-drafts"
 import { issueByKey } from "./issue-drafts"
 import { boardGroupsForMode } from "./selectors"
 
@@ -10,7 +11,7 @@ export type BoardLocation = {
 
 export function boardCellIssueKeys(state: AppState, mode: BoardMode, groupIndex: number, statusIndex: number) {
   const group = boardGroupsForMode(state, mode)[groupIndex]
-  const status = state.statuses[statusIndex]
+  const status = configuredStatuses(state)[statusIndex]
   if (!group || !status) return []
   return group.issueKeys.filter((issueKey) => issueByKey(state, issueKey)?.statusId === status.id)
 }
@@ -21,8 +22,9 @@ export function boardIssueKeyAtLocation(state: AppState, mode: BoardMode, locati
 
 export function selectedBoardLocation(state: AppState, mode: BoardMode, issueKey = state.selectedIssueKey): BoardLocation | undefined {
   const groups = boardGroupsForMode(state, mode)
+  const statuses = configuredStatuses(state)
   for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
-    for (let statusIndex = 0; statusIndex < state.statuses.length; statusIndex++) {
+    for (let statusIndex = 0; statusIndex < statuses.length; statusIndex++) {
       const issueKeys = boardCellIssueKeys(state, mode, groupIndex, statusIndex)
       const itemIndex = issueKeys.indexOf(issueKey)
       if (itemIndex !== -1) return { groupIndex, statusIndex, itemIndex }
@@ -33,8 +35,9 @@ export function selectedBoardLocation(state: AppState, mode: BoardMode, issueKey
 
 export function firstBoardLocation(state: AppState, mode: BoardMode): BoardLocation | undefined {
   const groups = boardGroupsForMode(state, mode)
+  const statuses = configuredStatuses(state)
   for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
-    for (let statusIndex = 0; statusIndex < state.statuses.length; statusIndex++) {
+    for (let statusIndex = 0; statusIndex < statuses.length; statusIndex++) {
       if (boardCellIssueKeys(state, mode, groupIndex, statusIndex).length) return { groupIndex, statusIndex, itemIndex: 0 }
     }
   }
@@ -52,7 +55,8 @@ export function nextKanbanHorizontalLocation(state: AppState, location: BoardLoc
 }
 
 function nextOccupiedStatusInGroup(state: AppState, location: BoardLocation, delta: 1 | -1): BoardLocation | undefined {
-  for (let statusIndex = location.statusIndex + delta; statusIndex >= 0 && statusIndex < state.statuses.length; statusIndex += delta) {
+  const statuses = configuredStatuses(state)
+  for (let statusIndex = location.statusIndex + delta; statusIndex >= 0 && statusIndex < statuses.length; statusIndex += delta) {
     const issueKeys = boardCellIssueKeys(state, "kanban", location.groupIndex, statusIndex)
     if (issueKeys.length) return { groupIndex: location.groupIndex, statusIndex, itemIndex: Math.min(location.itemIndex, issueKeys.length - 1) }
   }
@@ -62,8 +66,9 @@ function nextOccupiedStatusInGroup(state: AppState, location: BoardLocation, del
 function occupiedBoardCells(state: AppState, mode: BoardMode) {
   const cells: BoardLocation[] = []
   const groups = boardGroupsForMode(state, mode)
+  const statuses = configuredStatuses(state)
   for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
-    for (let statusIndex = 0; statusIndex < state.statuses.length; statusIndex++) {
+    for (let statusIndex = 0; statusIndex < statuses.length; statusIndex++) {
       if (boardCellIssueKeys(state, mode, groupIndex, statusIndex).length) cells.push({ groupIndex, statusIndex, itemIndex: 0 })
     }
   }

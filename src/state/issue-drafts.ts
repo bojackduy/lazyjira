@@ -1,4 +1,5 @@
 import type { AppState, IssueDraft, IssueEditableField, IssueSummary } from "./app-state"
+import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 
 export function issueByKey(state: AppState, issueKey: string) {
   const issue = state.issues[issueKey]
@@ -28,9 +29,9 @@ function applyIssueField(issue: IssueSummary, fieldId: IssueEditableField, value
     case "title":
       return { ...issue, title: value || "Untitled issue" }
     case "type":
-      return { ...issue, type: state.issueTypes.find((type) => type.id.toLowerCase() === trimmed.toLowerCase())?.id ?? issue.type }
+      return { ...issue, type: configuredIssueTypes(state).find((type) => type.id.toLowerCase() === trimmed.toLowerCase() || type.name.toLowerCase() === trimmed.toLowerCase())?.id ?? issue.type }
     case "statusId":
-      return { ...issue, statusId: state.statuses.find((status) => status.id === trimmed || status.name.toLowerCase() === trimmed.toLowerCase())?.id ?? issue.statusId }
+      return { ...issue, statusId: configuredStatuses(state).find((status) => status.id === trimmed || status.name.toLowerCase() === trimmed.toLowerCase())?.id ?? issue.statusId }
     case "priority":
       return { ...issue, priority: priorityValue(trimmed) ?? issue.priority }
     case "assignee":

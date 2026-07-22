@@ -1,6 +1,18 @@
 import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
-import type { AppState, BacklogGroupBy, BoardGroupBy, FocusPane, IssueSummary, QuickFilterId } from "../state/app-state"
+import type { AppState, BacklogGroupBy, BoardGroupBy, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, QuickFilterId, StatusCategory } from "../state/app-state"
+import {
+  colorableConfigSection,
+  configDraftSummary,
+  configRowIds,
+  configSectionIdAt,
+  configSectionIds,
+  configuredIssueTypes,
+  configuredStatuses,
+  normalizedColor,
+  selectedConfigTargetId,
+  writableConfigSection,
+} from "../state/config-drafts"
 import { sidebarRoutes, type AppRoute } from "../state/routes"
 import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldDisplayValue, issueFields, selectedIssueField } from "../state/issue-fields"
@@ -22,6 +34,14 @@ export type AppStateContext = {
   focusWorkspaceResults: () => void
   closeWorkspaceResults: () => void
   moveConfigSelection: (delta: number) => void
+  focusConfigArea: (area: ConfigFocusArea) => void
+  startConfigAdd: () => void
+  startConfigRename: () => void
+  startConfigColor: () => void
+  updateConfigEditValue: (value: string) => void
+  commitConfigEdit: () => void
+  cancelConfigEdit: () => void
+  stageConfigRemove: () => void
   selectIssue: (issueKey: string) => void
   openIssueDetail: (issueKey?: string) => void
   closeIssueDetail: () => void
@@ -143,8 +163,85 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("workspaceResultSelectedIndex", 0)
     },
     moveConfigSelection(delta) {
-      const sectionCount = 6
-      setState("configSelectedSectionIndex", (state.configSelectedSectionIndex + delta + sectionCount) % sectionCount)
+      const sectionId = configSectionIdAt(state.configSelectedSectionIndex)
+      if (state.configFocusedArea === "rows") {
+        const rows = configRowIds(state, sectionId)
+        if (!rows.length) return
+        setState("configSelectedRowIndex", (state.configSelectedRowIndex + delta + rows.length) % rows.length)
+        return
+      }
+      const nextIndex = (state.configSelectedSectionIndex + delta + configSectionIds.length) % configSectionIds.length
+      setState("configSelectedSectionIndex", nextIndex)
+      setState("configSelectedRowIndex", 0)
+    },
+    focusConfigArea(area) {
+      if (area === "rows" && !configRowIds(state, configSectionIdAt(state.configSelectedSectionIndex)).length) return
+      setState("configFocusedArea", area)
+    },
+    startConfigAdd() {
+      const sectionId = configSectionIdAt(state.configSelectedSectionIndex)
+      if (!writableConfigSection(sectionId)) {
+        toast.show("This config section is read-only until Jira metadata writes are modeled")
+        return
+      }
+      setState("configEditing", { action: "add", sectionId })
+      setState("configEditValue", "")
+      setState("configFocusedArea", "rows")
+    },
+    startConfigRename() {
+      const sectionId = configSectionIdAt(state.configSelectedSectionIndex)
+      const targetId = selectedConfigTargetId(state)
+      if (!writableConfigSection(sectionId) || !targetId) {
+        toast.show("Select a writable config row first")
+        return
+      }
+      setState("configEditing", { action: "rename", sectionId, targetId })
+      setState("configEditValue", configTargetName(state, sectionId, targetId))
+      setState("configFocusedArea", "rows")
+    },
+    startConfigColor() {
+      const sectionId = configSectionIdAt(state.configSelectedSectionIndex)
+      const targetId = selectedConfigTargetId(state)
+      if (!colorableConfigSection(sectionId) || !targetId) {
+        toast.show("Select a colorable config row first")
+        return
+      }
+      setState("configEditing", { action: "color", sectionId, targetId })
+      setState("configEditValue", configTargetColor(state, sectionId, targetId))
+      setState("configFocusedArea", "rows")
+    },
+    updateConfigEditValue(value) {
+      setState("configEditValue", value)
+    },
+    commitConfigEdit() {
+      const draft = configDraftFromEdit(state)
+      if (!draft) {
+        toast.show(state.configEditing?.action === "color" ? "Use a #RRGGBB color value" : "Enter a config name first")
+        return
+      }
+      setState("configDrafts", (drafts) => [...drafts, draft])
+      setState("configDraftCounter", state.configDraftCounter + 1)
+      setState("configEditing", undefined)
+      setState("configEditValue", "")
+      toast.show(`${configDraftSummary(draft)} staged`)
+    },
+    cancelConfigEdit() {
+      setState("configEditing", undefined)
+      setState("configEditValue", "")
+    },
+    stageConfigRemove() {
+      const sectionId = configSectionIdAt(state.configSelectedSectionIndex)
+      const targetId = selectedConfigTargetId(state)
+      if (!isWritableConfigSection(sectionId) || !targetId) {
+        toast.show("Select a writable config row first")
+        return
+      }
+      const draft: ConfigDraft = { id: nextConfigDraftId(state), sectionId, action: "remove", targetId }
+      setState("configDrafts", (drafts) => [...drafts, draft])
+      setState("configDraftCounter", state.configDraftCounter + 1)
+      setState("configEditing", undefined)
+      setState("configEditValue", "")
+      toast.show(`${configDraftSummary(draft)} staged`)
     },
     selectIssue(issueKey) {
       setState("selectedIssueKey", issueKey)
@@ -168,7 +265,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
     moveInspectorChoice(delta) {
       const fieldId = state.inspectorEditingFieldId
       if (fieldId !== "statusId" && fieldId !== "type") return
-      const choices = fieldId === "statusId" ? state.statuses.map((status) => status.id) : state.issueTypes.map((type) => type.id)
+      const choices = fieldId === "statusId" ? configuredStatuses(state).map((status) => status.id) : configuredIssueTypes(state).map((type) => type.id)
       if (!choices.length) return
       const currentIndex = Math.max(0, choices.findIndex((choice) => choice === state.inspectorEditValue))
       setState("inspectorEditValue", choices[(currentIndex + delta + choices.length) % choices.length]!)
@@ -295,9 +392,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       const editorsToClear = discardedActiveEditors(changes, selectedIds, state.selectedIssueKey, state.inspectorEditingFieldId, state.detailBodyEditing)
       const issueDrafts = { ...state.issueDrafts }
       let issueDeletes = [...state.issueDeletes]
+      let configDrafts = [...state.configDrafts]
       for (const change of changes) {
         if (!selectedIds.has(change.id)) continue
         discardedCount += 1
+        if (change.kind === "config") {
+          configDrafts = configDrafts.filter((draft) => draft.id !== change.draftId)
+          continue
+        }
         if (change.kind === "delete") {
           issueDeletes = issueDeletes.filter((issueKey) => issueKey !== change.issueKey)
           continue
@@ -309,6 +411,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       }
       setState("issueDrafts", reconcile(issueDrafts))
       setState("issueDeletes", issueDeletes)
+      setState("configDrafts", reconcile(configDrafts))
       if (editorsToClear.inspector) {
         setState("inspectorEditingFieldId", undefined)
         setState("inspectorEditValue", "")
@@ -335,6 +438,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("inspectorEditValue", "")
       setState("detailBodyEditing", false)
       setState("detailBodyEditValue", "")
+      setState("configEditing", undefined)
+      setState("configEditValue", "")
       toast.show(`${changeCount} staged change${changeCount === 1 ? "" : "s"} rendered; X can discard, W writes Jira`)
     },
     createDraftIssue(issue) {
@@ -356,10 +461,10 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("backlogGroupBy", groupBy)
     },
     setActiveSprintStatusOffset(offset) {
-      setState("activeSprintStatusOffset", clampOffset(offset, state.statuses.length))
+      setState("activeSprintStatusOffset", clampOffset(offset, configuredStatuses(state).length))
     },
     setKanbanStatusOffset(offset) {
-      setState("kanbanStatusOffset", clampOffset(offset, state.statuses.length))
+      setState("kanbanStatusOffset", clampOffset(offset, configuredStatuses(state).length))
     },
   }
 
@@ -372,4 +477,56 @@ function clampOffset(offset: number, statusCount: number) {
 
 export function detailBodyInitialValue(state: AppState, issue: IssueSummary) {
   return state.issueDrafts[issue.key]?.description ?? issue.description
+}
+
+function configDraftFromEdit(state: AppState): ConfigDraft | undefined {
+  const editing = state.configEditing
+  if (!editing || !isWritableConfigSection(editing.sectionId)) return
+  const value = state.configEditValue.trim()
+  if (editing.action === "color") {
+    const color = normalizedColor(value)
+    if (!color || !editing.targetId) return
+    return { id: nextConfigDraftId(state), sectionId: editing.sectionId, action: "color", targetId: editing.targetId, color }
+  }
+  if (!value) return
+  if (editing.action === "add") {
+    return {
+      id: nextConfigDraftId(state),
+      sectionId: editing.sectionId,
+      action: "add",
+      name: value,
+      color: defaultConfigColor(editing.sectionId),
+      category: defaultStatusCategory(state, editing.sectionId),
+    }
+  }
+  if (!editing.targetId) return
+  return { id: nextConfigDraftId(state), sectionId: editing.sectionId, action: "rename", targetId: editing.targetId, name: value }
+}
+
+function nextConfigDraftId(state: AppState) {
+  return `config-${state.configDraftCounter}`
+}
+
+function isWritableConfigSection(sectionId: ConfigSectionId): sectionId is ConfigDraft["sectionId"] {
+  return writableConfigSection(sectionId)
+}
+
+function configTargetName(state: AppState, sectionId: ConfigSectionId, targetId: string) {
+  if (sectionId === "issue-types") return configuredIssueTypes(state).find((type) => type.id === targetId)?.name ?? targetId
+  return configuredStatuses(state).find((status) => status.id === targetId)?.name ?? targetId
+}
+
+function configTargetColor(state: AppState, sectionId: ConfigSectionId, targetId: string) {
+  if (sectionId === "issue-types") return configuredIssueTypes(state).find((type) => type.id === targetId)?.color ?? "#3B82F6"
+  return configuredStatuses(state).find((status) => status.id === targetId)?.color ?? "#64748B"
+}
+
+function defaultConfigColor(sectionId: ConfigDraft["sectionId"]) {
+  return sectionId === "issue-types" ? "#3B82F6" : "#64748B"
+}
+
+function defaultStatusCategory(state: AppState, sectionId: ConfigDraft["sectionId"]): StatusCategory | undefined {
+  if (sectionId === "issue-types") return
+  const targetId = selectedConfigTargetId(state)
+  return configuredStatuses(state).find((status) => status.id === targetId)?.category ?? "todo"
 }

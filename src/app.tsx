@@ -4,6 +4,7 @@ import { useBindings } from "./context/keymap"
 import { useAppState } from "./context/app-state"
 import { useExit } from "./context/exit"
 import { AppShell } from "./ui/shell"
+import { configuredStatuses } from "./state/config-drafts"
 import { issueByKey } from "./state/issue-drafts"
 import { sidebarRoutes } from "./state/routes"
 import type { BoardMode, IssueSummary } from "./state/app-state"
@@ -60,6 +61,10 @@ export function App() {
             appState.closeWorkspaceResults()
             return
           }
+          if (state.configEditing) {
+            appState.cancelConfigEdit()
+            return
+          }
           if (state.route === "issue-detail") {
             appState.closeIssueDetail()
             return
@@ -75,6 +80,7 @@ export function App() {
           else if (state.stagedDiscardOpen) appState.closeStagedDiscard()
           else if (state.pendingDeleteIssueKey) appState.cancelIssueDelete()
           else if (state.route === "workspace" && state.workspaceFocusedArea === "results") appState.closeWorkspaceResults()
+          else if (state.configEditing) appState.cancelConfigEdit()
           else if (state.detailBodyEditing) appState.cancelDetailBodyEdit()
           else appState.cancelInspectorEdit()
         },
@@ -101,9 +107,11 @@ export function App() {
       { name: "group.cycle", run: () => cycleGroup() },
       { name: "issue.edit", run: () => editSelectedIssue() },
       { name: "issue.new", run: () => createIssueFromContext() },
+      { name: "config.add", run: () => addConfigRow() },
+      { name: "config.color", run: () => colorConfigRow() },
       { name: "issue.apply", run: () => writeStagedRender() },
       { name: "issue.remote-apply", run: () => remoteApplyAction() },
-      { name: "issue.delete", run: () => (canRunGlobalShortcut() ? appState.requestIssueDelete() : false) },
+      { name: "issue.delete", run: () => deleteOrRemoveSelection() },
       { name: "issue.confirm-delete", run: () => (canRunGlobalShortcut() ? appState.confirmIssueDelete() : false) },
       { name: "issue.cancel-delete", run: () => (canRunGlobalShortcut() ? appState.cancelIssueDelete() : false) },
       { name: "staged-discard.open", run: () => (isPlainTextEditing() || isPopupOpen() || isAnyEditing() ? false : appState.openStagedDiscard()) },
@@ -134,6 +142,8 @@ export function App() {
       { key: "g", cmd: "group.cycle", preventDefault: false },
       { key: "e", cmd: "issue.edit", preventDefault: false },
       { key: "n", cmd: "issue.new", preventDefault: false },
+      { key: "a", cmd: "config.add", preventDefault: false },
+      { key: "c", cmd: "config.color", preventDefault: false },
       { key: "w", cmd: "issue.apply", preventDefault: false },
       { key: { name: "w", shift: true }, cmd: "issue.remote-apply", preventDefault: false },
       { key: "x", cmd: "issue.delete", preventDefault: false },
@@ -187,7 +197,10 @@ export function App() {
       else appState.closeWorkspaceResults()
       return
     }
-    if (state.route === "config") return
+    if (state.route === "config") {
+      appState.focusConfigArea(delta > 0 ? "rows" : "sections")
+      return
+    }
     if (isBoardRoute(state.route)) moveBoardHorizontal(state.route, delta)
     if (state.route === "backlog") moveBacklogGroup(delta)
   }
@@ -217,6 +230,12 @@ export function App() {
       appState.openWorkspaceSelection()
       return
     }
+    if (state.route === "config") {
+      if (state.configEditing) appState.commitConfigEdit()
+      else if (state.configFocusedArea === "sections") appState.focusConfigArea("rows")
+      else appState.startConfigRename()
+      return
+    }
     if (isBoardRoute(state.route) || state.route === "backlog") appState.openIssueDetail(state.selectedIssueKey)
   }
 
@@ -237,7 +256,10 @@ export function App() {
   function editSelectedIssue() {
     if (isPlainTextEditing() || isPopupOpen()) return false
     if (state.route === "workspace") return false
-    if (state.route === "config") return false
+    if (state.route === "config") {
+      appState.startConfigRename()
+      return
+    }
     if (state.route === "issue-detail" && state.focusedPane === "main") {
       appState.startDetailBodyEdit()
       return
@@ -262,7 +284,8 @@ export function App() {
     const current = state.issues[state.selectedIssueKey]
     const boardMode = isBoardRoute(state.route) ? state.route : undefined
     const location = boardMode ? selectedBoardLocation(state, boardMode) : undefined
-    const statusId = location ? state.statuses[location.statusIndex]?.id : current?.statusId
+    const statuses = configuredStatuses(state)
+    const statusId = location ? statuses[location.statusIndex]?.id : current?.statusId
     const key = `DRAFT-${state.draftIssueCounter}`
     const groupDefaults = current && boardMode ? defaultsFromBoardGroup(current, boardGroupByForMode(state, boardMode)) : {}
     const issue: IssueSummary = {
@@ -270,7 +293,7 @@ export function App() {
       title: "New issue",
       type: groupDefaults.type ?? "Task",
       priority: groupDefaults.priority ?? current?.priority ?? "Medium",
-      statusId: statusId ?? state.statuses[0]?.id ?? "todo",
+      statusId: statusId ?? statuses[0]?.id ?? "todo",
       assignee: groupDefaults.assignee ?? current?.assignee ?? state.currentUser,
       reporter: state.currentUser,
       epic: groupDefaults.epic ?? current?.epic,
@@ -310,6 +333,10 @@ export function App() {
 
   function stageCurrentEdit() {
     if (isPopupOpen()) return false
+    if (state.configEditing) {
+      appState.commitConfigEdit()
+      return
+    }
     if (state.detailBodyEditing) {
       appState.commitDetailBodyEdit()
       return
@@ -322,7 +349,7 @@ export function App() {
   }
 
   function writeStagedRender() {
-    if (isPopupOpen() || state.detailBodyEditing) return false
+    if (isPopupOpen() || state.detailBodyEditing || state.configEditing) return false
     if (state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type") return false
     if (state.inspectorEditingFieldId) appState.commitInspectorEdit()
     appState.applyIssueChanges()
@@ -346,11 +373,30 @@ export function App() {
   }
 
   function isPlainTextEditing() {
-    return state.detailBodyEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
+    return state.detailBodyEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
   }
 
   function isAnyEditing() {
-    return state.detailBodyEditing || !!state.inspectorEditingFieldId
+    return state.detailBodyEditing || !!state.inspectorEditingFieldId || !!state.configEditing
+  }
+
+  function addConfigRow() {
+    if (!canRunGlobalShortcut() || state.route !== "config") return false
+    appState.startConfigAdd()
+  }
+
+  function colorConfigRow() {
+    if (!canRunGlobalShortcut() || state.route !== "config") return false
+    appState.startConfigColor()
+  }
+
+  function deleteOrRemoveSelection() {
+    if (!canRunGlobalShortcut()) return false
+    if (state.route === "config") {
+      appState.stageConfigRemove()
+      return
+    }
+    appState.requestIssueDelete()
   }
 
   function defaultsFromBoardGroup(issue: IssueSummary, groupBy: ReturnType<typeof boardGroupByForMode>): Partial<IssueSummary> {
@@ -415,6 +461,7 @@ export function App() {
   function moveBoardHorizontal(mode: BoardMode, delta: number) {
     const location = selectedBoardLocation(state, mode) ?? firstBoardLocation(state, mode)
     if (!location) return
+    const statuses = configuredStatuses(state)
     if (mode === "kanban") {
       const next = nextKanbanHorizontalLocation(state, location, delta > 0 ? 1 : -1)
       if (next) selectBoardLocation("kanban", next)
@@ -422,14 +469,14 @@ export function App() {
     }
 
     const groups = boardGroupsForMode(state, mode)
-    for (let statusIndex = location.statusIndex + delta; statusIndex >= 0 && statusIndex < state.statuses.length; statusIndex += delta) {
+    for (let statusIndex = location.statusIndex + delta; statusIndex >= 0 && statusIndex < statuses.length; statusIndex += delta) {
       const issueKeys = boardCellIssueKeys(state, mode, location.groupIndex, statusIndex)
       if (!issueKeys.length) continue
       selectBoardIssue(mode, issueKeys[Math.min(location.itemIndex, issueKeys.length - 1)]!)
       return
     }
 
-    const targetStatusIndex = Math.max(0, Math.min(state.statuses.length - 1, location.statusIndex + delta))
+    const targetStatusIndex = Math.max(0, Math.min(statuses.length - 1, location.statusIndex + delta))
     ensureStatusVisible(mode, targetStatusIndex)
     if (!groups[location.groupIndex]) return
   }
@@ -464,9 +511,10 @@ export function App() {
   }
 
   function findSprintColumnWithIssue(startStatusIndex: number, delta: number) {
-    for (let statusIndex = startStatusIndex; statusIndex >= 0 && statusIndex < state.statuses.length; statusIndex += delta) {
+    const statuses = configuredStatuses(state)
+    for (let statusIndex = startStatusIndex; statusIndex >= 0 && statusIndex < statuses.length; statusIndex += delta) {
       const issueKeys = boardIssuesForMode(state, "active-sprint")
-        .filter((issue) => issue.statusId === state.statuses[statusIndex]?.id)
+        .filter((issue) => issue.statusId === statuses[statusIndex]?.id)
         .map((issue) => issue.key)
       if (issueKeys.length) return { statusIndex, issueKeys }
     }
@@ -474,8 +522,9 @@ export function App() {
   }
 
   function ensureStatusVisible(mode: BoardMode, statusIndex: number) {
-    const windowSize = boardStatusWindowSize(dimensions().width, state.statuses.length)
-    const maxOffset = Math.max(0, state.statuses.length - windowSize)
+    const statusCount = configuredStatuses(state).length
+    const windowSize = boardStatusWindowSize(dimensions().width, statusCount)
+    const maxOffset = Math.max(0, statusCount - windowSize)
     const currentOffset = boardStatusOffsetForMode(state, mode)
     let nextOffset = currentOffset
     if (statusIndex < currentOffset) nextOffset = statusIndex

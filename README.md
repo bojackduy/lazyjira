@@ -161,7 +161,13 @@ Should show:
 
 The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. Body editing lives in the detail route, not the inspector: in detail, `e` edits body, `j/k` scroll one line, and `d/u` scroll half a page. In text edit mode, printable keys go to the editor and `Ctrl-Enter` stages the current edit. `n` creates a draft issue with context-aware defaults, `x` asks to stage an issue delete, `X` opens a staged-discard popup, `w` applies staged edits/deletes locally, and `W` opens the Jira write review popup. Inside the Jira write popup, `W` is the final remote-apply key; until Jira API writes are wired, it shows a placeholder and keeps staged changes intact. `Enter` opens the full issue detail route for reading; `q`/Backspace returns to the previous overview.
 
-### 6. Search And Command Palette
+### 6. Metadata Config
+
+Purpose: inspect board/project metadata without turning the app into a Jira admin console.
+
+In demo/local mode, Board Columns, Statuses, and Issue Types can be staged with `a` add, `e` rename, `c` color, and `x` remove. `w` renders staged metadata locally while keeping it discardable, `X` discards staged changes, and `W` opens the future Jira write review placeholder. Priorities, Fields, and Quick Filters stay read-only until the model and API support are real.
+
+### 7. Search And Command Palette
 
 Purpose: let users jump anywhere without navigating through panes.
 

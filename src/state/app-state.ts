@@ -20,7 +20,7 @@ export type SprintSummary = {
 
 export type IssuePriority = "Low" | "Medium" | "High" | "Critical"
 
-export type IssueType = "Bug" | "Story" | "Task" | "Subtask" | "Feature" | "Epic"
+export type IssueType = string
 
 export type StatusCategory = "todo" | "in-progress" | "review" | "blocked" | "done"
 
@@ -74,6 +74,28 @@ export type IssueEditableField =
   | "description"
 
 export type IssueDraft = Partial<Record<IssueEditableField, string>>
+
+export type ConfigSectionId = "columns" | "statuses" | "issue-types" | "priorities" | "fields" | "quick-filters"
+
+export type ConfigFocusArea = "sections" | "rows"
+
+export type ConfigEditAction = "add" | "rename" | "color"
+
+export type ConfigEditing = {
+  action: ConfigEditAction
+  sectionId: ConfigSectionId
+  targetId?: string
+}
+
+export type ConfigDraft = {
+  id: string
+  sectionId: Extract<ConfigSectionId, "columns" | "statuses" | "issue-types">
+  action: ConfigEditAction | "remove"
+  targetId?: string
+  name?: string
+  color?: string
+  category?: StatusCategory
+}
 
 export type FocusPane = "sidebar" | "main" | "inspector"
 
@@ -143,6 +165,12 @@ export type AppState = {
   workspaceFocusedArea: WorkspaceFocusArea
   workspaceResultSelectedIndex: number
   configSelectedSectionIndex: number
+  configSelectedRowIndex: number
+  configFocusedArea: ConfigFocusArea
+  configEditing?: ConfigEditing
+  configEditValue: string
+  configDraftCounter: number
+  configDrafts: ConfigDraft[]
   project: ProjectSummary
   board: BoardSummary
   currentUser: string

@@ -1,13 +1,21 @@
-import { TextAttributes } from "@opentui/core"
+import { TextAttributes, type InputRenderable, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { For } from "solid-js"
+import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useTheme } from "../context/theme"
-import type { AppState } from "../state/app-state"
+import type { AppState, ConfigSectionId } from "../state/app-state"
+import {
+  colorableConfigSection,
+  configDraftSummary,
+  configuredIssueTypes,
+  configuredStatuses,
+  writableConfigSection,
+} from "../state/config-drafts"
 import { issueFields } from "../state/issue-fields"
-import { allIssues, statusById } from "../state/selectors"
+import { allIssues } from "../state/selectors"
 
 type ConfigRow = {
+  id: string
   label: string
   detail: string
   color?: string
@@ -15,7 +23,7 @@ type ConfigRow = {
 }
 
 type ConfigSection = {
-  id: string
+  id: ConfigSectionId
   title: string
   subtitle: string
   remote: string
@@ -29,59 +37,138 @@ export function ConfigRoute() {
   const compact = () => dimensions().width < 110
   const sections = () => configSections(state)
   const selectedSection = () => sections()[state.configSelectedSectionIndex] ?? sections()[0]!
-  const focused = () => state.focusedPane === "main"
+  const sectionsFocused = () => state.focusedPane === "main" && state.configFocusedArea === "sections"
+  const rowsFocused = () => state.focusedPane === "main" && state.configFocusedArea === "rows"
 
   return (
     <box flexDirection="column" gap={1} flexGrow={1} minHeight={0}>
-      <box height={3} flexShrink={0} flexDirection="column">
+      <box height={4} flexShrink={0} flexDirection="column">
         <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">Metadata Config</text>
-        <text fg={theme.textMuted} wrapMode="none">Read-only project and board metadata. Local/remote edits come after this model is stable.</text>
-        <text fg={theme.textSubtle} wrapMode="none">j/k section · W future Jira write review · X future staged discard</text>
+        <text fg={theme.textMuted} wrapMode="none">Local/demo metadata overlay. Board Columns, Statuses, and Issue Types are writable first.</text>
+        <text fg={theme.textSubtle} wrapMode="none">j/k choose · h/l sections/rows · a add · e rename · c color · x remove · w render · X discard · W Jira</text>
       </box>
 
       <box flexDirection={compact() ? "column" : "row"} gap={1} flexGrow={1} minHeight={0}>
-        <box borderStyle="rounded" borderColor={focused() ? theme.borderActive : theme.border} padding={1} width={compact() ? "100%" : 34} flexShrink={0} flexDirection="column" gap={1}>
+        <box borderStyle="rounded" borderColor={sectionsFocused() ? theme.borderActive : theme.border} padding={1} width={compact() ? "100%" : 34} flexShrink={0} flexDirection="column" gap={1}>
           <text attributes={TextAttributes.BOLD} fg={theme.warning}>Sections</text>
           <For each={sections()}>
             {(section, index) => {
               const selected = () => state.configSelectedSectionIndex === index()
+              const writable = () => writableConfigSection(section.id)
               return (
-                <box height={3} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={selected() ? theme.selected : undefined} flexDirection="column">
-                  <text fg={selected() ? theme.selectedText : theme.text} wrapMode="none">{selected() ? ">" : " "} {section.title}</text>
-                  <text fg={selected() ? theme.selectedText : theme.textMuted} wrapMode="none">{section.subtitle}</text>
+                <box height={3} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={selected() && sectionsFocused() ? theme.selected : undefined} flexDirection="column">
+                  <text fg={selected() && sectionsFocused() ? theme.selectedText : selected() ? theme.accent : theme.text} wrapMode="none">{selected() ? ">" : " "} {section.title}</text>
+                  <text fg={selected() && sectionsFocused() ? theme.selectedText : writable() ? theme.textMuted : theme.textSubtle} wrapMode="none">{section.subtitle}</text>
                 </box>
               )
             }}
           </For>
         </box>
 
-        <box borderStyle="rounded" borderColor={theme.border} padding={1} flexGrow={1} minWidth={0} minHeight={0} flexDirection="column" gap={1}>
+        <box borderStyle="rounded" borderColor={rowsFocused() ? theme.borderActive : theme.border} padding={1} flexGrow={1} minWidth={0} minHeight={0} flexDirection="column" gap={1}>
           <box flexDirection="row" justifyContent="space-between" flexShrink={0}>
             <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none">{selectedSection().title}</text>
             <text fg={theme.textSubtle} wrapMode="none">Remote: {selectedSection().remote}</text>
           </box>
           <text fg={theme.textMuted} wrapMode="none">{selectedSection().subtitle}</text>
-          <For each={selectedSection().rows} fallback={<text fg={theme.textSubtle}>No metadata rows</text>}>
-            {(row) => <ConfigRowView row={row} />}
-          </For>
+          <text fg={writableConfigSection(selectedSection().id) ? theme.warning : theme.textSubtle} wrapMode="none">{sectionHint(selectedSection().id)}</text>
+          <ConfigRows section={selectedSection()} focused={rowsFocused()} />
+          <ConfigEditor />
+          <ConfigDraftList />
         </box>
       </box>
     </box>
   )
 }
 
-function ConfigRowView(props: { row: ConfigRow }) {
+function ConfigRows(props: { section: ConfigSection; focused: boolean }) {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const dimensions = useTerminalDimensions()
+  let scrollbox: ScrollBoxRenderable | undefined
+  const height = () => Math.max(4, dimensions().height - (state.configEditing ? 26 : 21))
+
+  createEffect(() => {
+    if (state.route !== "config" || state.configFocusedArea !== "rows") return
+    scrollbox?.scrollChildIntoView(configRowElementId(props.section.id, state.configSelectedRowIndex))
+  })
+
+  return (
+    <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={height()} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
+      <For each={props.section.rows} fallback={<text fg={theme.textSubtle}>No metadata rows</text>}>
+        {(row, index) => <ConfigRowView row={row} index={index()} sectionId={props.section.id} focused={props.focused} />}
+      </For>
+    </scrollbox>
+  )
+}
+
+function ConfigRowView(props: { row: ConfigRow; index: number; sectionId: ConfigSectionId; focused: boolean }) {
+  const theme = useTheme()
+  const { state } = useAppState()
+  const selected = () => state.configFocusedArea === "rows" && state.configSelectedRowIndex === props.index
+  const staged = () => state.configDrafts.some((draft) => draft.sectionId === props.sectionId && draft.targetId === props.row.id)
+  return (
+    <box id={configRowElementId(props.sectionId, props.index)} height={3} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={selected() && props.focused ? theme.selected : undefined} flexDirection="column">
+      <text fg={selected() && props.focused ? theme.selectedText : props.row.color ?? theme.text} wrapMode="none">
+        {selected() ? ">" : " "} {props.row.color ? "● " : ""}{props.row.label}{staged() ? " *" : ""}
+      </text>
+      <text fg={selected() && props.focused ? theme.selectedText : theme.textMuted} wrapMode="none">
+        {props.row.detail}{props.row.capability ? ` · ${props.row.capability}` : ""}
+      </text>
+    </box>
+  )
+}
+
+function ConfigEditor() {
+  const appState = useAppState()
+  const { state } = appState
+  const theme = useTheme()
+  const editing = () => state.configEditing
+  return (
+    <Show when={editing()}>
+      {(current) => (
+        <box border={['top']} borderColor={theme.border} paddingTop={1} flexDirection="column" gap={1} flexShrink={0}>
+          <text attributes={TextAttributes.BOLD} fg={theme.warning} wrapMode="none">{editTitle(current().action, current().sectionId)}</text>
+          <input
+            value={state.configEditValue}
+            onInput={(value) => appState.updateConfigEditValue(value)}
+            onSubmit={() => appState.commitConfigEdit()}
+            ref={(element: InputRenderable) => setTimeout(() => !element.isDestroyed && element.focus(), 1)}
+            placeholder={current().action === "color" ? "#RRGGBB" : "Name"}
+            placeholderColor={theme.textSubtle}
+            textColor={theme.text}
+            focusedTextColor={theme.text}
+            cursorColor={theme.accent}
+            backgroundColor={theme.panel}
+            focusedBackgroundColor={theme.panel}
+          />
+          <text fg={theme.textSubtle} wrapMode="none">Enter stage · Esc cancel · w applies after staging</text>
+        </box>
+      )}
+    </Show>
+  )
+}
+
+function ConfigDraftList() {
+  const { state } = useAppState()
   const theme = useTheme()
   return (
-    <box height={3} flexShrink={0} paddingLeft={1} paddingRight={1} flexDirection="column">
-      <text fg={props.row.color ?? theme.text} wrapMode="none">{props.row.color ? "● " : ""}{props.row.label}</text>
-      <text fg={theme.textMuted} wrapMode="none">{props.row.detail}{props.row.capability ? ` · ${props.row.capability}` : ""}</text>
+    <box border={['top']} borderColor={theme.border} paddingTop={1} flexDirection="column" gap={1} flexShrink={0}>
+      <box flexDirection="row" justifyContent="space-between">
+        <text attributes={TextAttributes.BOLD} fg={theme.warning}>Staged Config</text>
+        <text fg={state.configDrafts.length ? theme.warning : theme.textSubtle}>{state.configDrafts.length} staged</text>
+      </box>
+      <For each={state.configDrafts} fallback={<text fg={theme.textSubtle}>No config changes staged.</text>}>
+        {(draft) => <text fg={draft.action === "remove" ? theme.danger : theme.text} wrapMode="none">{configDraftSummary(draft)}</text>}
+      </For>
     </box>
   )
 }
 
 function configSections(state: AppState): ConfigSection[] {
   const issues = allIssues(state)
+  const statuses = configuredStatuses(state)
+  const issueTypes = configuredIssueTypes(state)
   const priorityCounts = ["Critical", "High", "Medium", "Low"].map((priority) => ({
     priority,
     count: issues.filter((issue) => issue.priority === priority).length,
@@ -91,13 +178,14 @@ function configSections(state: AppState): ConfigSection[] {
     {
       id: "columns",
       title: "Board Columns",
-      subtitle: `${state.statuses.length} workflow columns`,
+      subtitle: `${statuses.length} workflow columns`,
       remote: "board admin later",
-      rows: state.statuses.map((status) => ({
+      rows: statuses.map((status) => ({
+        id: status.id,
         label: status.name,
         detail: `${status.category} · ${issues.filter((issue) => issue.statusId === status.id).length} issues · id ${status.id}`,
         color: status.color,
-        capability: "rename/reorder/add later",
+        capability: "local add/rename/color/remove",
       })),
     },
     {
@@ -105,23 +193,25 @@ function configSections(state: AppState): ConfigSection[] {
       title: "Statuses",
       subtitle: "Workflow states and categories",
       remote: "admin/workflow scoped",
-      rows: state.statuses.map((status) => ({
+      rows: statuses.map((status) => ({
+        id: status.id,
         label: status.name,
         detail: `${status.category} · color ${status.color} · id ${status.id}`,
         color: status.color,
-        capability: "local color/name first",
+        capability: "local add/rename/color/remove",
       })),
     },
     {
       id: "issue-types",
       title: "Issue Types",
-      subtitle: `${state.issueTypes.length} issue types`,
+      subtitle: `${issueTypes.length} issue types`,
       remote: "admin/scheme scoped",
-      rows: state.issueTypes.map((issueType) => ({
+      rows: issueTypes.map((issueType) => ({
+        id: issueType.id,
         label: issueType.name,
         detail: `${issues.filter((issue) => issue.type === issueType.id).length} issues · color ${issueType.color}`,
         color: issueType.color,
-        capability: "local color/name first",
+        capability: "local add/rename/color/remove",
       })),
     },
     {
@@ -130,10 +220,11 @@ function configSections(state: AppState): ConfigSection[] {
       subtitle: "Priority values used by visible issues",
       remote: "admin scoped",
       rows: priorityCounts.map(({ priority, count }) => ({
+        id: priority,
         label: priority,
         detail: `${count} issues`,
         color: priorityColor(priority),
-        capability: "order/color later",
+        capability: "read-only until priority model exists",
       })),
     },
     {
@@ -142,6 +233,7 @@ function configSections(state: AppState): ConfigSection[] {
       subtitle: `${issueFields.length} supported inspector fields`,
       remote: "read-only mapping first",
       rows: issueFields.map((field) => ({
+        id: field.id,
         label: field.label,
         detail: field.editable ? "editable in app" : "read-only in app",
         capability: field.editable ? "Jira field mapping later" : "display only",
@@ -153,12 +245,27 @@ function configSections(state: AppState): ConfigSection[] {
       subtitle: `${state.quickFilters.length} workspace filters`,
       remote: "board filter later",
       rows: state.quickFilters.map((filter) => ({
+        id: filter.id,
         label: filter.label,
         detail: state.activeQuickFilters.includes(filter.id) ? "active" : "inactive",
         capability: quickFilterDescription(state, filter.id),
       })),
     },
   ]
+}
+
+function sectionHint(sectionId: ConfigSectionId) {
+  if (!writableConfigSection(sectionId)) return "Read-only for now. This stays inert until the model/API support is real."
+  return colorableConfigSection(sectionId)
+    ? "a add · e/enter rename · c color · x remove · X discard staged"
+    : "a add · e/enter rename · x remove · X discard staged"
+}
+
+function editTitle(action: string, sectionId: ConfigSectionId) {
+  const target = sectionId === "issue-types" ? "issue type" : sectionId === "columns" ? "column" : "status"
+  if (action === "add") return `Add ${target}`
+  if (action === "color") return `Set ${target} color`
+  return `Rename ${target}`
 }
 
 function priorityColor(priority: string) {
@@ -181,4 +288,8 @@ function quickFilterDescription(state: AppState, filterId: string) {
     default:
       return filterId
   }
+}
+
+function configRowElementId(sectionId: ConfigSectionId, index: number) {
+  return `config-row-${sectionId}-${index}`
 }
