@@ -77,6 +77,8 @@ export type IssueDraft = Partial<Record<IssueEditableField, string>>
 
 export type FocusPane = "sidebar" | "main" | "inspector"
 
+export type WorkspaceFocusArea = "cards" | "results"
+
 export type QuickFilterId = "mine" | "blocked" | "stale" | "unassigned"
 
 export type QuickFilterDefinition = {
@@ -137,6 +139,10 @@ export type AppState = {
   previousRoute?: AppRoute
   focusedPane: FocusPane
   sidebarSelectedIndex: number
+  workspaceSelectedIndex: number
+  workspaceFocusedArea: WorkspaceFocusArea
+  workspaceResultSelectedIndex: number
+  configSelectedSectionIndex: number
   project: ProjectSummary
   board: BoardSummary
   currentUser: string

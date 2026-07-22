@@ -3,6 +3,7 @@ export const appRoutes = [
   { id: "active-sprint", label: "Active Sprint", shortLabel: "Sprint" },
   { id: "backlog", label: "Backlog", shortLabel: "Backlog" },
   { id: "kanban", label: "Kanban Board", shortLabel: "Kanban" },
+  { id: "config", label: "Metadata Config", shortLabel: "Config" },
   { id: "issue-detail", label: "Issue Detail", shortLabel: "Detail" },
 ] as const
 

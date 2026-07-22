@@ -56,6 +56,10 @@ export function App() {
             appState.cancelIssueDelete()
             return
           }
+          if (state.route === "workspace" && state.workspaceFocusedArea === "results") {
+            appState.closeWorkspaceResults()
+            return
+          }
           if (state.route === "issue-detail") {
             appState.closeIssueDetail()
             return
@@ -70,6 +74,7 @@ export function App() {
           if (state.remoteApplyOpen) appState.closeRemoteIssueApply()
           else if (state.stagedDiscardOpen) appState.closeStagedDiscard()
           else if (state.pendingDeleteIssueKey) appState.cancelIssueDelete()
+          else if (state.route === "workspace" && state.workspaceFocusedArea === "results") appState.closeWorkspaceResults()
           else if (state.detailBodyEditing) appState.cancelDetailBodyEdit()
           else appState.cancelInspectorEdit()
         },
@@ -80,6 +85,7 @@ export function App() {
       { name: "route.active-sprint", run: () => (canRunGlobalShortcut() ? appState.setRoute("active-sprint") : false) },
       { name: "route.backlog", run: () => (canRunGlobalShortcut() ? appState.setRoute("backlog") : false) },
       { name: "route.kanban", run: () => (canRunGlobalShortcut() ? appState.setRoute("kanban") : false) },
+      { name: "route.config", run: () => (canRunGlobalShortcut() ? appState.setRoute("config") : false) },
       { name: "focus.next", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(1)) },
       { name: "focus.previous", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(-1)) },
       { name: "pane.down", run: () => moveVertical(1) },
@@ -114,6 +120,7 @@ export function App() {
       { key: "2", cmd: "route.active-sprint", preventDefault: false },
       { key: "3", cmd: "route.backlog", preventDefault: false },
       { key: "4", cmd: "route.kanban", preventDefault: false },
+      { key: "5", cmd: "route.config", preventDefault: false },
       { key: "j", cmd: "staged-discard.down", preventDefault: false },
       { key: "down", cmd: "staged-discard.down", preventDefault: false },
       { key: "k", cmd: "staged-discard.up", preventDefault: false },
@@ -155,6 +162,14 @@ export function App() {
       return
     }
     if (state.focusedPane !== "main") return
+    if (state.route === "workspace") {
+      appState.moveWorkspaceSelection(delta)
+      return
+    }
+    if (state.route === "config") {
+      appState.moveConfigSelection(delta)
+      return
+    }
     if (isBoardRoute(state.route)) moveBoardVertical(state.route, delta)
     if (state.route === "backlog") moveBacklogSelection(delta)
   }
@@ -167,6 +182,12 @@ export function App() {
       return
     }
     if (state.focusedPane !== "main") return
+    if (state.route === "workspace") {
+      if (delta > 0) appState.focusWorkspaceResults()
+      else appState.closeWorkspaceResults()
+      return
+    }
+    if (state.route === "config") return
     if (isBoardRoute(state.route)) moveBoardHorizontal(state.route, delta)
     if (state.route === "backlog") moveBacklogGroup(delta)
   }
@@ -192,6 +213,10 @@ export function App() {
       return
     }
     if (state.focusedPane !== "main") return
+    if (state.route === "workspace") {
+      appState.openWorkspaceSelection()
+      return
+    }
     if (isBoardRoute(state.route) || state.route === "backlog") appState.openIssueDetail(state.selectedIssueKey)
   }
 
@@ -211,6 +236,8 @@ export function App() {
 
   function editSelectedIssue() {
     if (isPlainTextEditing() || isPopupOpen()) return false
+    if (state.route === "workspace") return false
+    if (state.route === "config") return false
     if (state.route === "issue-detail" && state.focusedPane === "main") {
       appState.startDetailBodyEdit()
       return
@@ -229,6 +256,8 @@ export function App() {
       appState.cancelIssueDelete()
       return
     }
+    if (state.route === "workspace") return false
+    if (state.route === "config") return false
     if (state.route === "issue-detail") return
     const current = state.issues[state.selectedIssueKey]
     const boardMode = isBoardRoute(state.route) ? state.route : undefined

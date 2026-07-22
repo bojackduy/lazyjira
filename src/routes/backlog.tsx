@@ -43,15 +43,9 @@ export function BacklogRoute() {
   return (
     <box flexDirection="row" gap={1} flexGrow={1} minHeight={0}>
       <box flexDirection="column" gap={1} flexGrow={1} minHeight={0}>
-        <box flexDirection={compact() ? "column" : "row"} justifyContent="space-between" gap={compact() ? 1 : 0}>
-          <box flexDirection="column">
-            <text attributes={TextAttributes.BOLD} fg={theme.accent}>Backlog: {state.board.name}</text>
-            <text fg={theme.textMuted}>Default grouping is sprint, but mock grouping can cycle through Jira-like fields.</text>
-          </box>
-          <box alignItems={compact() ? "flex-start" : "flex-end"}>
-            <text fg={theme.text}>Group by: {groupModeLabel(state.backlogGroupBy)}</text>
-            <text fg={theme.textSubtle}>g group · h/l group jump</text>
-          </box>
+        <box height={3} flexShrink={0} flexDirection="column">
+          <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">Backlog: {state.board.name}</text>
+          <text fg={theme.textMuted} wrapMode="none">Grouped by {groupModeLabel(state.backlogGroupBy)} · g cycle group · h/l jump group</text>
         </box>
         <BacklogLegend />
         <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} viewportCulling={true}>

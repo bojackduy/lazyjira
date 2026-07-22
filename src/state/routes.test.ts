@@ -8,12 +8,13 @@ describe("routes", () => {
       "active-sprint",
       "backlog",
       "kanban",
+      "config",
       "issue-detail",
     ])
   })
 
   test("keeps issue detail out of primary sidebar routes", () => {
-    expect(sidebarRoutes.map((route) => route.id)).toEqual(["workspace", "active-sprint", "backlog", "kanban"])
+    expect(sidebarRoutes.map((route) => route.id)).toEqual(["workspace", "active-sprint", "backlog", "kanban", "config"])
   })
 
   test("guards route ids", () => {

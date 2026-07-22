@@ -5,6 +5,7 @@ import { sidebarRoutes, type AppRoute } from "../state/routes"
 import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldDisplayValue, issueFields, selectedIssueField } from "../state/issue-fields"
 import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from "../state/staged-changes"
+import { workspaceCurrentResults, workspaceItems, workspaceSelectedItem } from "../state/workspace"
 import { useToast } from "./toast"
 
 export type AppStateContext = {
@@ -16,6 +17,11 @@ export type AppStateContext = {
   openSidebarSelection: () => void
   toggleSidebarFilterSelection: () => void
   toggleQuickFilter: (filterId: QuickFilterId) => void
+  moveWorkspaceSelection: (delta: number) => void
+  openWorkspaceSelection: () => void
+  focusWorkspaceResults: () => void
+  closeWorkspaceResults: () => void
+  moveConfigSelection: (delta: number) => void
   selectIssue: (issueKey: string) => void
   openIssueDetail: (issueKey?: string) => void
   closeIssueDetail: () => void
@@ -65,13 +71,16 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       const index = sidebarRoutes.findIndex((candidate) => candidate.id === route)
       if (index !== -1) setState("sidebarSelectedIndex", index)
       if (route === "issue-detail") setState("focusedPane", "main")
+      if (route === "workspace") setState("focusedPane", "main")
+      if (route === "config") setState("focusedPane", "main")
+      if (route !== "workspace") setState("workspaceFocusedArea", "cards")
       if (route !== "issue-detail") setState("previousRoute", undefined)
     },
     setFocusedPane(pane) {
       setState("focusedPane", pane)
     },
     focusNextPane(delta) {
-      const panes: FocusPane[] = ["sidebar", "main", "inspector"]
+      const panes: FocusPane[] = state.route === "workspace" || state.route === "config" ? ["sidebar", "main"] : ["sidebar", "main", "inspector"]
       const currentIndex = Math.max(0, panes.indexOf(state.focusedPane))
       setState("focusedPane", panes[(currentIndex + delta + panes.length) % panes.length]!)
     },
@@ -95,6 +104,47 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("activeQuickFilters", (filters) =>
         filters.includes(filterId) ? filters.filter((candidate) => candidate !== filterId) : [...filters, filterId],
       )
+    },
+    moveWorkspaceSelection(delta) {
+      if (state.workspaceFocusedArea === "results") {
+        const results = workspaceCurrentResults(state)
+        if (!results.length) return
+        setState("workspaceResultSelectedIndex", (state.workspaceResultSelectedIndex + delta + results.length) % results.length)
+        return
+      }
+      const items = workspaceItems(state)
+      if (!items.length) return
+      setState("workspaceSelectedIndex", (state.workspaceSelectedIndex + delta + items.length) % items.length)
+      setState("workspaceResultSelectedIndex", 0)
+    },
+    openWorkspaceSelection() {
+      if (state.workspaceFocusedArea === "results") {
+        const result = workspaceCurrentResults(state)[state.workspaceResultSelectedIndex]
+        if (result?.issueKey) context.openIssueDetail(result.issueKey)
+        return
+      }
+      const item = workspaceSelectedItem(state)
+      if (!item) return
+      if (item.route) {
+        context.setRoute(item.route)
+        return
+      }
+      if (item.issueKey) context.openIssueDetail(item.issueKey)
+      else context.focusWorkspaceResults()
+    },
+    focusWorkspaceResults() {
+      const results = workspaceCurrentResults(state)
+      if (!results.length) return
+      setState("workspaceFocusedArea", "results")
+      setState("workspaceResultSelectedIndex", 0)
+    },
+    closeWorkspaceResults() {
+      setState("workspaceFocusedArea", "cards")
+      setState("workspaceResultSelectedIndex", 0)
+    },
+    moveConfigSelection(delta) {
+      const sectionCount = 6
+      setState("configSelectedSectionIndex", (state.configSelectedSectionIndex + delta + sectionCount) % sectionCount)
     },
     selectIssue(issueKey) {
       setState("selectedIssueKey", issueKey)
@@ -158,6 +208,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       if (state.inspectorEditingFieldId === field.id) context.cancelInspectorEdit()
     },
     requestIssueDelete() {
+      if (state.route === "workspace" || state.route === "config") return
       if (state.inspectorEditingFieldId || state.detailBodyEditing) return
       if (!state.issues[state.selectedIssueKey]) return
       setState("pendingDeleteIssueKey", state.selectedIssueKey)

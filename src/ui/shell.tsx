@@ -22,7 +22,9 @@ export function AppShell() {
       <box flexGrow={1} flexDirection={narrow() ? "column" : "row"} gap={1} padding={1}>
         <Sidebar />
         <MainSurface />
-        <IssueInspector compact={narrow()} />
+        <Show when={state.route !== "workspace" && state.route !== "config"}>
+          <IssueInspector compact={narrow()} />
+        </Show>
       </box>
       <DeleteConfirm />
       <Footer />
@@ -306,6 +308,8 @@ function footerText(focusedPane: string, route: string, stagedDiscardOpen: boole
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  tab focus  q quit"
   if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  ctrl-enter stage  x delete  X discard  w render  W Jira"
   if (route === "issue-detail") return "detail: j/k line  d/u half-page  e edit body  ctrl-enter stage  X discard  w render  W Jira"
+  if (route === "workspace") return "workspace: j/k choose  d/u page  enter open  X discard staged  W write Jira"
+  if (route === "config") return "config: j/k section  tab focus  q quit"
   if (route === "active-sprint") return "sprint: j/k card  h/l column  n new  x delete  enter detail  e inspector  W Jira"
   if (route === "kanban") return "kanban: j/k same status  h/l next cell  n new  x delete  g group  enter detail  W Jira"
   if (route === "backlog") return "backlog: j/k row  h/l group  n new  x delete  enter detail  e inspector  W Jira"
