@@ -77,7 +77,7 @@ Example direction:
 ```text
 ┌─ Workspace ───────────────┐┌─ Active Sprint: Sprint 24 ───────────────────────────────────────────────┐┌─ Inspector ─────────────┐
 │ Project: PROJ             ││  To Do              In Progress          Review              Done        ││ PROJ-128                │
-│ Board: Product Scrum      ││ ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌─────────┐ ││ Fix login redirect     │
+│ Board: Product Kanban     ││ ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌─────────┐ ││ Fix login redirect     │
 │                           ││ │ PROJ-121      │   │ PROJ-128      │   │ PROJ-117      │   │ PROJ-1  │ ││ Bug · High             │
 │ Views                     ││ │ OAuth setup   │   │ Login redirect│   │ Race in loader│   │ Cleanup │ ││ In Progress            │
 │ > Active Sprint           ││ │ Task · Medium │   │ Bug · High    │   │ Bug · High    │   │ Done    │ ││ Assignee: Duy          │
@@ -109,7 +109,7 @@ Should show:
 Example direction:
 
 ```text
-┌─ Workspace ─────────────┐┌─ Backlog: Product Scrum ───────────────────────────────────────────┐┌─ Sprint Health ─────────┐
+┌─ Workspace ─────────────┐┌─ Backlog: Product Kanban ──────────────────────────────────────────┐┌─ Sprint Health ─────────┐
 │ PROJ Product App        ││ Active Sprint: Sprint 24                                           ││ Sprint 24               │
 │                         ││ ┌────────────────────────────────────────────────────────────────┐ ││ 42 issues               │
 │ Views                   ││ │ > PROJ-128  Bug   High  Fix login redirect       Duy   Auth   │ ││ 18 todo                 │

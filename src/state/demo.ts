@@ -433,7 +433,7 @@ export function loadDemoWorkspace(): AppState {
     configDraftCounter: 1,
     configDrafts: [],
     project: { key: "PROJ", name: "Product App" },
-    board: { id: "demo-board", name: "Product Scrum", type: "scrum" },
+    board: { id: "demo-board", name: "Product Kanban", type: "kanban" },
     currentUser: "Duy",
     quickFilters: [
       { id: "mine", label: "Only My Issues" },

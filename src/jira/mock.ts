@@ -7,14 +7,8 @@ export const mockJiraProjects: JiraProjectOption[] = [
 ]
 
 const mockBoardsByProjectKey: Record<string, JiraBoardOption[]> = {
-  PROJ: [
-    { id: "42", name: "Product Scrum", type: "scrum" },
-    { id: "43", name: "Product Kanban", type: "kanban" },
-  ],
-  MOB: [
-    { id: "51", name: "Mobile Delivery", type: "scrum" },
-    { id: "52", name: "Mobile Triage", type: "kanban" },
-  ],
+  PROJ: [{ id: "43", name: "Product Kanban", type: "kanban" }],
+  MOB: [{ id: "52", name: "Mobile Kanban", type: "kanban" }],
   OPS: [{ id: "77", name: "Ops Kanban", type: "kanban" }],
 }
 
