@@ -162,12 +162,34 @@ function Footer() {
   const { state } = useAppState()
   const theme = useTheme()
   const toast = useToast()
+  const items = () => state.searchOpen
+    ? ["filter loaded", "type query", "enter apply", "esc close", "empty enter clears"]
+    : footerItems(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open ? state.projectPicker.mode : undefined)
 
   return (
     <box height={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.panel} flexDirection="row" justifyContent="space-between">
-      <text fg={theme.textMuted}>{state.searchOpen ? "filter loaded: type query  enter apply  esc close  empty enter clears" : footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open ? state.projectPicker.mode : undefined)}</text>
+      <FooterHints items={items()} />
       <text fg={theme.textSubtle}>{toast.message() ?? "dev/prod runtime scaffold"}</text>
     </box>
+  )
+}
+
+function FooterHints(props: { items: string[] }) {
+  const theme = useTheme()
+
+  return (
+    <text wrapMode="none">
+      <For each={props.items}>
+        {(item, index) => (
+          <>
+            <Show when={index() > 0}>
+              <span style={{ fg: theme.textSubtle }}> · </span>
+            </Show>
+            <span style={{ fg: index() % 2 === 0 ? theme.text : theme.textMuted }}>{item}</span>
+          </>
+        )}
+      </For>
+    </text>
   )
 }
 
@@ -568,22 +590,22 @@ function stagedChangeText(change: StagedChange, issueTitle?: string) {
   return `${change.issueKey} ${change.label} · ${preview}`
 }
 
-function footerText(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerMode?: AppState["projectPicker"]["mode"]) {
-  if (authOnboardingOpen) return "prod setup: Enter continue/save  Esc skip setup"
-  if (projectPickerMode === "local") return "workspace switcher: / filter local  enter switch  a browse Jira  esc/q close"
-  if (projectPickerMode === "remote-projects") return "remote projects: / filter  j/k choose  enter load boards  r refresh  h local"
-  if (projectPickerMode === "remote-boards") return "remote boards: / filter  j/k choose  enter switch  r refresh boards  h projects"
-  if (remoteApplyOpen) return "remote write: W final apply placeholder  esc/q close"
-  if (stagedDiscardOpen) return "discard staged: j/k choose  space mark  enter discard  esc/q close"
-  if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  P project  q quit"
-  if (focusedPane === "inspector") return "inspector: j/k field  e/enter edit  ctrl-enter stage  x delete  X discard  w render  W Jira"
-  if (route === "issue-detail") return "detail: j/k line  d/u half-page  e edit body  ctrl-enter stage  X discard  w render  W Jira"
-  if (route === "workspace") return "workspace: j/k choose  d/u page  enter open  / filter  P project  X discard  W Jira"
-  if (route === "config") return "config: j/k choose  h/l pane  a add  e rename  c color  P project  W Jira"
-  if (route === "active-sprint") return "sprint: j/k card  h/l column  / filter  P project  n new  W Jira"
-  if (route === "kanban") return "kanban: j/k same status  h/l next cell  / filter  P project  g group  W Jira"
-  if (route === "backlog") return "backlog: j/k row  h/l group  / filter  P project  n new  W Jira"
-  return "1 workspace  2 sprint  3 backlog  4 kanban  P project  / filter loaded  q quit"
+function footerItems(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerMode?: AppState["projectPicker"]["mode"]) {
+  if (authOnboardingOpen) return ["prod setup", "Enter continue/save", "Esc skip setup"]
+  if (projectPickerMode === "local") return ["workspace switcher", "/ filter local", "enter switch", "a browse Jira", "esc/q close"]
+  if (projectPickerMode === "remote-projects") return ["remote projects", "/ filter", "j/k choose", "enter load boards", "r refresh", "h local"]
+  if (projectPickerMode === "remote-boards") return ["remote boards", "/ filter", "j/k choose", "enter switch", "r refresh boards", "h projects"]
+  if (remoteApplyOpen) return ["remote write", "W final apply placeholder", "esc/q close"]
+  if (stagedDiscardOpen) return ["discard staged", "j/k choose", "space mark", "enter discard", "esc/q close"]
+  if (focusedPane === "sidebar") return ["sidebar", "j/k choose", "enter/l open/toggle", "space filter", "P project", "q quit"]
+  if (focusedPane === "inspector") return ["inspector", "j/k field", "e/enter edit", "ctrl-enter stage", "x delete", "X discard", "w render", "W Jira"]
+  if (route === "issue-detail") return ["detail", "j/k line", "d/u half-page", "e edit body", "ctrl-enter stage", "X discard", "w render", "W Jira"]
+  if (route === "workspace") return ["workspace", "j/k choose", "d/u page", "enter open", "/ filter", "P project", "X discard", "W Jira"]
+  if (route === "config") return ["config", "j/k choose", "h/l pane", "a add", "e rename", "c color", "P project", "W Jira"]
+  if (route === "active-sprint") return ["sprint", "j/k card", "h/l column", "/ filter", "P project", "n new", "W Jira"]
+  if (route === "kanban") return ["kanban", "j/k same status", "h/l next cell", "/ filter", "P project", "g group", "W Jira"]
+  if (route === "backlog") return ["backlog", "j/k row", "h/l group", "/ filter", "P project", "n new", "W Jira"]
+  return ["1 workspace", "2 sprint", "3 backlog", "4 kanban", "P project", "/ filter loaded", "q quit"]
 }
 
 function runtimeEnvText(config: ReturnType<typeof useConfig>, jiraAuthReady = false, jiraProjectReady = false) {
