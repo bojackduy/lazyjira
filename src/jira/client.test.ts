@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { fetchAccessibleProjects, fetchBoardConfiguration, fetchJiraPages, fetchProjectBoards, jiraRequest, JiraApiError } from "./client"
-import { normalizeBoardConfiguration } from "./normalize"
+import { fetchAccessibleProjects, fetchBoardConfiguration, fetchBoardSprints, fetchJiraPages, fetchProjectBoards, jiraRequest, JiraApiError } from "./client"
+import { normalizeBoardConfiguration, normalizeBoardSprints } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
 const auth: JiraAuthConfig = { baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }
@@ -35,6 +35,17 @@ describe("Jira discovery client", () => {
     expect(config.columnConfig?.columns?.[0]?.name).toBe("To Do")
   })
 
+  test("fetches active and future board sprints", async () => {
+    const requests: string[] = []
+    const sprints = await fetchBoardSprints(auth, "42", async (url) => {
+      requests.push(url)
+      return jsonResponse({ values: [{ id: 7, state: "active", name: "Sprint 7", goal: "Ship board metadata" }] })
+    })
+
+    expect(requests).toEqual(["https://team.atlassian.net/rest/agile/1.0/board/42/sprint?state=active%2Cfuture&startAt=0&maxResults=50"])
+    expect(sprints).toEqual([{ id: 7, state: "active", name: "Sprint 7", goal: "Ship board metadata" }])
+  })
+
   test("normalizes board columns into app statuses", () => {
     const metadata = normalizeBoardConfiguration({
       columnConfig: {
@@ -52,6 +63,19 @@ describe("Jira discovery client", () => {
       { id: "3", name: "In Progress 1", category: "in-progress", color: "#38BDF8" },
       { id: "10001", name: "In Progress 2", category: "in-progress", color: "#38BDF8" },
       { id: "10002", name: "Done", category: "done", color: "#22C55E" },
+    ])
+  })
+
+  test("normalizes board sprints", () => {
+    const sprints = normalizeBoardSprints([
+      { id: 7, state: "active", name: "Sprint 7", goal: "Finish read path" },
+      { id: "8", state: "future", name: "Sprint 8" },
+      { id: 9, state: "unknown", name: "Ignored" },
+    ])
+
+    expect(sprints).toEqual([
+      { id: "7", name: "Sprint 7", goal: "Finish read path", state: "active" },
+      { id: "8", name: "Sprint 8", goal: "", state: "future" },
     ])
   })
 

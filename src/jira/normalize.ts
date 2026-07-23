@@ -1,5 +1,5 @@
-import type { StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
-import type { JiraBoardConfiguration } from "./client"
+import type { SprintSummary, StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
+import type { JiraBoardConfiguration, JiraSprint } from "./client"
 
 export type BoardMetadata = {
   statuses: StatusDefinition[]
@@ -32,6 +32,13 @@ export function normalizeBoardConfiguration(config: JiraBoardConfiguration): Boa
   }
 
   return { statuses, columns: statusColumns }
+}
+
+export function normalizeBoardSprints(sprints: JiraSprint[]): SprintSummary[] {
+  return sprints.flatMap((sprint) => {
+    if (!sprint.id || !sprint.name || !isSprintState(sprint.state)) return []
+    return [{ id: String(sprint.id), name: sprint.name, goal: sprint.goal ?? "", state: sprint.state }]
+  })
 }
 
 function statusName(columnName: string, index: number, columnStatusCount: number) {
@@ -67,4 +74,8 @@ function statusColor(category: StatusCategory) {
     case "done":
       return "#22C55E"
   }
+}
+
+function isSprintState(value: string | undefined): value is SprintSummary["state"] {
+  return value === "active" || value === "future" || value === "closed"
 }

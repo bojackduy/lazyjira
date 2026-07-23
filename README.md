@@ -263,7 +263,7 @@ Remote Jira discovery is explicit. From the workspace switcher, press `a` to bro
 
 For local smoke testing without Jira credentials, start with `lazyjira dev` or `bun run start:dev`. Press `P` for saved fixture workspaces or `a` to browse the bundled dev projects and boards. Dev runtime loads different fixture tickets for `PROJ`, `MOB`, and `OPS`.
 
-Prod selections are persisted under `prodWorkspace` and `prodRecentWorkspaces`; dev selections are persisted separately under `devWorkspace` and `devRecentWorkspaces`. Auth updates preserve workspace context, and workspace updates preserve the saved API token. Prod board metadata is loaded from Jira after selection, but issue/sprint/backlog data loading is not wired yet, so prod runtime intentionally shows an empty workspace instead of leaking dev fixture tickets.
+Prod selections are persisted under `prodWorkspace` and `prodRecentWorkspaces`; dev selections are persisted separately under `devWorkspace` and `devRecentWorkspaces`. Auth updates preserve workspace context, and workspace updates preserve the saved API token. Prod board metadata and sprints are loaded from Jira after selection, but issue/backlog data loading is not wired yet, so prod runtime intentionally shows an empty workspace instead of leaking dev fixture tickets.
 
 ### Phase 1: Dev Fixture Board Foundation
 

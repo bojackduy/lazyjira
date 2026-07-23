@@ -27,6 +27,13 @@ export type JiraBoardConfiguration = {
   }
 }
 
+export type JiraSprint = {
+  id?: number | string
+  state?: string
+  name?: string
+  goal?: string
+}
+
 export type JiraErrorCategory = "auth" | "permission" | "not-found" | "rate-limit" | "network" | "invalid-response" | "http"
 
 export type JiraApiErrorOptions = {
@@ -90,6 +97,10 @@ export async function fetchProjectBoards(auth: JiraAuthConfig, projectKeyOrId: s
 
 export async function fetchBoardConfiguration(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch): Promise<JiraBoardConfiguration> {
   return jiraRequest<JiraBoardConfiguration>(auth, `/rest/agile/1.0/board/${encodeURIComponent(boardId)}/configuration`, { endpoint: "board configuration" }, fetchImpl)
+}
+
+export async function fetchBoardSprints(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch): Promise<JiraSprint[]> {
+  return fetchJiraPages<JiraSprint>(auth, `/rest/agile/1.0/board/${encodeURIComponent(boardId)}/sprint?state=${encodeURIComponent("active,future")}`, { endpoint: "board sprints" }, fetchImpl)
 }
 
 export async function fetchJiraPages<T>(auth: JiraAuthConfig, path: string, options: JiraPaginationOptions = {}, fetchImpl: FetchLike = fetch): Promise<T[]> {
