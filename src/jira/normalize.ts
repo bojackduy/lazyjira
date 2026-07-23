@@ -1,5 +1,6 @@
 import type { IssuePriority, IssueSummary, SprintSummary, StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
-import type { JiraBoardConfiguration, JiraIssue, JiraSprint } from "./client"
+import { statusColorForCategory } from "../state/metadata-colors"
+import type { JiraBoardConfiguration, JiraIssue, JiraProjectStatusesByIssueType, JiraSprint } from "./client"
 
 type JiraIssueFields = NonNullable<JiraIssue["fields"]>
 
@@ -8,9 +9,21 @@ export type BoardMetadata = {
   columns: StatusColumn[]
 }
 
-export function normalizeBoardConfiguration(config: JiraBoardConfiguration): BoardMetadata {
+export type JiraStatusLookup = Map<string, { name: string; category?: StatusCategory }>
+
+export function normalizeProjectStatuses(issueTypes: JiraProjectStatusesByIssueType[]): JiraStatusLookup {
+  const statuses: JiraStatusLookup = new Map()
+  for (const issueType of issueTypes) {
+    for (const status of issueType.statuses ?? []) {
+      if (!status.id || !status.name || statuses.has(status.id)) continue
+      statuses.set(status.id, { name: status.name, category: statusCategoryForJiraValue(status.statusCategory?.key ?? status.statusCategory?.name) })
+    }
+  }
+  return statuses
+}
+
+export function normalizeBoardConfiguration(config: JiraBoardConfiguration, statusLookup: JiraStatusLookup = new Map()): BoardMetadata {
   const columns = config.columnConfig?.columns ?? []
-  const statusCountByColumn = new Map(columns.map((column) => [column.name ?? "Column", column.statuses?.filter((status) => status.id).length ?? 0]))
   const statuses: StatusDefinition[] = []
   const statusColumns: StatusColumn[] = []
 
@@ -20,15 +33,18 @@ export function normalizeBoardConfiguration(config: JiraBoardConfiguration): Boa
     const columnName = column.name?.trim() || `Column ${columnIndex + 1}`
     const category = statusCategoryForColumn(columnName, columnIndex, columns.length)
     const statusIds = (column.statuses ?? []).flatMap((status) => status.id ? [status.id] : [])
+    const color = statusColorForCategory(category)
 
-    statusColumns.push({ id: columnId(columnName, columnIndex), name: columnName, issueKeys: [] })
+    statusColumns.push({ id: columnId(columnName, columnIndex), name: columnName, issueKeys: [], statusIds, category, color })
 
     for (let statusIndex = 0; statusIndex < statusIds.length; statusIndex += 1) {
+      const statusId = statusIds[statusIndex]!
+      const knownStatus = statusLookup.get(statusId)
       statuses.push({
-        id: statusIds[statusIndex]!,
-        name: statusName(columnName, statusIndex, statusCountByColumn.get(columnName) ?? statusIds.length),
+        id: statusId,
+        name: knownStatus?.name ?? statusName(columnName, statusIndex, statusIds.length),
         category,
-        color: statusColor(category),
+        color,
       })
     }
   }
@@ -81,6 +97,15 @@ function statusName(columnName: string, index: number, columnStatusCount: number
   return columnStatusCount > 1 ? `${columnName} ${index + 1}` : columnName
 }
 
+function statusCategoryForJiraValue(value: string | undefined): StatusCategory | undefined {
+  const normalized = value?.toLowerCase() ?? ""
+  if (!normalized) return
+  if (normalized.includes("todo") || normalized.includes("to do") || normalized === "new") return "todo"
+  if (normalized.includes("done") || normalized.includes("complete")) return "done"
+  if (normalized.includes("progress") || normalized.includes("indeterminate")) return "in-progress"
+  return
+}
+
 function columnId(columnName: string, index: number) {
   const slug = columnName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
   return slug || `column-${index + 1}`
@@ -95,21 +120,6 @@ function statusCategoryForColumn(name: string, index: number, count: number): St
   if (index === count - 1 && count > 1) return "done"
   if (index > 0) return "in-progress"
   return "todo"
-}
-
-function statusColor(category: StatusCategory) {
-  switch (category) {
-    case "todo":
-      return "#64748B"
-    case "in-progress":
-      return "#38BDF8"
-    case "review":
-      return "#A78BFA"
-    case "blocked":
-      return "#EF4444"
-    case "done":
-      return "#22C55E"
-  }
 }
 
 function isSprintState(value: string | undefined): value is SprintSummary["state"] {

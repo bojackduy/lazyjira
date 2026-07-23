@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
+import { configuredColumns, configuredIssueTypes, configuredStatuses, configRowIds } from "./config-drafts"
 import { loadDevWorkspaceState } from "./dev"
 import { stagedChanges } from "./staged-changes"
 import { workspacePendingItem } from "./workspace"
@@ -41,6 +41,29 @@ describe("config draft overlay", () => {
     expect(issueTypes.some((issueType) => issueType.id === "Subtask")).toBe(false)
     expect(state.issueTypes.find((issueType) => issueType.id === "Bug")?.name).toBe("Bug")
     expect(state.issueTypes.some((issueType) => issueType.id === "Subtask")).toBe(true)
+  })
+
+  test("renders staged board column changes separately from workflow statuses", () => {
+    const state = loadDevWorkspaceState()
+    state.configDrafts = [
+      { id: "config-1", sectionId: "columns", action: "rename", targetId: "todo", name: "Ready" },
+      { id: "config-2", sectionId: "columns", action: "color", targetId: "todo", color: "#111111" },
+    ]
+
+    const columns = configuredColumns(state)
+    const statuses = configuredStatuses(state)
+
+    expect(columns.find((column) => column.id === "todo")?.name).toBe("Ready")
+    expect(columns.find((column) => column.id === "todo")?.color).toBe("#111111")
+    expect(statuses.find((status) => status.id === "todo")?.name).toBe("To Do")
+  })
+
+  test("read-only config sections still expose focusable row ids", () => {
+    const state = loadDevWorkspaceState()
+
+    expect(configRowIds(state, "fields").length).toBeGreaterThan(0)
+    expect(configRowIds(state, "priorities")).toEqual(["Critical", "High", "Medium", "Low"])
+    expect(configRowIds(state, "quick-filters")).toEqual(["mine", "blocked", "stale", "unassigned"])
   })
 
   test("includes config drafts in the shared staged queue", () => {

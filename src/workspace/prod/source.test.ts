@@ -27,6 +27,8 @@ describe("prod workspace source", () => {
       async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
       async (url) => {
         requests.push(url)
+        if (url.includes("/project/REAL/statuses")) return jsonResponse([{ name: "Task", statuses: [{ id: "10000", name: "Selected for Work" }] }])
+        if (url.includes("/status/10001")) return jsonResponse({ id: "10001", name: "Released" })
         if (url.includes("/sprint?")) return jsonResponse({ values: [{ id: 12, state: "active", name: "Sprint 12", goal: "Load real overview data" }] })
         if (url.includes("/sprint/12/issue?")) return jsonResponse({ issues: [{ key: "REAL-1", fields: { summary: "Wire active sprint", status: { id: "10000" }, issuetype: { name: "Story" }, priority: { name: "High" }, assignee: { displayName: "Duy" }, reporter: { displayName: "Mina" } } }] })
         return jsonResponse({ columnConfig: { columns: [{ name: "Selected", statuses: [{ id: "10000" }] }, { name: "Done", statuses: [{ id: "10001" }] }] } })
@@ -39,11 +41,17 @@ describe("prod workspace source", () => {
 
     expect(requests.slice(0, 2)).toEqual([
       "https://team.atlassian.net/rest/agile/1.0/board/100/configuration",
-      "https://team.atlassian.net/rest/agile/1.0/board/100/sprint?state=active%2Cfuture&startAt=0&maxResults=50",
+      "https://team.atlassian.net/rest/api/3/project/REAL/statuses",
     ])
-    expect(requests[2]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/12/issue?fields=")).toBe(true)
+    expect(requests[2]).toBe("https://team.atlassian.net/rest/agile/1.0/board/100/sprint?state=active%2Cfuture&startAt=0&maxResults=50")
+    expect(requests[3]).toBe("https://team.atlassian.net/rest/api/2/status/10001")
+    expect(requests[4]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/12/issue?fields=")).toBe(true)
     expect(workspace.project.key).toBe("REAL")
-    expect(workspace.statuses.map((status) => status.name)).toEqual(["Selected", "Done"])
+    expect(workspace.statuses.map((status) => status.name)).toEqual(["Selected for Work", "Released"])
+    expect(workspace.columns.map((column) => ({ name: column.name, statusIds: column.statusIds }))).toEqual([
+      { name: "Selected", statusIds: ["10000"] },
+      { name: "Done", statusIds: ["10001"] },
+    ])
     expect(workspace.sprints).toEqual([{ id: "12", name: "Sprint 12", goal: "Load real overview data", state: "active" }])
     expect(workspace.activeSprintId).toBe("12")
     expect(Object.keys(workspace.issues)).toEqual(["REAL-1"])

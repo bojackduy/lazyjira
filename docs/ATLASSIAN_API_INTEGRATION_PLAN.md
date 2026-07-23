@@ -217,11 +217,11 @@ Verification:
 
 ### A2. Board Metadata Loader
 
-Status: in progress. Board configuration, columns, and status IDs are wired; issue type/custom field discovery remains.
+Status: in progress. Board configuration, columns, status IDs, and project status-name enrichment are wired; issue type/custom field discovery remains.
 
 Implementation:
 
-- Read board configuration and normalize Jira columns/statuses into `StatusDefinition[]` and `StatusColumn[]`.
+- Read board configuration and normalize Jira columns/statuses into `StatusDefinition[]` and `StatusColumn[]`, enriched by project workflow status names.
 - Discover issue type and important custom field metadata needed by issue normalization.
 
 Verification:

@@ -2,6 +2,7 @@ import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, S
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { issueWithDraft } from "./issue-drafts"
 import { matchesIssueSearch } from "./issue-search"
+import { defaultIssueTypeColor, statusColorForCategory } from "./metadata-colors"
 
 export const boardGroupModes: { id: BoardGroupBy; label: string }[] = [
   { id: "none", label: "None" },
@@ -87,7 +88,7 @@ export function statusById(state: AppState, statusId: string): StatusDefinition 
 }
 
 export function issueTypeColor(state: AppState, issue: IssueSummary) {
-  return configuredIssueTypes(state).find((type) => type.id === issue.type)?.color ?? "#94A3B8"
+  return configuredIssueTypes(state).find((type) => type.id === issue.type)?.color ?? defaultIssueTypeColor
 }
 
 export function issueTypeName(state: AppState, issue: IssueSummary) {
@@ -95,7 +96,7 @@ export function issueTypeName(state: AppState, issue: IssueSummary) {
 }
 
 export function statusColor(state: AppState, issue: IssueSummary) {
-  return statusById(state, issue.statusId)?.color ?? "#94A3B8"
+  return statusById(state, issue.statusId)?.color ?? statusColorForCategory("todo")
 }
 
 export function statusName(state: AppState, issue: IssueSummary) {

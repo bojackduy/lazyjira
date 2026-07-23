@@ -32,7 +32,7 @@ describe("issue fields", () => {
     state.issueDrafts[issue.key] = { statusId: "code-review" }
 
     expect(issueFieldDisplayValue(state, issue, statusField)).toBe("Code Review")
-    expect(issueFieldColor(state, issue, statusField)).toBe("#A78BFA")
+    expect(issueFieldColor(state, issue, statusField)).toBe("#C084FC")
   })
 
   test("opens body editor with existing issue body", () => {

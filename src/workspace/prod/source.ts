@@ -1,17 +1,18 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { fetchAccessibleProjects, fetchBoardConfiguration, fetchBoardSprints, fetchProjectBoards, fetchSprintIssues, type FetchLike } from "../../jira/client"
-import { normalizeBoardConfiguration, normalizeBoardSprints, normalizeSprintIssues } from "../../jira/normalize"
+import { fetchAccessibleProjects, fetchBoardConfiguration, fetchBoardSprints, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssues, fetchStatusesByIds, type FetchLike, type JiraBoardConfiguration } from "../../jira/client"
+import { normalizeBoardConfiguration, normalizeBoardSprints, normalizeProjectStatuses, normalizeSprintIssues } from "../../jira/normalize"
+import { issueTypeColors, statusColorForCategory } from "../../state/metadata-colors"
 import { createLoadedWorkspace, type WorkspaceSelection, type WorkspaceSource } from "../types"
 
 const prodPlaceholderStatuses = [
-  { id: "todo", name: "To Do", category: "todo" as const, color: "#64748B" },
-  { id: "in-progress", name: "In Progress", category: "in-progress" as const, color: "#38BDF8" },
-  { id: "done", name: "Done", category: "done" as const, color: "#22C55E" },
+  { id: "todo", name: "To Do", category: "todo" as const, color: statusColorForCategory("todo") },
+  { id: "in-progress", name: "In Progress", category: "in-progress" as const, color: statusColorForCategory("in-progress") },
+  { id: "done", name: "Done", category: "done" as const, color: statusColorForCategory("done") },
 ]
 
 const prodPlaceholderIssueTypes = [
-  { id: "Task", name: "Task", color: "#3B82F6" },
-  { id: "Bug", name: "Bug", color: "#EF4444" },
+  { id: "Task", name: "Task", color: issueTypeColors.task },
+  { id: "Bug", name: "Bug", color: issueTypeColors.bug },
 ]
 
 export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConfig | undefined> = loadJiraAuthConfig, fetchImpl: FetchLike = fetch): WorkspaceSource {
@@ -26,11 +27,18 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     async loadWorkspace(selection) {
       if (!selection.board.id) return createProdWorkspace(selection)
       const auth = await requireJiraAuth(authLoader)
-      const [boardConfig, sprints] = await Promise.all([
+      const [boardConfig, statusIssueTypes, sprints] = await Promise.all([
         fetchBoardConfiguration(auth, selection.board.id, fetchImpl),
+        fetchProjectStatuses(auth, selection.project.key, fetchImpl),
         selection.board.type === "scrum" ? fetchBoardSprints(auth, selection.board.id, fetchImpl) : Promise.resolve([]),
       ])
-      const metadata = normalizeBoardConfiguration(boardConfig)
+      const statusLookup = normalizeProjectStatuses(statusIssueTypes)
+      const missingStatusIds = boardStatusIds(boardConfig).filter((statusId) => !statusLookup.has(statusId))
+      if (missingStatusIds.length) {
+        const missingStatuses = normalizeProjectStatuses([{ statuses: await fetchStatusesByIds(auth, missingStatusIds, fetchImpl) }])
+        for (const [statusId, status] of missingStatuses) statusLookup.set(statusId, status)
+      }
+      const metadata = normalizeBoardConfiguration(boardConfig, statusLookup)
       const normalizedSprints = normalizeBoardSprints(sprints)
       const activeSprintId = normalizedSprints.find((sprint) => sprint.state === "active")?.id
       const activeSprintIssues = activeSprintId ? normalizeSprintIssues(await fetchSprintIssues(auth, activeSprintId, fetchImpl), activeSprintId, metadata.statuses) : []
@@ -64,4 +72,14 @@ async function requireJiraAuth(authLoader: () => Promise<JiraAuthConfig | undefi
   const auth = await authLoader()
   if (!auth) throw new Error("Jira credentials are required. Run `lazyjira auth login` or complete onboarding.")
   return auth
+}
+
+function boardStatusIds(config: JiraBoardConfiguration) {
+  const ids: string[] = []
+  for (const column of config.columnConfig?.columns ?? []) {
+    for (const status of column.statuses ?? []) {
+      if (status.id && !ids.includes(status.id)) ids.push(status.id)
+    }
+  }
+  return ids
 }

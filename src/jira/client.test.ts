@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { fetchAccessibleProjects, fetchBoardConfiguration, fetchBoardSprints, fetchJiraPages, fetchProjectBoards, fetchSprintIssues, jiraRequest, JiraApiError } from "./client"
-import { normalizeBoardConfiguration, normalizeBoardSprints, normalizeSprintIssues } from "./normalize"
+import { fetchAccessibleProjects, fetchBoardConfiguration, fetchBoardSprints, fetchJiraPages, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError } from "./client"
+import { normalizeBoardConfiguration, normalizeBoardSprints, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
 const auth: JiraAuthConfig = { baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }
@@ -35,6 +35,24 @@ describe("Jira discovery client", () => {
     expect(config.columnConfig?.columns?.[0]?.name).toBe("To Do")
   })
 
+  test("fetches project workflow statuses", async () => {
+    const statuses = await fetchProjectStatuses(auth, "PROJ", async (url) => {
+      expect(url).toBe("https://team.atlassian.net/rest/api/3/project/PROJ/statuses")
+      return jsonResponse([{ name: "Task", statuses: [{ id: "10000", name: "Ready", statusCategory: { key: "new", name: "To Do" } }] }])
+    })
+
+    expect(statuses[0]?.statuses?.[0]?.name).toBe("Ready")
+  })
+
+  test("fetches individual status metadata by id", async () => {
+    const statuses = await fetchStatusesByIds(auth, ["10483"], async (url) => {
+      expect(url).toBe("https://team.atlassian.net/rest/api/2/status/10483")
+      return jsonResponse({ id: "10483", name: "Fixed", statusCategory: { key: "indeterminate", name: "In Progress" } })
+    })
+
+    expect(statuses).toEqual([{ id: "10483", name: "Fixed", statusCategory: { key: "indeterminate", name: "In Progress" } }])
+  })
+
   test("fetches active and future board sprints", async () => {
     const requests: string[] = []
     const sprints = await fetchBoardSprints(auth, "42", async (url) => {
@@ -58,7 +76,18 @@ describe("Jira discovery client", () => {
     expect(issues).toEqual([{ key: "PROJ-1", fields: { summary: "Load active sprint" } }])
   })
 
-  test("normalizes board columns into app statuses", () => {
+  test("normalizes board columns into app statuses with real workflow names", () => {
+    const statusLookup = normalizeProjectStatuses([
+      {
+        name: "Task",
+        statuses: [
+          { id: "10000", name: "Ready", statusCategory: { key: "new", name: "To Do" } },
+          { id: "3", name: "Development", statusCategory: { key: "indeterminate", name: "In Progress" } },
+          { id: "10001", name: "Code Review", statusCategory: { key: "indeterminate", name: "In Progress" } },
+          { id: "10002", name: "Released", statusCategory: { key: "done", name: "Done" } },
+        ],
+      },
+    ])
     const metadata = normalizeBoardConfiguration({
       columnConfig: {
         columns: [
@@ -67,14 +96,15 @@ describe("Jira discovery client", () => {
           { name: "Done", statuses: [{ id: "10002" }] },
         ],
       },
-    })
+    }, statusLookup)
 
     expect(metadata.columns.map((column) => column.name)).toEqual(["To Do", "In Progress", "Done"])
+    expect(metadata.columns[1]?.statusIds).toEqual(["3", "10001"])
     expect(metadata.statuses).toEqual([
-      { id: "10000", name: "To Do", category: "todo", color: "#64748B" },
-      { id: "3", name: "In Progress 1", category: "in-progress", color: "#38BDF8" },
-      { id: "10001", name: "In Progress 2", category: "in-progress", color: "#38BDF8" },
-      { id: "10002", name: "Done", category: "done", color: "#22C55E" },
+      { id: "10000", name: "Ready", category: "todo", color: "#94A3B8" },
+      { id: "3", name: "Development", category: "in-progress", color: "#60A5FA" },
+      { id: "10001", name: "Code Review", category: "in-progress", color: "#60A5FA" },
+      { id: "10002", name: "Released", category: "done", color: "#34D399" },
     ])
   })
 
@@ -114,7 +144,7 @@ describe("Jira discovery client", () => {
           duedate: "2026-08-01",
         },
       },
-    ], "7", [{ id: "10001", name: "In Progress", category: "in-progress", color: "#38BDF8" }])
+    ], "7", [{ id: "10001", name: "In Progress", category: "in-progress", color: "#60A5FA" }])
 
     expect(issues[0]).toMatchObject({
       key: "PROJ-1",

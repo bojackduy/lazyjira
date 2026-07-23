@@ -194,6 +194,9 @@ export type StatusColumn = {
   id: string
   name: string
   issueKeys: string[]
+  statusIds?: string[]
+  category?: StatusCategory
+  color?: string
 }
 
 export type WorkspaceStats = {

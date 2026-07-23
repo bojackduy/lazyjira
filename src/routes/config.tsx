@@ -2,16 +2,19 @@ import { TextAttributes, type InputRenderable, type ScrollBoxRenderable } from "
 import { useTerminalDimensions } from "@opentui/solid"
 import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
+import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { AppState, ConfigSectionId } from "../state/app-state"
 import {
   colorableConfigSection,
+  configuredColumns,
   configDraftSummary,
   configuredIssueTypes,
   configuredStatuses,
   writableConfigSection,
 } from "../state/config-drafts"
 import { issueFields } from "../state/issue-fields"
+import { priorityColors } from "../state/metadata-colors"
 import { allIssues } from "../state/selectors"
 
 type ConfigRow = {
@@ -31,7 +34,8 @@ type ConfigSection = {
 }
 
 export function ConfigRoute() {
-  const { state } = useAppState()
+  const appState = useAppState()
+  const { state } = appState
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   const compact = () => dimensions().width < 110
@@ -40,12 +44,38 @@ export function ConfigRoute() {
   const sectionsFocused = () => state.focusedPane === "main" && state.configFocusedArea === "sections"
   const rowsFocused = () => state.focusedPane === "main" && state.configFocusedArea === "rows"
 
+  useBindings(() => ({
+    commands: [
+      { name: "config.page.down", run: () => pageConfig(1) },
+      { name: "config.page.up", run: () => pageConfig(-1) },
+    ],
+    bindings: state.searchOpen || state.configEditing ? [] : [
+      { key: "d", cmd: "config.page.down", preventDefault: false },
+      { key: { name: "d", ctrl: true }, cmd: "config.page.down" },
+      { key: "u", cmd: "config.page.up", preventDefault: false },
+      { key: { name: "u", ctrl: true }, cmd: "config.page.up" },
+    ],
+  }))
+
+  function pageConfig(delta: 1 | -1) {
+    if (state.route !== "config" || state.focusedPane !== "main" || state.remoteApplyOpen || state.stagedDiscardOpen || state.projectPicker.open || state.authOnboarding.open) return false
+    if (state.configFocusedArea === "rows") {
+      const visibleRows = Math.max(1, Math.floor(configRowsHeight(state, dimensions().height) / 3))
+      appState.moveConfigSelection(delta * Math.max(1, Math.floor(visibleRows / 2)))
+      return
+    }
+    appState.moveConfigSelection(delta * 3)
+  }
+
   return (
     <box flexDirection="column" gap={1} flexGrow={1} minHeight={0}>
-      <box height={4} flexShrink={0} flexDirection="column">
+      <box height={compact() ? 5 : 4} flexShrink={0} flexDirection="column">
         <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">Metadata Config</text>
-        <text fg={theme.textMuted} wrapMode="none">Local dev metadata overlay. Board Columns, Statuses, and Issue Types are writable first.</text>
-        <text fg={theme.textSubtle} wrapMode="none">j/k choose · h/l sections/rows · a add · e rename · c color · x remove · w render · X discard · W Jira</text>
+        <text fg={theme.textMuted} wrapMode="none">Inspect Jira metadata locally. Columns summarize board lanes; statuses show workflow details.</text>
+        <text fg={theme.textSubtle} wrapMode="none">j/k choose · d/u page · h/l sections/rows · enter/e rename · w render · W Jira</text>
+        <Show when={compact()}>
+          <text fg={theme.textSubtle} wrapMode="none">a add · c color · x remove · X discard staged</text>
+        </Show>
       </box>
 
       <box flexDirection={compact() ? "column" : "row"} gap={1} flexGrow={1} minHeight={0}>
@@ -86,7 +116,7 @@ function ConfigRows(props: { section: ConfigSection; focused: boolean }) {
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
-  const height = () => Math.max(4, dimensions().height - (state.configEditing ? 26 : 21))
+  const height = () => configRowsHeight(state, dimensions().height)
 
   createEffect(() => {
     if (state.route !== "config" || state.configFocusedArea !== "rows") return
@@ -167,6 +197,7 @@ function ConfigDraftList() {
 
 function configSections(state: AppState): ConfigSection[] {
   const issues = allIssues(state)
+  const columns = configuredColumns(state)
   const statuses = configuredStatuses(state)
   const issueTypes = configuredIssueTypes(state)
   const priorityCounts = ["Critical", "High", "Medium", "Low"].map((priority) => ({
@@ -178,13 +209,13 @@ function configSections(state: AppState): ConfigSection[] {
     {
       id: "columns",
       title: "Board Columns",
-      subtitle: `${statuses.length} workflow columns`,
+      subtitle: `${columns.length} board columns`,
       remote: "board admin later",
-      rows: statuses.map((status) => ({
-        id: status.id,
-        label: status.name,
-        detail: `${status.category} · ${issues.filter((issue) => issue.statusId === status.id).length} issues · id ${status.id}`,
-        color: status.color,
+      rows: columns.map((column) => ({
+        id: column.id,
+        label: column.name,
+        detail: columnDetail(column, statuses, issues),
+        color: column.color ?? firstColumnStatus(column, statuses)?.color,
         capability: "local add/rename/color/remove",
       })),
     },
@@ -196,7 +227,7 @@ function configSections(state: AppState): ConfigSection[] {
       rows: statuses.map((status) => ({
         id: status.id,
         label: status.name,
-        detail: `${status.category} · color ${status.color} · id ${status.id}`,
+        detail: `${containingColumnName(columns, status.id)} · ${status.category} · ${issues.filter((issue) => issue.statusId === status.id).length} issues · id ${status.id}`,
         color: status.color,
         capability: "local add/rename/color/remove",
       })),
@@ -255,10 +286,10 @@ function configSections(state: AppState): ConfigSection[] {
 }
 
 function sectionHint(sectionId: ConfigSectionId) {
-  if (!writableConfigSection(sectionId)) return "Read-only for now. This stays inert until the model/API support is real."
+  if (!writableConfigSection(sectionId)) return "Read-only for now. j/k choose · d/u page; edits wait for real model/API support."
   return colorableConfigSection(sectionId)
-    ? "a add · e/enter rename · c color · x remove · X discard staged"
-    : "a add · e/enter rename · x remove · X discard staged"
+    ? "j/k choose · d/u page · a add · e/enter rename · c color · x remove · X discard"
+    : "j/k choose · d/u page · a add · e/enter rename · x remove · X discard"
 }
 
 function editTitle(action: string, sectionId: ConfigSectionId) {
@@ -269,10 +300,7 @@ function editTitle(action: string, sectionId: ConfigSectionId) {
 }
 
 function priorityColor(priority: string) {
-  if (priority === "Critical") return "#EF4444"
-  if (priority === "High") return "#F97316"
-  if (priority === "Medium") return "#F59E0B"
-  return "#22C55E"
+  return priorityColors[priority as keyof typeof priorityColors] ?? priorityColors.Medium
 }
 
 function quickFilterDescription(state: AppState, filterId: string) {
@@ -292,4 +320,26 @@ function quickFilterDescription(state: AppState, filterId: string) {
 
 function configRowElementId(sectionId: ConfigSectionId, index: number) {
   return `config-row-${sectionId}-${index}`
+}
+
+function configRowsHeight(state: AppState, terminalHeight: number) {
+  return Math.max(4, terminalHeight - (state.configEditing ? 26 : 21))
+}
+
+function columnDetail(column: ReturnType<typeof configuredColumns>[number], statuses: ReturnType<typeof configuredStatuses>, issues: ReturnType<typeof allIssues>) {
+  const statusIds = column.statusIds ?? []
+  const statusNames = statusIds.flatMap((statusId) => statuses.find((status) => status.id === statusId)?.name ?? [])
+  const issueCount = statusIds.length
+    ? issues.filter((issue) => statusIds.includes(issue.statusId)).length
+    : column.issueKeys.length
+  const statusText = statusNames.length ? `${statusNames.length} statuses: ${statusNames.join(", ")}` : "No mapped statuses"
+  return `${statusText} · ${issueCount} issues · id ${column.id}`
+}
+
+function containingColumnName(columns: ReturnType<typeof configuredColumns>, statusId: string) {
+  return columns.find((column) => column.statusIds?.includes(statusId))?.name ?? "Unmapped column"
+}
+
+function firstColumnStatus(column: ReturnType<typeof configuredColumns>[number], statuses: ReturnType<typeof configuredStatuses>) {
+  return statuses.find((status) => column.statusIds?.includes(status.id))
 }

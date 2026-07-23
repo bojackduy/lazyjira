@@ -601,7 +601,7 @@ function footerItems(focusedPane: string, route: string, stagedDiscardOpen: bool
   if (focusedPane === "inspector") return ["inspector", "j/k field", "e/enter edit", "ctrl-enter stage", "x delete", "X discard", "w render", "W Jira"]
   if (route === "issue-detail") return ["detail", "j/k line", "d/u half-page", "e edit body", "ctrl-enter stage", "X discard", "w render", "W Jira"]
   if (route === "workspace") return ["workspace", "j/k choose", "d/u page", "enter open", "/ filter", "P project", "X discard", "W Jira"]
-  if (route === "config") return ["config", "j/k choose", "h/l pane", "a add", "e rename", "c color", "P project", "W Jira"]
+  if (route === "config") return ["config", "j/k choose", "d/u page", "h/l pane", "a add", "e rename", "c color", "W Jira"]
   if (route === "active-sprint") return ["sprint", "j/k card", "h/l column", "/ filter", "P project", "n new", "W Jira"]
   if (route === "kanban") return ["kanban", "j/k same status", "h/l next cell", "/ filter", "P project", "g group", "W Jira"]
   if (route === "backlog") return ["backlog", "j/k row", "h/l group", "/ filter", "P project", "n new", "W Jira"]

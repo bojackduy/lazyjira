@@ -1,4 +1,6 @@
-import type { AppState, ConfigDraft, ConfigSectionId, IssueTypeDefinition, StatusDefinition } from "./app-state"
+import type { AppState, ConfigDraft, ConfigSectionId, IssueTypeDefinition, StatusColumn, StatusDefinition } from "./app-state"
+import { issueFields } from "./issue-fields"
+import { defaultIssueTypeColor, statusColorForCategory } from "./metadata-colors"
 
 export const configSectionIds: ConfigSectionId[] = ["columns", "statuses", "issue-types", "priorities", "fields", "quick-filters"]
 
@@ -17,10 +19,11 @@ export function colorableConfigSection(sectionId: ConfigSectionId) {
 export function configuredStatuses(state: AppState): StatusDefinition[] {
   let statuses = state.statuses.map((status) => ({ ...status }))
   for (const draft of state.configDrafts) {
-    if (draft.sectionId !== "columns" && draft.sectionId !== "statuses") continue
+    if (draft.sectionId !== "statuses") continue
     if (draft.action === "add" && draft.name) {
       const id = uniqueId(slug(draft.name), statuses.map((status) => status.id))
-      statuses.push({ id, name: draft.name, category: draft.category ?? "todo", color: draft.color ?? "#64748B" })
+      const category = draft.category ?? "todo"
+      statuses.push({ id, name: draft.name, category, color: draft.color ?? statusColorForCategory(category) })
       continue
     }
     if (!draft.targetId) continue
@@ -37,13 +40,37 @@ export function configuredStatuses(state: AppState): StatusDefinition[] {
   return statuses
 }
 
+export function configuredColumns(state: AppState): StatusColumn[] {
+  let columns = state.columns.map((column) => ({ ...column, statusIds: [...(column.statusIds ?? [])], issueKeys: [...column.issueKeys] }))
+  for (const draft of state.configDrafts) {
+    if (draft.sectionId !== "columns") continue
+    if (draft.action === "add" && draft.name) {
+      const id = uniqueId(slug(draft.name), columns.map((column) => column.id))
+      const category = draft.category ?? "todo"
+      columns.push({ id, name: draft.name, issueKeys: [], statusIds: [], category, color: draft.color ?? statusColorForCategory(category) })
+      continue
+    }
+    if (!draft.targetId) continue
+    if (draft.action === "remove") columns = columns.filter((column) => column.id !== draft.targetId)
+    if (draft.action === "rename" && draft.name) {
+      const name = draft.name
+      columns = columns.map((column) => column.id === draft.targetId ? { ...column, name } : column)
+    }
+    if (draft.action === "color" && draft.color) {
+      const color = draft.color
+      columns = columns.map((column) => column.id === draft.targetId ? { ...column, color } : column)
+    }
+  }
+  return columns
+}
+
 export function configuredIssueTypes(state: AppState): IssueTypeDefinition[] {
   let issueTypes = state.issueTypes.map((issueType) => ({ ...issueType }))
   for (const draft of state.configDrafts) {
     if (draft.sectionId !== "issue-types") continue
     if (draft.action === "add" && draft.name) {
       const id = uniqueId(draft.name, issueTypes.map((issueType) => issueType.id))
-      issueTypes.push({ id, name: draft.name, color: draft.color ?? "#3B82F6" })
+      issueTypes.push({ id, name: draft.name, color: draft.color ?? defaultIssueTypeColor })
       continue
     }
     if (!draft.targetId) continue
@@ -63,6 +90,7 @@ export function configuredIssueTypes(state: AppState): IssueTypeDefinition[] {
 export function configRowIds(state: AppState, sectionId: ConfigSectionId): string[] {
   switch (sectionId) {
     case "columns":
+      return configuredColumns(state).map((column) => column.id)
     case "statuses":
       return configuredStatuses(state).map((status) => status.id)
     case "issue-types":
@@ -72,7 +100,7 @@ export function configRowIds(state: AppState, sectionId: ConfigSectionId): strin
     case "quick-filters":
       return state.quickFilters.map((filter) => filter.id)
     case "fields":
-      return []
+      return issueFields.map((field) => field.id)
   }
 }
 

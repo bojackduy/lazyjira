@@ -5,6 +5,7 @@ import type { WorkspaceSource, LoadedWorkspace } from "../workspace/types"
 import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, ProjectOption, QuickFilterId, StatusCategory, WorkspaceOption } from "../state/app-state"
 import {
   colorableConfigSection,
+  configuredColumns,
   configDraftSummary,
   configRowIds,
   configSectionIdAt,
@@ -15,6 +16,7 @@ import {
   selectedConfigTargetId,
   writableConfigSection,
 } from "../state/config-drafts"
+import { defaultIssueTypeColor, statusColorForCategory } from "../state/metadata-colors"
 import { sidebarRoutes, type AppRoute } from "../state/routes"
 import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldDisplayValue, issueFields, selectedIssueField } from "../state/issue-fields"
@@ -822,22 +824,25 @@ function isWritableConfigSection(sectionId: ConfigSectionId): sectionId is Confi
 }
 
 function configTargetName(state: AppState, sectionId: ConfigSectionId, targetId: string) {
+  if (sectionId === "columns") return configuredColumns(state).find((column) => column.id === targetId)?.name ?? targetId
   if (sectionId === "issue-types") return configuredIssueTypes(state).find((type) => type.id === targetId)?.name ?? targetId
   return configuredStatuses(state).find((status) => status.id === targetId)?.name ?? targetId
 }
 
 function configTargetColor(state: AppState, sectionId: ConfigSectionId, targetId: string) {
-  if (sectionId === "issue-types") return configuredIssueTypes(state).find((type) => type.id === targetId)?.color ?? "#3B82F6"
-  return configuredStatuses(state).find((status) => status.id === targetId)?.color ?? "#64748B"
+  if (sectionId === "columns") return configuredColumns(state).find((column) => column.id === targetId)?.color ?? statusColorForCategory("todo")
+  if (sectionId === "issue-types") return configuredIssueTypes(state).find((type) => type.id === targetId)?.color ?? defaultIssueTypeColor
+  return configuredStatuses(state).find((status) => status.id === targetId)?.color ?? statusColorForCategory("todo")
 }
 
 function defaultConfigColor(sectionId: ConfigDraft["sectionId"]) {
-  return sectionId === "issue-types" ? "#3B82F6" : "#64748B"
+  return sectionId === "issue-types" ? defaultIssueTypeColor : statusColorForCategory("todo")
 }
 
 function defaultStatusCategory(state: AppState, sectionId: ConfigDraft["sectionId"]): StatusCategory | undefined {
   if (sectionId === "issue-types") return
   const targetId = selectedConfigTargetId(state)
+  if (sectionId === "columns") return configuredColumns(state).find((column) => column.id === targetId)?.category ?? "todo"
   return configuredStatuses(state).find((status) => status.id === targetId)?.category ?? "todo"
 }
 

@@ -1,4 +1,5 @@
 import type { BoardSummary, IssuePriority, IssueSummary, IssueType, IssueTypeDefinition, ProjectSummary, SprintSummary, StatusDefinition } from "../../state/app-state"
+import { issueTypeColors, statusColorForCategory } from "../../state/metadata-colors"
 import { createLoadedWorkspace, type LoadedWorkspace } from "../types"
 
 export const devProjects: Array<ProjectSummary & { id: string }> = [
@@ -14,21 +15,21 @@ export const devBoardsByProjectKey: Record<string, BoardSummary[]> = {
 }
 
 export const devStatuses: StatusDefinition[] = [
-  { id: "todo", name: "To Do", category: "todo", color: "#64748B" },
-  { id: "in-progress", name: "In Progress", category: "in-progress", color: "#38BDF8" },
-  { id: "code-review", name: "Code Review", category: "review", color: "#A78BFA" },
-  { id: "qa", name: "QA", category: "review", color: "#F59E0B" },
-  { id: "blocked", name: "Blocked", category: "blocked", color: "#EF4444" },
-  { id: "done", name: "Done", category: "done", color: "#22C55E" },
+  { id: "todo", name: "To Do", category: "todo", color: statusColorForCategory("todo") },
+  { id: "in-progress", name: "In Progress", category: "in-progress", color: statusColorForCategory("in-progress") },
+  { id: "code-review", name: "Code Review", category: "review", color: statusColorForCategory("review") },
+  { id: "qa", name: "QA", category: "review", color: statusColorForCategory("review") },
+  { id: "blocked", name: "Blocked", category: "blocked", color: statusColorForCategory("blocked") },
+  { id: "done", name: "Done", category: "done", color: statusColorForCategory("done") },
 ]
 
 export const devIssueTypes: IssueTypeDefinition[] = [
-  { id: "Epic", name: "Epic", color: "#A855F7" },
-  { id: "Feature", name: "Feature", color: "#06B6D4" },
-  { id: "Story", name: "Story", color: "#22C55E" },
-  { id: "Task", name: "Task", color: "#3B82F6" },
-  { id: "Subtask", name: "Subtask", color: "#94A3B8" },
-  { id: "Bug", name: "Bug", color: "#EF4444" },
+  { id: "Epic", name: "Epic", color: issueTypeColors.epic },
+  { id: "Feature", name: "Feature", color: issueTypeColors.feature },
+  { id: "Story", name: "Story", color: issueTypeColors.story },
+  { id: "Task", name: "Task", color: issueTypeColors.task },
+  { id: "Subtask", name: "Subtask", color: issueTypeColors.subtask },
+  { id: "Bug", name: "Bug", color: issueTypeColors.bug },
 ]
 
 const devSprints: SprintSummary[] = [

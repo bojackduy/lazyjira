@@ -126,6 +126,19 @@ describe("app state project picker", () => {
     expect(loadWorkspaceCount).toBe(1)
     expect(appState.state.project.key).toBe("MOB")
   })
+
+  test("allows focusing read-only config rows for scrolling", () => {
+    const appState = createTestAppState()
+
+    appState.setRoute("config")
+    appState.moveConfigSelection(4)
+    appState.focusConfigArea("rows")
+    appState.moveConfigSelection(1)
+
+    expect(appState.state.configFocusedArea).toBe("rows")
+    expect(appState.state.configSelectedSectionIndex).toBe(4)
+    expect(appState.state.configSelectedRowIndex).toBe(1)
+  })
 })
 
 function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> = async () => undefined) {

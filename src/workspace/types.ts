@@ -1,5 +1,6 @@
 import type { RuntimeEnv } from "../runtime/env"
 import type { AppState, BoardSummary, IssueSummary, IssueTypeDefinition, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, WorkspaceStats } from "../state/app-state"
+import { statusColorForCategory } from "../state/metadata-colors"
 
 export type WorkspaceSelection = {
   project: ProjectSummary
@@ -49,6 +50,9 @@ export function createLoadedWorkspace(input: WorkspaceFixtureInput): LoadedWorks
       id: status.id,
       name: status.name,
       issueKeys: enrichedIssues.filter((issue) => issue.sprintId === activeSprintId && issue.statusId === status.id).map((issue) => issue.key),
+      statusIds: [status.id],
+      category: status.category,
+      color: status.color ?? statusColorForCategory(status.category),
     })),
     issues,
     stats: workspaceStats(input.statuses, enrichedIssues),

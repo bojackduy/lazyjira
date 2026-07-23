@@ -27,6 +27,21 @@ export type JiraBoardConfiguration = {
   }
 }
 
+export type JiraProjectStatusMetadata = {
+  id?: string
+  name?: string
+  statusCategory?: {
+    key?: string
+    name?: string
+  }
+}
+
+export type JiraProjectStatusesByIssueType = {
+  id?: string
+  name?: string
+  statuses?: JiraProjectStatusMetadata[]
+}
+
 export type JiraSprint = {
   id?: number | string
   state?: string
@@ -143,6 +158,14 @@ export async function fetchProjectBoards(auth: JiraAuthConfig, projectKeyOrId: s
 
 export async function fetchBoardConfiguration(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch): Promise<JiraBoardConfiguration> {
   return jiraRequest<JiraBoardConfiguration>(auth, `/rest/agile/1.0/board/${encodeURIComponent(boardId)}/configuration`, { endpoint: "board configuration" }, fetchImpl)
+}
+
+export async function fetchProjectStatuses(auth: JiraAuthConfig, projectKeyOrId: string, fetchImpl: FetchLike = fetch): Promise<JiraProjectStatusesByIssueType[]> {
+  return jiraRequest<JiraProjectStatusesByIssueType[]>(auth, `/rest/api/3/project/${encodeURIComponent(projectKeyOrId)}/statuses`, { endpoint: "project statuses" }, fetchImpl)
+}
+
+export async function fetchStatusesByIds(auth: JiraAuthConfig, statusIds: string[], fetchImpl: FetchLike = fetch): Promise<JiraProjectStatusMetadata[]> {
+  return Promise.all(statusIds.map((statusId) => jiraRequest<JiraProjectStatusMetadata>(auth, `/rest/api/2/status/${encodeURIComponent(statusId)}`, { endpoint: `status ${statusId}` }, fetchImpl)))
 }
 
 export async function fetchBoardSprints(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch): Promise<JiraSprint[]> {

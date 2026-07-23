@@ -79,7 +79,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
           <text fg={theme.textSubtle}>Statuses {displayedStatusStart()}-{Math.min(displayedStatusStart() + visibleStatuses().length - 1, configuredStatuses(state).length)}/{configuredStatuses(state).length}</text>
         </box>
       </box>
-      <Legend />
+      <Legend statuses={visibleStatuses()} />
       <Show when={state.workspaceNotice}>
         {(notice) => <text fg={theme.warning}>{notice()}</text>}
       </Show>
@@ -150,7 +150,7 @@ function IssueCard(props: { issue: IssueSummary; selected: boolean }) {
   )
 }
 
-function Legend() {
+function Legend(props: { statuses: ReturnType<typeof visibleStatusesForBoard> }) {
   const { state } = useAppState()
   const theme = useTheme()
 
@@ -162,8 +162,8 @@ function Legend() {
         </For>
       </box>
       <box flexDirection="row" gap={1}>
-        <For each={configuredStatuses(state)}>
-          {(status) => <text fg={status.color} wrapMode="none">● {shortStatus(status.name)}</text>}
+        <For each={props.statuses}>
+          {(status) => <text fg={status.color} width={14} flexShrink={0} wrapMode="none">● {shortStatus(status.name)}</text>}
         </For>
       </box>
     </box>
