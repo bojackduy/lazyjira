@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { detailBodyInitialValue } from "../context/app-state"
 import { applyIssueDraft, issueFieldColor, issueFieldDisplayValue, issueFields } from "./issue-fields"
-import { loadDemoWorkspace } from "./demo"
+import { loadDevWorkspaceState } from "./dev"
 
 describe("issue fields", () => {
   test("keeps body editing out of the inspector field list", () => {
@@ -9,7 +9,7 @@ describe("issue fields", () => {
   })
 
   test("applies staged field changes to an issue", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     const issue = state.issues[state.selectedIssueKey]!
 
     const next = applyIssueDraft(issue, {
@@ -26,7 +26,7 @@ describe("issue fields", () => {
   })
 
   test("formats staged status choices with board labels and colors", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     const issue = state.issues[state.selectedIssueKey]!
     const statusField = issueFields.find((field) => field.id === "statusId")!
     state.issueDrafts[issue.key] = { statusId: "code-review" }
@@ -36,7 +36,7 @@ describe("issue fields", () => {
   })
 
   test("opens body editor with existing issue body", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     const issue = state.issues[state.selectedIssueKey]!
 
     expect(detailBodyInitialValue(state, issue)).toBe(issue.description)

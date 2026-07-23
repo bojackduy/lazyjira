@@ -44,7 +44,7 @@ export function ConfigRoute() {
     <box flexDirection="column" gap={1} flexGrow={1} minHeight={0}>
       <box height={4} flexShrink={0} flexDirection="column">
         <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">Metadata Config</text>
-        <text fg={theme.textMuted} wrapMode="none">Local/demo metadata overlay. Board Columns, Statuses, and Issue Types are writable first.</text>
+        <text fg={theme.textMuted} wrapMode="none">Local dev metadata overlay. Board Columns, Statuses, and Issue Types are writable first.</text>
         <text fg={theme.textSubtle} wrapMode="none">j/k choose · h/l sections/rows · a add · e rename · c color · x remove · w render · X discard · W Jira</text>
       </box>
 

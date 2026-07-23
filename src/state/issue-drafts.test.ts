@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { loadDemoWorkspace } from "./demo"
+import { loadDevWorkspaceState } from "./dev"
 import { issueWithDraft } from "./issue-drafts"
 
 describe("issue draft render overlay", () => {
   test("renders staged fields without mutating the base issue", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     const baseIssue = state.issues["PROJ-128"]!
     state.issueDrafts[baseIssue.key] = { title: "Rendered staged title", statusId: "code-review", storyPoints: "8" }
 
@@ -19,7 +19,7 @@ describe("issue draft render overlay", () => {
   })
 
   test("falls back to the base issue after staged draft removal", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     const baseIssue = state.issues["PROJ-128"]!
     state.issueDrafts[baseIssue.key] = { title: "Rendered staged title" }
 

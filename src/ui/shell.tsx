@@ -48,7 +48,7 @@ function Sidebar() {
     <box borderStyle="rounded" borderColor={focused() ? theme.borderActive : theme.border} padding={1} width={26} flexShrink={0} onMouseUp={() => setFocusedPane("sidebar")}>
         <text attributes={TextAttributes.BOLD} fg={theme.text}>{config.appName}</text>
         <text fg={theme.textMuted}>{state.project.key} {state.project.name}</text>
-        <text fg={theme.textSubtle}>{runtimeModeText(config, state.jiraAuthReady, state.jiraProjectReady)}</text>
+        <text fg={theme.textSubtle}>{runtimeEnvText(config, state.jiraAuthReady, state.jiraProjectReady)}</text>
       <box paddingTop={1} flexDirection="column">
         <text fg={theme.warning}>Views</text>
         <For each={sidebarRoutes}>
@@ -165,7 +165,7 @@ function Footer() {
   return (
     <box height={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.panel} flexDirection="row" justifyContent="space-between">
       <text fg={theme.textMuted}>{state.searchOpen ? "filter loaded: type query  enter apply  esc close  empty enter clears" : footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open)}</text>
-      <text fg={theme.textSubtle}>{toast.message() ?? "demo scaffold"}</text>
+      <text fg={theme.textSubtle}>{toast.message() ?? "dev/prod runtime scaffold"}</text>
     </box>
   )
 }
@@ -262,7 +262,7 @@ function AuthOnboardingPopup() {
       <ModalFrame borderColor={theme.accent} width={82}>
         <box flexDirection="row" justifyContent="space-between">
           <text attributes={TextAttributes.BOLD} fg={theme.accent}>Connect Jira</text>
-          <text fg={theme.textSubtle}>single local account · Esc skip demo</text>
+          <text fg={theme.textSubtle}>single local account · Esc skip prod setup</text>
         </box>
         <text fg={theme.textMuted}>lazyjira can use one saved Atlassian API token config for now.</text>
         <text fg={theme.textSubtle}>Config file: ~/.config/lazyjira/config.json · CLI alternative: lazyjira auth login</text>
@@ -288,7 +288,7 @@ function AuthOnboardingPopup() {
         <Show when={step() === "apiToken"}>
           <text fg={theme.warning}>Token entry is visible in this first TUI flow. Use `lazyjira auth login` if you prefer terminal-hidden entry.</text>
         </Show>
-        <text fg={theme.textSubtle} wrapMode="none">Enter continue/save · Esc skip and stay in demo</text>
+        <text fg={theme.textSubtle} wrapMode="none">Enter continue/save · Esc skip prod setup</text>
         <Show when={state.authOnboarding.saving}>
           <text fg={theme.textMuted}>Saving credentials...</text>
         </Show>
@@ -317,8 +317,8 @@ function ProjectPickerPopup() {
           <text fg={theme.textSubtle}>j/k choose · enter select · r reload · Esc close</text>
         </box>
         <text fg={theme.textMuted}>lazyjira keeps one active Jira project context at a time.</text>
-        <Show when={state.demoMode}>
-          <text fg={theme.warning}>Using mock Jira discovery data in demo mode; no Jira fetch is made here yet.</text>
+        <Show when={state.runtimeEnv === "dev"}>
+          <text fg={theme.warning}>Using dev runtime fixtures. New data-backed features need matching dev fixture data.</text>
         </Show>
         <Show when={state.projectPicker.step === "board" && state.projectPicker.selectedProject}>
           {(project) => <text fg={theme.warning} wrapMode="none">Project: {project().key} {project().name} · h/backspace picks another project</text>}
@@ -508,7 +508,7 @@ function stagedChangeText(change: StagedChange, issueTitle?: string) {
 }
 
 function footerText(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerOpen: boolean) {
-  if (authOnboardingOpen) return "jira setup: Enter continue/save  Esc skip demo"
+  if (authOnboardingOpen) return "prod setup: Enter continue/save  Esc skip setup"
   if (projectPickerOpen) return "project picker: j/k choose  enter select  r reload  esc/q close"
   if (remoteApplyOpen) return "remote write: W final apply placeholder  esc/q close"
   if (stagedDiscardOpen) return "discard staged: j/k choose  space mark  enter discard  esc/q close"
@@ -523,11 +523,11 @@ function footerText(focusedPane: string, route: string, stagedDiscardOpen: boole
   return "1 workspace  2 sprint  3 backlog  4 kanban  P project  / filter loaded  q quit"
 }
 
-function runtimeModeText(config: ReturnType<typeof useConfig>, jiraAuthReady = false, jiraProjectReady = false) {
-  if (config.runtimeMode === "demo") return jiraProjectReady ? "demo mode · mock project selected" : "demo mode · mock projects"
-  if (jiraProjectReady) return "jira mode · project selected"
-  if (config.jira || jiraAuthReady) return "jira mode · choose project"
-  return "jira mode · no auth"
+function runtimeEnvText(config: ReturnType<typeof useConfig>, jiraAuthReady = false, jiraProjectReady = false) {
+  if (config.runtimeEnv === "dev") return jiraProjectReady ? "dev runtime · fixture project selected" : "dev runtime · fixture projects"
+  if (jiraProjectReady) return "prod runtime · project selected"
+  if (config.jira || jiraAuthReady) return "prod runtime · choose project"
+  return "prod runtime · no auth"
 }
 
 function projectPickerRows(state: AppState) {

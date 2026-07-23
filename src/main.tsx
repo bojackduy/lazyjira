@@ -3,40 +3,44 @@ import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { render } from "@opentui/solid"
 import { App } from "./app"
 import { runAuthCli } from "./auth/cli"
-import { jiraAuthSummary, loadJiraAuthConfig, loadLazyJiraConfig, saveDemoWorkspaceConfig, saveJiraWorkspaceConfig } from "./auth/config"
+import { jiraAuthSummary, loadJiraAuthConfig, loadLazyJiraConfig, saveDevWorkspaceConfig, saveProdWorkspaceConfig } from "./auth/config"
 import type { AppConfig } from "./context/config"
 import { LazyJiraKeymapProvider } from "./context/keymap"
 import { AppProviders } from "./context/providers"
-import { createApiDiscoverySource, createMockDiscoverySource } from "./jira/discovery"
-import { parseRuntimeMode } from "./runtime/mode"
-import { loadDemoWorkspace } from "./state/demo"
+import { parseRuntimeEnv } from "./runtime/env"
+import { createInitialAppState } from "./state/initial"
+import { loadDevWorkspaceFixture } from "./workspace/dev/fixtures"
+import { createDevWorkspaceSource } from "./workspace/dev/source"
+import { createProdWorkspaceSource } from "./workspace/prod/source"
+import type { WorkspaceSelection } from "./workspace/types"
 
 const argv = process.argv.slice(2)
 if (await runAuthCli(argv)) process.exit(process.exitCode ?? 0)
 
-const runtimeMode = parseRuntimeModeOrExit(argv)
+const runtimeEnv = parseRuntimeEnvOrExit(argv)
 
 let authLoadError: string | undefined
 const savedConfig = await loadLazyJiraConfig().catch((error) => {
   authLoadError = error instanceof Error ? error.message : String(error)
   return undefined
 })
-const authConfig = runtimeMode === "jira" ? await loadJiraAuthConfig().catch((error) => {
+const authConfig = runtimeEnv === "prod" ? await loadJiraAuthConfig().catch((error) => {
   authLoadError = error instanceof Error ? error.message : String(error)
   return undefined
 }) : undefined
-const initialState = loadDemoWorkspace()
-initialState.demoMode = runtimeMode === "demo"
-const workspaceConfig = runtimeMode === "demo" ? savedConfig?.demoWorkspace : savedConfig?.workspace
-const shouldOpenProjectPicker = !workspaceConfig && (runtimeMode === "demo" || !!authConfig)
+const workspaceConfig = runtimeEnv === "dev" ? savedConfig?.devWorkspace : savedConfig?.prodWorkspace
+const source = runtimeEnv === "dev" ? createDevWorkspaceSource() : createProdWorkspaceSource()
+const initialWorkspace = workspaceConfig
+  ? await source.loadWorkspace(selectionFromConfig(workspaceConfig))
+  : runtimeEnv === "dev"
+    ? loadDevWorkspaceFixture("PROJ")
+    : await source.loadWorkspace({ project: { key: "JIRA", name: "No project selected" }, board: { id: "", name: "Choose a project", type: "kanban" } })
+const initialState = createInitialAppState(initialWorkspace, runtimeEnv)
+const shouldOpenProjectPicker = !workspaceConfig && (runtimeEnv === "dev" || !!authConfig)
 initialState.jiraAuthReady = !!authConfig
 initialState.jiraProjectReady = !!workspaceConfig
-if (workspaceConfig) {
-  initialState.project = { key: workspaceConfig.projectKey, name: workspaceConfig.projectName }
-  initialState.board = { id: workspaceConfig.boardId, name: workspaceConfig.boardName, type: workspaceConfig.boardType }
-}
 initialState.authOnboarding = {
-  open: runtimeMode === "jira" && !authConfig,
+  open: runtimeEnv === "prod" && !authConfig,
   step: "baseUrl",
   baseUrl: authConfig?.baseUrl ?? "",
   email: authConfig?.email ?? "",
@@ -53,12 +57,10 @@ initialState.projectPicker = {
   projects: [],
   boards: [],
 }
-const discovery = runtimeMode === "demo" ? createMockDiscoverySource() : createApiDiscoverySource()
-const saveWorkspaceConfig = runtimeMode === "demo" ? saveDemoWorkspaceConfig : saveJiraWorkspaceConfig
+const saveWorkspaceConfig = runtimeEnv === "dev" ? saveDevWorkspaceConfig : saveProdWorkspaceConfig
 const appConfig: AppConfig = {
   appName: "lazyjira",
-  runtimeMode,
-  demoMode: initialState.demoMode,
+  runtimeEnv,
   jira: authConfig ? jiraAuthSummary(authConfig) : undefined,
 }
 
@@ -85,7 +87,7 @@ try {
         <AppProviders
           config={appConfig}
           initialState={initialState}
-          discovery={discovery}
+          source={source}
           saveWorkspaceConfig={saveWorkspaceConfig}
           onExit={() => {
             if (!renderer.isDestroyed) renderer.destroy()
@@ -104,11 +106,19 @@ try {
   throw error
 }
 
-function parseRuntimeModeOrExit(argv: string[]) {
+function parseRuntimeEnvOrExit(argv: string[]) {
   try {
-    return parseRuntimeMode(argv)
+    return parseRuntimeEnv(argv)
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error))
     process.exit(1)
+  }
+}
+
+function selectionFromConfig(workspace: NonNullable<Awaited<ReturnType<typeof loadLazyJiraConfig>>>["devWorkspace"]): WorkspaceSelection {
+  if (!workspace) throw new Error("Workspace config is required")
+  return {
+    project: { key: workspace.projectKey, name: workspace.projectName },
+    board: { id: workspace.boardId, name: workspace.boardName, type: workspace.boardType },
   }
 }

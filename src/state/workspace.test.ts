@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { loadDemoWorkspace } from "./demo"
+import { loadDevWorkspaceState } from "./dev"
 import { workspaceAttentionQueues, workspaceItems, workspacePendingItem, workspaceRecentItems, workspaceResultsForItem, workspaceSearchItems } from "./workspace"
 
 describe("workspace dashboard", () => {
   test("builds jump, pending, attention, and recent items in order", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     const items = workspaceItems(state)
 
     expect(items.slice(0, 5).map((item) => item.id)).toEqual([
@@ -17,7 +17,7 @@ describe("workspace dashboard", () => {
   })
 
   test("summarizes staged edits and deletes", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { title: "Updated summary", statusId: "code-review" }
     state.issueDeletes = ["PROJ-181"]
 
@@ -28,7 +28,7 @@ describe("workspace dashboard", () => {
   })
 
   test("expands pending local into staged change rows", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { title: "Updated summary" }
     state.issueDeletes = ["PROJ-181"]
 
@@ -39,7 +39,7 @@ describe("workspace dashboard", () => {
   })
 
   test("adds filtered loaded results when search is active", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.searchQuery = "assignee:duy auth"
 
     const searchItem = workspaceSearchItems(state)[0]
@@ -50,7 +50,7 @@ describe("workspace dashboard", () => {
   })
 
   test("includes attention queues for blocked, stale, unassigned, no sprint, and no estimate", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     const queues = workspaceAttentionQueues(state)
 
     expect(queues.map((queue) => queue.id)).toEqual(["queue:blocked", "queue:stale", "queue:unassigned", "queue:no-sprint", "queue:no-estimate"])
@@ -62,7 +62,7 @@ describe("workspace dashboard", () => {
   })
 
   test("expands attention queues into issue result rows", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     const blocked = workspaceAttentionQueues(state).find((queue) => queue.id === "queue:blocked")
 
     const results = workspaceResultsForItem(state, blocked)
@@ -74,7 +74,7 @@ describe("workspace dashboard", () => {
   })
 
   test("puts the selected issue first in recent items", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.selectedIssueKey = "PROJ-170"
 
     expect(workspaceRecentItems(state)[0]?.id).toBe("recent:PROJ-170")

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { AppState, IssueSummary, StatusDefinition } from "./app-state"
 import { boardCellIssueKeys, boardIssueKeyAtLocation, nextKanbanHorizontalLocation, selectedBoardLocation } from "./board-navigation"
-import { loadDemoWorkspace } from "./demo"
+import { loadDevWorkspaceState } from "./dev"
 
 const statuses: StatusDefinition[] = [
   { id: "col-1", name: "Column 1", category: "todo", color: "#64748B" },
@@ -29,7 +29,7 @@ describe("board navigation", () => {
   })
 
   test("locates staged status changes in the rendered board column", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { statusId: "code-review" }
 
     expect(state.issues["PROJ-128"]?.statusId).toBe("blocked")
@@ -37,7 +37,7 @@ describe("board navigation", () => {
   })
 
   test("reads board cells from staged render state", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { statusId: "code-review" }
 
     expect(boardCellIssueKeys(state, "active-sprint", 0, 4)).not.toContain("PROJ-128")
@@ -60,7 +60,7 @@ function sparseKanbanState(): AppState {
     issue("D", "col-1", "Group 3"),
   ]
   return {
-    ...loadDemoWorkspace(),
+    ...loadDevWorkspaceState(),
     statuses,
     issues: Object.fromEntries(issues.map((candidate) => [candidate.key, candidate])),
     kanbanGroupBy: "feature",

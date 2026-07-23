@@ -1,4 +1,5 @@
 import type { AppRoute } from "./routes"
+import type { RuntimeEnv } from "../runtime/env"
 
 export type ProjectSummary = {
   key: string
@@ -194,12 +195,13 @@ export type WorkspaceStats = {
 }
 
 export type AppState = {
-  demoMode: boolean
+  runtimeEnv: RuntimeEnv
   route: AppRoute
   previousRoute?: AppRoute
   focusedPane: FocusPane
   jiraAuthReady: boolean
   jiraProjectReady: boolean
+  workspaceNotice?: string
   authOnboarding: AuthOnboardingState
   projectPicker: ProjectPickerState
   sidebarSelectedIndex: number

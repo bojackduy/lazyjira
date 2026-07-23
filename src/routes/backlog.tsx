@@ -49,6 +49,9 @@ export function BacklogRoute() {
           <text fg={theme.textMuted} wrapMode="none">Grouped by {groupModeLabel(state.backlogGroupBy)} · g cycle group · h/l jump group</text>
         </box>
         <BacklogLegend />
+        <Show when={state.workspaceNotice}>
+          {(notice) => <text fg={theme.warning}>{notice()}</text>}
+        </Show>
         <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} viewportCulling={true}>
           <For each={groups()}>
             {(group) => (

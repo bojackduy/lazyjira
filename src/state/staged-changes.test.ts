@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { loadDemoWorkspace } from "./demo"
+import { loadDevWorkspaceState } from "./dev"
 import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from "./staged-changes"
 
 describe("staged changes", () => {
   test("lists staged field edits and issue deletes", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { title: "Updated summary", description: "Updated body" }
     state.issueDeletes = ["PROJ-121"]
 
@@ -17,7 +17,7 @@ describe("staged changes", () => {
   })
 
   test("defaults discard target to the highlighted staged change", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { title: "Updated summary", description: "Updated body" }
     const changes = stagedChanges(state)
 
@@ -25,7 +25,7 @@ describe("staged changes", () => {
   })
 
   test("uses marked discard targets when present", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { title: "Updated summary", description: "Updated body" }
     state.issueDeletes = ["PROJ-121"]
     const changes = stagedChanges(state)
@@ -38,7 +38,7 @@ describe("staged changes", () => {
   })
 
   test("detects discarded active inspector choice editor", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { statusId: "code-review" }
     const changes = stagedChanges(state)
     const selectedIds = stagedDiscardTargetIds(changes, 0, [])
@@ -47,7 +47,7 @@ describe("staged changes", () => {
   })
 
   test("detects discarded active detail body editor", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { description: "Updated body" }
     const changes = stagedChanges(state)
     const selectedIds = stagedDiscardTargetIds(changes, 0, [])

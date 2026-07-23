@@ -8,9 +8,9 @@ import {
   loadLazyJiraConfig,
   loadJiraAuthConfig,
   removeJiraAuthConfig,
-  saveDemoWorkspaceConfig,
+  saveDevWorkspaceConfig,
   saveJiraAuthConfig,
-  saveJiraWorkspaceConfig,
+  saveProdWorkspaceConfig,
 } from "./config"
 
 describe("Jira auth config", () => {
@@ -74,13 +74,13 @@ describe("Jira auth config", () => {
   test("preserves workspace context when auth is updated", async () => {
     await withTempConfig(async (env) => {
       await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "old-token" }, env)
-      await saveJiraWorkspaceConfig({ projectKey: "PROJ", projectName: "Product", boardId: "42", boardName: "Product Scrum", boardType: "scrum" }, env)
+      await saveProdWorkspaceConfig({ projectKey: "PROJ", projectName: "Product", boardId: "42", boardName: "Product Kanban", boardType: "kanban" }, env)
 
       await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "new-token" }, env)
 
       const loaded = await loadLazyJiraConfig(env)
       expect(loaded?.jira?.apiToken).toBe("new-token")
-      expect(loaded?.workspace).toEqual({ projectKey: "PROJ", projectName: "Product", boardId: "42", boardName: "Product Scrum", boardType: "scrum" })
+      expect(loaded?.prodWorkspace).toEqual({ projectKey: "PROJ", projectName: "Product", boardId: "42", boardName: "Product Kanban", boardType: "kanban" })
     })
   })
 
@@ -88,24 +88,37 @@ describe("Jira auth config", () => {
     await withTempConfig(async (env) => {
       await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }, env)
 
-      await saveJiraWorkspaceConfig({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" }, env)
+      await saveProdWorkspaceConfig({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" }, env)
 
       const loaded = await loadLazyJiraConfig(env)
       expect(loaded?.jira).toEqual({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" })
-      expect(loaded?.workspace).toEqual({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" })
+      expect(loaded?.prodWorkspace).toEqual({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" })
     })
   })
 
-  test("keeps demo and Jira workspace contexts separate", async () => {
+  test("keeps dev and prod workspace contexts separate", async () => {
     await withTempConfig(async (env) => {
       await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }, env)
-      await saveDemoWorkspaceConfig({ projectKey: "DEMO", projectName: "Demo", boardId: "mock-1", boardName: "Demo Kanban", boardType: "kanban" }, env)
-      await saveJiraWorkspaceConfig({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" }, env)
+      await saveDevWorkspaceConfig({ projectKey: "DEV", projectName: "Dev", boardId: "dev-1", boardName: "Dev Kanban", boardType: "kanban" }, env)
+      await saveProdWorkspaceConfig({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" }, env)
 
       const loaded = await loadLazyJiraConfig(env)
       expect(loaded?.jira?.apiToken).toBe("token")
-      expect(loaded?.demoWorkspace).toEqual({ projectKey: "DEMO", projectName: "Demo", boardId: "mock-1", boardName: "Demo Kanban", boardType: "kanban" })
-      expect(loaded?.workspace).toEqual({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" })
+      expect(loaded?.devWorkspace).toEqual({ projectKey: "DEV", projectName: "Dev", boardId: "dev-1", boardName: "Dev Kanban", boardType: "kanban" })
+      expect(loaded?.prodWorkspace).toEqual({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" })
+    })
+  })
+
+  test("migrates legacy workspace keys into explicit dev and prod keys", async () => {
+    await withTempConfig(async (env, path) => {
+      await writeFile(path, JSON.stringify({
+        workspace: { projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" },
+        demoWorkspace: { projectKey: "DEV", projectName: "Dev", boardId: "dev-1", boardName: "Dev Kanban", boardType: "kanban" },
+      }))
+
+      const loaded = await loadLazyJiraConfig(env)
+      expect(loaded?.prodWorkspace?.projectKey).toBe("ENG")
+      expect(loaded?.devWorkspace?.projectKey).toBe("DEV")
     })
   })
 

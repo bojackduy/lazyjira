@@ -165,7 +165,7 @@ The right inspector pane is the quick issue/status/edit surface and stays visibl
 
 Purpose: inspect board/project metadata without turning the app into a Jira admin console.
 
-In demo/local mode, Board Columns, Statuses, and Issue Types can be staged with `a` add, `e` rename, `c` color, and `x` remove. `w` renders staged metadata locally while keeping it discardable, `X` discards staged changes, and `W` opens the future Jira write review placeholder. Priorities, Fields, and Quick Filters stay read-only until the model and API support are real.
+In dev/local mode, Board Columns, Statuses, and Issue Types can be staged with `a` add, `e` rename, `c` color, and `x` remove. `w` renders staged metadata locally while keeping it discardable, `X` discards staged changes, and `W` opens the future Jira write review placeholder. Priorities, Fields, and Quick Filters stay read-only until the model and API support are real.
 
 ### 7. Search And Command Palette
 
@@ -225,8 +225,10 @@ Implementation planning artifacts live under `docs/`:
 ## Development
 
 - `bun install`: install dependencies.
-- `bun run dev`: run the TUI in watch mode.
-- `bun run start`: run the TUI once.
+- `bun run dev`: run the TUI in watch mode with the dev runtime fixture path.
+- `bun run dev:prod`: run the TUI in watch mode with the prod runtime Jira API path.
+- `bun run start`: run the TUI once with the prod runtime Jira API path.
+- `bun run start:dev`: run the TUI once with the dev runtime fixture path.
 - `bun run auth:login`: save Jira URL, email, and API token to `~/.config/lazyjira/config.json`.
 - `bun run auth:status`: show configured Jira URL/email without printing the token.
 - `bun run auth:logout`: remove saved local Jira credentials.
@@ -237,7 +239,7 @@ Implementation planning artifacts live under `docs/`:
 
 Atlassian API token auth needs one Jira site URL, email, and API token. `lazyjira` currently supports one local Jira account config.
 
-If no credentials are found, opening the TUI stays in demo mode and uses mock project/board discovery for smoke testing. Use `lazyjira auth login` when you want to save real Jira credentials.
+If no credentials are found, prod runtime opens a guided onboarding walkthrough. Use `lazyjira auth login` when you want to save real Jira credentials outside the TUI. Use `lazyjira dev` or `bun run start:dev` when you want fixture-backed local data without auth.
 
 The same setup is also available outside the TUI:
 
@@ -255,13 +257,13 @@ Credentials are stored at `~/.config/lazyjira/config.json` with user-only file p
 
 ### Jira Project Selection
 
-After credentials are saved, the TUI opens a project picker. Until real Jira issue loading is wired, demo mode uses bundled mock project/board discovery even if credentials are saved. Press `P` later to switch the active project/board without editing config or restarting.
+In prod runtime, after credentials are saved, the TUI opens a project picker backed by Jira project/board APIs. Press `P` later to switch the active project/board without editing config or restarting.
 
-For local smoke testing without Jira credentials, open the TUI and choose from the bundled mock Jira projects and boards. Press `P` later to reopen the same picker. Demo selections persist under `workspace` just like a real selection.
+For local smoke testing without Jira credentials, start with `lazyjira dev` or `bun run start:dev` and choose from bundled dev Kanban projects and boards. Press `P` later to reopen the same picker. Dev runtime loads different fixture tickets for `PROJ`, `MOB`, and `OPS`.
 
-The selected project and board are persisted under `workspace` in the same config file. Auth updates preserve the selected workspace, and workspace updates preserve the saved API token. Jira issue/sprint/backlog data loading is not wired yet, so the app still renders demo issues while showing the selected Jira context.
+Prod selections are persisted under `prodWorkspace`; dev selections are persisted separately under `devWorkspace`. Auth updates preserve both workspaces, and workspace updates preserve the saved API token. Prod issue/sprint/backlog data loading is not wired yet, so prod runtime intentionally shows an empty not-wired workspace after selecting a real project instead of leaking dev fixture tickets.
 
-### Phase 1: Demo Board Foundation
+### Phase 1: Dev Fixture Board Foundation
 
 Goal: prove the main experience without depending on real Jira data.
 
@@ -275,7 +277,7 @@ Goal: prove the main experience without depending on real Jira data.
 
 Success criteria:
 
-- The app feels useful with mock data.
+- The app feels useful with dev fixture data.
 - A user can understand sprint state at a glance.
 - A user can navigate entirely by keyboard.
 - A user can open details without losing board/backlog context.

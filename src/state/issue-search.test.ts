@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { loadDemoWorkspace } from "./demo"
+import { loadDevWorkspaceState } from "./dev"
 import { issueList } from "./selectors"
 import { parseIssueSearchQuery } from "./issue-search"
 
@@ -14,7 +14,7 @@ describe("issue search", () => {
   })
 
   test("filters loaded issues by text and fields", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.searchQuery = "auth assignee:duy priority:high"
 
     expect(issueList(state).map((issue) => issue.key)).toContain("PROJ-128")
@@ -22,7 +22,7 @@ describe("issue search", () => {
   })
 
   test("uses staged issue draft values while filtering", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { statusId: "code-review" }
     state.searchQuery = "status:code-review"
 
@@ -31,7 +31,7 @@ describe("issue search", () => {
   })
 
   test("uses staged config metadata names while filtering", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.configDrafts = [{ id: "config-1", sectionId: "statuses", action: "rename", targetId: "blocked", name: "Waiting" }]
     state.searchQuery = "status:waiting"
 
@@ -39,7 +39,7 @@ describe("issue search", () => {
   })
 
   test("supports special loaded-data tokens", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { title: "Rendered staged title" }
     state.searchQuery = "has:staged"
 

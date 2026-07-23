@@ -1,7 +1,7 @@
 import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
 import { normalizeBaseUrl, saveJiraAuthConfig, type JiraWorkspaceConfig } from "../auth/config"
-import type { JiraDiscoverySource } from "../jira/discovery"
+import type { WorkspaceSource, LoadedWorkspace } from "../workspace/types"
 import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, ProjectOption, QuickFilterId, StatusCategory } from "../state/app-state"
 import {
   colorableConfigSection,
@@ -97,13 +97,17 @@ const [AppStateContextProvider, useAppState] = createRequiredContext<AppStateCon
 
 export { useAppState }
 
-export function AppStateProvider(props: ProviderProps<{ initialState: AppState; discovery: JiraDiscoverySource; saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> }>) {
+export function AppStateProvider(props: ProviderProps<{ initialState: AppState; source: WorkspaceSource; saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> }>) {
   const [state, setState] = createStore<AppState>(props.initialState)
   const toast = useToast()
 
   async function saveSelectedProjectContext(project: ProjectOption, board: BoardOption) {
     setState("projectPicker", "saving", true)
     try {
+      const workspace = await props.source.loadWorkspace({
+        project: { key: project.key, name: project.name },
+        board: { id: board.id, name: board.name, type: board.type },
+      })
       await props.saveWorkspaceConfig({
         projectKey: project.key,
         projectName: project.name,
@@ -111,16 +115,52 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         boardName: board.name,
         boardType: board.type,
       })
-      setState("project", { key: project.key, name: project.name })
-      setState("board", { id: board.id, name: board.name, type: board.type })
+      applyLoadedWorkspace(workspace)
       setState("jiraProjectReady", true)
       setState("projectPicker", "open", false)
       setState("projectPicker", "error", undefined)
-      toast.show(props.discovery.mode === "mock" ? `Mock project ${project.key} selected.` : `Project ${project.key} selected. Jira issue loading can be wired next.`)
+      toast.show(props.source.env === "dev" ? `Dev project ${project.key} loaded from fixtures.` : `Prod project ${project.key} selected. Jira issue loading is not wired yet.`)
     } finally {
       setState("projectPicker", "saving", false)
       setState("projectPicker", "loading", false)
     }
+  }
+
+  function applyLoadedWorkspace(workspace: LoadedWorkspace) {
+    setState("project", workspace.project)
+    setState("board", workspace.board)
+    setState("workspaceNotice", workspace.notice)
+    setState("currentUser", workspace.currentUser)
+    setState("quickFilters", reconcile(workspace.quickFilters))
+    setState("activeQuickFilters", [])
+    setState("activeSprintId", workspace.activeSprintId)
+    setState("sprints", reconcile(workspace.sprints))
+    setState("statuses", reconcile(workspace.statuses))
+    setState("issueTypes", reconcile(workspace.issueTypes))
+    setState("columns", reconcile(workspace.columns))
+    setState("issues", reconcile(workspace.issues))
+    setState("stats", workspace.stats)
+    setState("selectedIssueKey", workspace.selectedIssueKey)
+    setState("workspaceSelectedIndex", 0)
+    setState("workspaceFocusedArea", "cards")
+    setState("workspaceResultSelectedIndex", 0)
+    setState("searchOpen", false)
+    setState("searchQuery", "")
+    setState("searchDraft", "")
+    setState("issueDrafts", reconcile({}))
+    setState("issueDeletes", [])
+    setState("pendingDeleteIssueKey", undefined)
+    setState("inspectorSelectedFieldIndex", 1)
+    setState("inspectorEditingFieldId", undefined)
+    setState("inspectorEditValue", "")
+    setState("detailBodyEditing", false)
+    setState("detailBodyEditValue", "")
+    setState("remoteApplyOpen", false)
+    setState("stagedDiscardOpen", false)
+    setState("stagedDiscardSelectedIndex", 0)
+    setState("stagedDiscardSelections", [])
+    setState("activeSprintStatusOffset", 0)
+    setState("kanbanStatusOffset", 0)
   }
 
   const context: AppStateContext = {
@@ -180,7 +220,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       }
     },
     openProjectPicker() {
-      if (!state.jiraAuthReady && props.discovery.mode === "jira") {
+      if (!state.jiraAuthReady && props.source.env === "prod") {
         context.openAuthOnboarding()
         return
       }
@@ -202,13 +242,13 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("projectPicker", "error", undefined)
       try {
         if (state.projectPicker.step === "board" && state.projectPicker.selectedProject) {
-          const boards = await props.discovery.fetchBoards(state.projectPicker.selectedProject.key)
+          const boards = await props.source.fetchBoards(state.projectPicker.selectedProject.key)
           setState("projectPicker", "boards", boards)
           setState("projectPicker", "selectedIndex", 0)
           if (!boards.length) setState("projectPicker", "error", `No Jira Software boards found for ${state.projectPicker.selectedProject.key}`)
           return
         }
-        const projects = await props.discovery.fetchProjects()
+        const projects = await props.source.fetchProjects()
         setState("projectPicker", "projects", projects)
         setState("projectPicker", "selectedIndex", 0)
         if (!projects.length) setState("projectPicker", "error", "No accessible Jira projects found")
@@ -241,7 +281,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           if (!project) return
           setState("projectPicker", "loading", true)
           setState("projectPicker", "error", undefined)
-          const boards = await props.discovery.fetchBoards(project.key)
+          const boards = await props.source.fetchBoards(project.key)
           if (!boards.length) {
             setState("projectPicker", "error", `No Jira Software boards found for ${project.key}`)
             return

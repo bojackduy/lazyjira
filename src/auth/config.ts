@@ -24,8 +24,8 @@ export type JiraWorkspaceConfig = {
 
 export type LazyJiraConfigFile = {
   jira?: JiraAuthConfig
-  workspace?: JiraWorkspaceConfig
-  demoWorkspace?: JiraWorkspaceConfig
+  prodWorkspace?: JiraWorkspaceConfig
+  devWorkspace?: JiraWorkspaceConfig
 }
 
 export function lazyJiraConfigPath(env: Record<string, string | undefined> = process.env) {
@@ -62,22 +62,22 @@ export async function saveJiraAuthConfig(auth: JiraAuthConfig, env: Record<strin
   return saveLazyJiraConfig({ ...current, jira: normalizeJiraAuthConfig(auth) }, env)
 }
 
-export async function saveJiraWorkspaceConfig(workspace: JiraWorkspaceConfig, env: Record<string, string | undefined> = process.env) {
+export async function saveProdWorkspaceConfig(workspace: JiraWorkspaceConfig, env: Record<string, string | undefined> = process.env) {
   const current = await loadExistingConfigForSave(env)
-  return saveLazyJiraConfig({ ...current, workspace: normalizeJiraWorkspaceConfig(workspace) }, env)
+  return saveLazyJiraConfig({ ...current, prodWorkspace: normalizeJiraWorkspaceConfig(workspace) }, env)
 }
 
-export async function saveDemoWorkspaceConfig(workspace: JiraWorkspaceConfig, env: Record<string, string | undefined> = process.env) {
+export async function saveDevWorkspaceConfig(workspace: JiraWorkspaceConfig, env: Record<string, string | undefined> = process.env) {
   const current = await loadExistingConfigForSave(env)
-  return saveLazyJiraConfig({ ...current, demoWorkspace: normalizeJiraWorkspaceConfig(workspace) }, env)
+  return saveLazyJiraConfig({ ...current, devWorkspace: normalizeJiraWorkspaceConfig(workspace) }, env)
 }
 
 export async function saveLazyJiraConfig(config: LazyJiraConfigFile, env: Record<string, string | undefined> = process.env) {
   const path = lazyJiraConfigPath(env)
   const normalized: LazyJiraConfigFile = {
     jira: config.jira ? normalizeJiraAuthConfig(config.jira) : undefined,
-    workspace: config.workspace ? normalizeJiraWorkspaceConfig(config.workspace) : undefined,
-    demoWorkspace: config.demoWorkspace ? normalizeJiraWorkspaceConfig(config.demoWorkspace) : undefined,
+    prodWorkspace: config.prodWorkspace ? normalizeJiraWorkspaceConfig(config.prodWorkspace) : undefined,
+    devWorkspace: config.devWorkspace ? normalizeJiraWorkspaceConfig(config.devWorkspace) : undefined,
   }
   await mkdir(dirname(path), { recursive: true, mode: 0o700 })
   await writeFile(path, `${JSON.stringify(dropUndefined(normalized), null, 2)}\n`, { mode: 0o600 })
@@ -151,9 +151,13 @@ function parseConfigFile(value: unknown, path: string): LazyJiraConfigFile {
   }
   return {
     jira: value.jira === undefined ? undefined : parseJiraAuth(value.jira, path),
-    workspace: value.workspace === undefined ? undefined : parseJiraWorkspace(value.workspace, path),
-    demoWorkspace: value.demoWorkspace === undefined ? undefined : parseJiraWorkspace(value.demoWorkspace, path),
+    prodWorkspace: workspaceFromValue(value.prodWorkspace ?? value.workspace, path),
+    devWorkspace: workspaceFromValue(value.devWorkspace ?? value.demoWorkspace, path),
   }
+}
+
+function workspaceFromValue(value: unknown, path: string) {
+  return value === undefined ? undefined : parseJiraWorkspace(value, path)
 }
 
 async function loadExistingConfigForSave(env: Record<string, string | undefined>) {

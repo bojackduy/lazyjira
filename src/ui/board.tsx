@@ -1,6 +1,6 @@
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, For } from "solid-js"
+import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
@@ -80,6 +80,9 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
         </box>
       </box>
       <Legend />
+      <Show when={state.workspaceNotice}>
+        {(notice) => <text fg={theme.warning}>{notice()}</text>}
+      </Show>
       <scrollbox
         ref={(element: ScrollBoxRenderable) => (scrollbox = element)}
         width="100%"

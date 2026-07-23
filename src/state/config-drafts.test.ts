@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
-import { loadDemoWorkspace } from "./demo"
+import { loadDevWorkspaceState } from "./dev"
 import { stagedChanges } from "./staged-changes"
 import { workspacePendingItem } from "./workspace"
 
 describe("config draft overlay", () => {
   test("renders staged status changes without mutating base metadata", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.configDrafts = [
       { id: "config-1", sectionId: "statuses", action: "rename", targetId: "blocked", name: "Waiting" },
       { id: "config-2", sectionId: "statuses", action: "color", targetId: "blocked", color: "#111111" },
@@ -25,7 +25,7 @@ describe("config draft overlay", () => {
   })
 
   test("renders staged issue type changes without mutating base metadata", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.configDrafts = [
       { id: "config-1", sectionId: "issue-types", action: "rename", targetId: "Bug", name: "Defect" },
       { id: "config-2", sectionId: "issue-types", action: "color", targetId: "Bug", color: "#111111" },
@@ -44,7 +44,7 @@ describe("config draft overlay", () => {
   })
 
   test("includes config drafts in the shared staged queue", () => {
-    const state = loadDemoWorkspace()
+    const state = loadDevWorkspaceState()
     state.configDrafts = [{ id: "config-1", sectionId: "columns", action: "rename", targetId: "todo", name: "Ready" }]
 
     const changes = stagedChanges(state)
