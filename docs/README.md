@@ -5,6 +5,7 @@ This folder turns the product direction in `README.md` into execution artifacts.
 Start here:
 
 - `BUILD_PLAN.md`: phased build plan and parallel workstream map.
+- `SCOPE_ROADMAP.md`: contributor-facing map of feature scopes, files to read, boundaries, and verification.
 - `TASK_TRACKER.md`: checklist-style tracker for subagent work.
 - `OPENTUI_REFERENCE.md`: OpenTUI and OpenCode patterns to consult before coding.
 - `subagents/`: assignment-ready task briefs for parallel implementation.

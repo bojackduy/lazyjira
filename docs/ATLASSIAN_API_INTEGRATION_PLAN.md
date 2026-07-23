@@ -189,6 +189,26 @@ Verification:
 
 - Unit tests for successful JSON, empty bodies, invalid JSON, `401`, `403`, `404`, `429`, and network failures.
 
+### A1.5. Local Workspace Switcher And Remote Browse Mode
+
+Implementation:
+
+- Make `P` open a local workspace switcher first, backed by saved prod/dev recent workspaces.
+- Add an explicit key in the popup, currently planned as `a`, to browse/add a new remote Jira workspace.
+- Do not fetch remote projects when the local switcher opens.
+- Fetch remote projects only after entering remote browse mode or explicitly refreshing remote discovery.
+- Fetch boards only after one remote project is selected.
+- Sync/fetch workspace data only after the final project+board context is selected.
+- Persist the final selection as active workspace and add/move it in recent workspaces.
+- Block or confirm switching when staged issue/config changes exist.
+
+Verification:
+
+- Config tests for recent workspace persistence.
+- Project picker tests proving `P` does not call remote discovery.
+- Project picker tests proving remote discovery only starts from the explicit remote-browse key.
+- State tests proving final workspace loading happens only after board selection.
+
 ### A2. Board Metadata Loader
 
 Implementation:

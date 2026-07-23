@@ -34,6 +34,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 
 - [x] A0 Auth, dev/prod runtime env, and discovery baseline.
 - [x] A1 Client foundation and actionable error mapping.
+- [ ] A1.5 Local workspace switcher and remote browse mode.
 - [ ] A2 Board metadata loader for columns, statuses, issue types, and fields.
 - [ ] A3 Active sprint, future sprint, and bounded backlog issue loading.
 - [ ] A4 Project selection and workspace loading integration with refresh/loading/error state.
@@ -52,6 +53,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 ## Cross-Track Reviews
 
 - [ ] All screens use the shared domain/state model.
+- [ ] New tasks link to the relevant scope in `docs/SCOPE_ROADMAP.md`.
 - [ ] Commands are named and discoverable.
 - [ ] `?` and command palette show current shortcuts.
 - [ ] `j/k`, `h/l`, `g/G`, `Ctrl-u/d`, `/`, `q`, `Esc`, `Tab`, `Enter` behave consistently.
