@@ -1,13 +1,9 @@
-import type { AppState, BoardMode } from "./app-state"
+import type { AppState, BoardLocation, BoardMode } from "./app-state"
 import { configuredStatuses } from "./config-drafts"
 import { issueByKey } from "./issue-drafts"
 import { boardGroupsForMode } from "./selectors"
 
-export type BoardLocation = {
-  groupIndex: number
-  statusIndex: number
-  itemIndex: number
-}
+export type BoardCellItem = { kind: "issue"; issueKey: string } | { kind: "create" }
 
 export function boardCellIssueKeys(state: AppState, mode: BoardMode, groupIndex: number, statusIndex: number) {
   const group = boardGroupsForMode(state, mode)[groupIndex]
@@ -16,8 +12,20 @@ export function boardCellIssueKeys(state: AppState, mode: BoardMode, groupIndex:
   return group.issueKeys.filter((issueKey) => issueByKey(state, issueKey)?.statusId === status.id)
 }
 
+export function boardCellItems(state: AppState, mode: BoardMode, groupIndex: number, statusIndex: number): BoardCellItem[] {
+  const group = boardGroupsForMode(state, mode)[groupIndex]
+  const status = configuredStatuses(state)[statusIndex]
+  if (!group || !status) return []
+  return [...boardCellIssueKeys(state, mode, groupIndex, statusIndex).map((issueKey) => ({ kind: "issue" as const, issueKey })), { kind: "create" }]
+}
+
+export function boardItemAtLocation(state: AppState, mode: BoardMode, location: BoardLocation): BoardCellItem | undefined {
+  return boardCellItems(state, mode, location.groupIndex, location.statusIndex)[location.itemIndex]
+}
+
 export function boardIssueKeyAtLocation(state: AppState, mode: BoardMode, location: BoardLocation) {
-  return boardCellIssueKeys(state, mode, location.groupIndex, location.statusIndex)[location.itemIndex]
+  const item = boardItemAtLocation(state, mode, location)
+  return item?.kind === "issue" ? item.issueKey : undefined
 }
 
 export function selectedBoardLocation(state: AppState, mode: BoardMode, issueKey = state.selectedIssueKey): BoardLocation | undefined {
@@ -38,10 +46,16 @@ export function firstBoardLocation(state: AppState, mode: BoardMode): BoardLocat
   const statuses = configuredStatuses(state)
   for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
     for (let statusIndex = 0; statusIndex < statuses.length; statusIndex++) {
-      if (boardCellIssueKeys(state, mode, groupIndex, statusIndex).length) return { groupIndex, statusIndex, itemIndex: 0 }
+      if (boardCellItems(state, mode, groupIndex, statusIndex).length) return { groupIndex, statusIndex, itemIndex: 0 }
     }
   }
   return
+}
+
+export function selectedBoardItemLocation(state: AppState, mode: BoardMode): BoardLocation | undefined {
+  const selected = state.selectedBoardLocations[mode]
+  if (selected && boardItemAtLocation(state, mode, selected)) return selected
+  return selectedBoardLocation(state, mode) ?? firstBoardLocation(state, mode)
 }
 
 export function nextKanbanHorizontalLocation(state: AppState, location: BoardLocation, delta: 1 | -1): BoardLocation | undefined {

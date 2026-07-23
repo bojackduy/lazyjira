@@ -81,10 +81,10 @@ describe("Jira discovery client", () => {
       {
         name: "Task",
         statuses: [
-          { id: "10000", name: "Ready", statusCategory: { key: "new", name: "To Do" } },
-          { id: "3", name: "Development", statusCategory: { key: "indeterminate", name: "In Progress" } },
-          { id: "10001", name: "Code Review", statusCategory: { key: "indeterminate", name: "In Progress" } },
-          { id: "10002", name: "Released", statusCategory: { key: "done", name: "Done" } },
+          { id: "10000", name: "Ready", statusCategory: { key: "new", name: "To Do", colorName: "blue-gray" } },
+          { id: "3", name: "Development", statusCategory: { key: "indeterminate", name: "In Progress", colorName: "yellow" } },
+          { id: "10001", name: "Code Review", statusCategory: { key: "indeterminate", name: "In Progress", colorName: "yellow" } },
+          { id: "10002", name: "Released", statusCategory: { key: "done", name: "Done", colorName: "green" } },
         ],
       },
     ])
@@ -101,10 +101,10 @@ describe("Jira discovery client", () => {
     expect(metadata.columns.map((column) => column.name)).toEqual(["To Do", "In Progress", "Done"])
     expect(metadata.columns[1]?.statusIds).toEqual(["3", "10001"])
     expect(metadata.statuses).toEqual([
-      { id: "10000", name: "Ready", category: "todo", color: "#94A3B8" },
-      { id: "3", name: "Development", category: "in-progress", color: "#60A5FA" },
-      { id: "10001", name: "Code Review", category: "in-progress", color: "#60A5FA" },
-      { id: "10002", name: "Released", category: "done", color: "#34D399" },
+      { id: "10000", name: "Ready", category: "todo", color: "#22D3EE" },
+      { id: "3", name: "Development", category: "in-progress", color: "#38BDF8" },
+      { id: "10001", name: "Code Review", category: "in-progress", color: "#A78BFA" },
+      { id: "10002", name: "Released", category: "done", color: "#22C55E" },
     ])
   })
 
@@ -144,7 +144,7 @@ describe("Jira discovery client", () => {
           duedate: "2026-08-01",
         },
       },
-    ], "7", [{ id: "10001", name: "In Progress", category: "in-progress", color: "#60A5FA" }])
+    ], "7", [{ id: "10001", name: "In Progress", category: "in-progress", color: "#38BDF8" }])
 
     expect(issues[0]).toMatchObject({
       key: "PROJ-1",

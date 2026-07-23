@@ -1,5 +1,5 @@
 import type { IssuePriority, IssueSummary, SprintSummary, StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
-import { statusColorForCategory } from "../state/metadata-colors"
+import { statusColorForStatus } from "../state/metadata-colors"
 import type { JiraBoardConfiguration, JiraIssue, JiraProjectStatusesByIssueType, JiraSprint } from "./client"
 
 type JiraIssueFields = NonNullable<JiraIssue["fields"]>
@@ -9,14 +9,14 @@ export type BoardMetadata = {
   columns: StatusColumn[]
 }
 
-export type JiraStatusLookup = Map<string, { name: string; category?: StatusCategory }>
+export type JiraStatusLookup = Map<string, { name: string; category?: StatusCategory; colorName?: string }>
 
 export function normalizeProjectStatuses(issueTypes: JiraProjectStatusesByIssueType[]): JiraStatusLookup {
   const statuses: JiraStatusLookup = new Map()
   for (const issueType of issueTypes) {
     for (const status of issueType.statuses ?? []) {
       if (!status.id || !status.name || statuses.has(status.id)) continue
-      statuses.set(status.id, { name: status.name, category: statusCategoryForJiraValue(status.statusCategory?.key ?? status.statusCategory?.name) })
+      statuses.set(status.id, { name: status.name, category: statusCategoryForJiraValue(status.statusCategory?.key ?? status.statusCategory?.name), colorName: status.statusCategory?.colorName })
     }
   }
   return statuses
@@ -33,18 +33,19 @@ export function normalizeBoardConfiguration(config: JiraBoardConfiguration, stat
     const columnName = column.name?.trim() || `Column ${columnIndex + 1}`
     const category = statusCategoryForColumn(columnName, columnIndex, columns.length)
     const statusIds = (column.statuses ?? []).flatMap((status) => status.id ? [status.id] : [])
-    const color = statusColorForCategory(category)
+    const columnColor = statusColorForStatus(columnName, category)
 
-    statusColumns.push({ id: columnId(columnName, columnIndex), name: columnName, issueKeys: [], statusIds, category, color })
+    statusColumns.push({ id: columnId(columnName, columnIndex), name: columnName, issueKeys: [], statusIds, category, color: columnColor })
 
     for (let statusIndex = 0; statusIndex < statusIds.length; statusIndex += 1) {
       const statusId = statusIds[statusIndex]!
       const knownStatus = statusLookup.get(statusId)
+      const statusName = knownStatus?.name ?? statusNameForColumn(columnName, statusIndex, statusIds.length)
       statuses.push({
         id: statusId,
-        name: knownStatus?.name ?? statusName(columnName, statusIndex, statusIds.length),
+        name: statusName,
         category,
-        color,
+        color: statusColorForStatus(statusName, category, columnName, knownStatus?.colorName),
       })
     }
   }
@@ -93,7 +94,7 @@ export function normalizeSprintIssues(issues: JiraIssue[], sprintId: string, sta
   })
 }
 
-function statusName(columnName: string, index: number, columnStatusCount: number) {
+function statusNameForColumn(columnName: string, index: number, columnStatusCount: number) {
   return columnStatusCount > 1 ? `${columnName} ${index + 1}` : columnName
 }
 

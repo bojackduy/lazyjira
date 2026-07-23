@@ -49,6 +49,12 @@ export type BoardGroupBy = "none" | "assignee" | "epic" | "feature" | "space" | 
 
 export type BoardMode = "active-sprint" | "kanban"
 
+export type BoardLocation = {
+  groupIndex: number
+  statusIndex: number
+  itemIndex: number
+}
+
 export type BacklogGroupBy = "sprint" | Exclude<BoardGroupBy, "none">
 
 export type IssueEditableField =
@@ -251,6 +257,7 @@ export type AppState = {
   activeSprintStatusOffset: number
   kanbanStatusOffset: number
   selectedIssueKey: string
+  selectedBoardLocations: Partial<Record<BoardMode, BoardLocation>>
   inspectorSelectedFieldIndex: number
   inspectorEditingFieldId?: IssueEditableField
   inspectorEditValue: string

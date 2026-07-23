@@ -2,7 +2,7 @@ import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
 import { normalizeBaseUrl, saveJiraAuthConfig, type JiraWorkspaceConfig } from "../auth/config"
 import type { WorkspaceSource, LoadedWorkspace } from "../workspace/types"
-import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, ProjectOption, QuickFilterId, StatusCategory, WorkspaceOption } from "../state/app-state"
+import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, ProjectOption, QuickFilterId, StatusCategory, WorkspaceOption } from "../state/app-state"
 import {
   colorableConfigSection,
   configuredColumns,
@@ -93,6 +93,7 @@ export type AppStateContext = {
   confirmStagedDiscard: () => void
   applyIssueChanges: () => void
   createDraftIssue: (issue: IssueSummary) => void
+  setSelectedBoardLocation: (mode: BoardMode, location: BoardLocation | undefined) => void
   setActiveSprintGroupBy: (groupBy: BoardGroupBy) => void
   setKanbanGroupBy: (groupBy: BoardGroupBy) => void
   setBacklogGroupBy: (groupBy: BacklogGroupBy) => void
@@ -167,6 +168,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("issues", reconcile(workspace.issues))
     setState("stats", workspace.stats)
     setState("selectedIssueKey", workspace.selectedIssueKey)
+    setState("selectedBoardLocations", {})
     setState("workspaceSelectedIndex", 0)
     setState("workspaceFocusedArea", "cards")
     setState("workspaceResultSelectedIndex", 0)
@@ -762,6 +764,9 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("inspectorSelectedFieldIndex", issueFields.findIndex((field) => field.id === "title"))
       setState("inspectorEditingFieldId", "title")
       setState("inspectorEditValue", issue.title)
+    },
+    setSelectedBoardLocation(mode, location) {
+      setState("selectedBoardLocations", mode, location)
     },
     setActiveSprintGroupBy(groupBy) {
       setState("activeSprintGroupBy", groupBy)

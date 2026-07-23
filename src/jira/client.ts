@@ -33,6 +33,7 @@ export type JiraProjectStatusMetadata = {
   statusCategory?: {
     key?: string
     name?: string
+    colorName?: string
   }
 }
 

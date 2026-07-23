@@ -165,7 +165,7 @@ The right inspector pane is the quick issue/status/edit surface and stays visibl
 
 Purpose: inspect board/project metadata without turning the app into a Jira admin console.
 
-In dev/local mode, Board Columns, Statuses, and Issue Types can be staged with `a` add, `e` rename, `c` color, and `x` remove. Board Columns summarize Jira board lanes and their mapped workflow statuses; Statuses shows the detailed workflow state list. `j/k` moves row by row, `d/u` pages through long metadata lists, `w` renders staged metadata locally while keeping it discardable, `X` discards staged changes, and `W` opens the future Jira write review placeholder. Priorities, Fields, and Quick Filters stay read-only but focusable until the model and API support are real.
+In dev/local mode, Board Columns, Statuses, and Issue Types can be staged with `a` add, `e` rename, `c` color, and `x` remove. Board Columns summarize Jira board lanes and their mapped workflow statuses; Statuses shows the detailed workflow state list. Status colors use app semantic rules for readable terminal contrast, with Jira `statusCategory.colorName` only as a fallback signal; issue types, priorities, and blocked signals use app semantic colors. `j/k` moves row by row, `d/u` pages through long metadata lists, `w` renders staged metadata locally while keeping it discardable, `X` discards staged changes, and `W` opens the future Jira write review placeholder. Priorities, Fields, and Quick Filters stay read-only but focusable until the model and API support are real.
 
 ### 7. Search And Command Palette
 

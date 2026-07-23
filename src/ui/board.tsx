@@ -156,14 +156,14 @@ function Legend(props: { statuses: ReturnType<typeof visibleStatusesForBoard> })
 
   return (
     <box flexDirection="column" gap={1}>
-      <box flexDirection="row" gap={1}>
+      <box flexDirection="row" flexWrap="wrap" gap={1}>
         <For each={configuredIssueTypes(state)}>
-          {(issueType) => <text fg={theme.textSubtle} wrapMode="none"><span style={{ fg: issueType.color }}>■</span> {shortType(issueType.name)}</text>}
+          {(issueType) => <text fg={theme.textSubtle} flexShrink={0} wrapMode="none"><span style={{ fg: issueType.color }}>■</span> {shortType(issueType.name)}</text>}
         </For>
       </box>
-      <box flexDirection="row" gap={1}>
+      <box flexDirection="row" flexWrap="wrap" gap={1}>
         <For each={props.statuses}>
-          {(status) => <text fg={status.color} width={14} flexShrink={0} wrapMode="none">● {shortStatus(status.name)}</text>}
+          {(status) => <text fg={theme.textSubtle} flexShrink={0} wrapMode="none"><span style={{ fg: status.color }}>●</span> {status.name}</text>}
         </For>
       </box>
     </box>
@@ -173,11 +173,5 @@ function Legend(props: { statuses: ReturnType<typeof visibleStatusesForBoard> })
 function shortType(name: string) {
   if (name === "Feature") return "Feat"
   if (name === "Subtask") return "Sub"
-  return name
-}
-
-function shortStatus(name: string) {
-  if (name === "In Progress") return "Prog"
-  if (name === "Code Review") return "Review"
   return name
 }

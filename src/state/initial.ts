@@ -61,6 +61,7 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     activeSprintStatusOffset: 0,
     kanbanStatusOffset: 0,
     selectedIssueKey: workspace.selectedIssueKey,
+    selectedBoardLocations: {},
     inspectorSelectedFieldIndex: 1,
     inspectorEditValue: "",
     issueDrafts: {},
