@@ -1,5 +1,6 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { fetchAccessibleProjects, fetchProjectBoards } from "../../jira/client"
+import { fetchAccessibleProjects, fetchBoardConfiguration, fetchProjectBoards, type FetchLike } from "../../jira/client"
+import { normalizeBoardConfiguration } from "../../jira/normalize"
 import { createLoadedWorkspace, type WorkspaceSelection, type WorkspaceSource } from "../types"
 
 const prodPlaceholderStatuses = [
@@ -13,30 +14,35 @@ const prodPlaceholderIssueTypes = [
   { id: "Bug", name: "Bug", color: "#EF4444" },
 ]
 
-export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConfig | undefined> = loadJiraAuthConfig): WorkspaceSource {
+export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConfig | undefined> = loadJiraAuthConfig, fetchImpl: FetchLike = fetch): WorkspaceSource {
   return {
     env: "prod",
     async fetchProjects() {
-      return fetchAccessibleProjects(await requireJiraAuth(authLoader))
+      return fetchAccessibleProjects(await requireJiraAuth(authLoader), fetchImpl)
     },
     async fetchBoards(projectKeyOrId) {
-      return fetchProjectBoards(await requireJiraAuth(authLoader), projectKeyOrId)
+      return fetchProjectBoards(await requireJiraAuth(authLoader), projectKeyOrId, fetchImpl)
     },
     async loadWorkspace(selection) {
-      return createProdNotWiredWorkspace(selection)
+      const auth = await requireJiraAuth(authLoader)
+      const metadata = selection.board.id ? normalizeBoardConfiguration(await fetchBoardConfiguration(auth, selection.board.id, fetchImpl)) : undefined
+      return createProdNotWiredWorkspace(selection, metadata)
     },
   }
 }
 
-function createProdNotWiredWorkspace(selection: WorkspaceSelection) {
+function createProdNotWiredWorkspace(selection: WorkspaceSelection, metadata?: ReturnType<typeof normalizeBoardConfiguration>) {
   const notice = selection.project.key === "JIRA"
     ? "Prod runtime is waiting for a Jira project selection. Real tickets will stay empty until issue loading is wired."
-    : "Prod Jira issue loading is not wired yet. Project and board selection are real; tickets are intentionally empty."
+    : metadata?.statuses.length
+      ? "Prod board metadata is loaded from Jira. Issue loading is next, so tickets are intentionally empty."
+      : "Prod Jira issue loading is not wired yet. Project and board selection are real; tickets are intentionally empty."
   return createLoadedWorkspace({
     ...selection,
     activeSprintId: "",
     sprints: [],
-    statuses: prodPlaceholderStatuses,
+    statuses: metadata?.statuses.length ? metadata.statuses : prodPlaceholderStatuses,
+    columns: metadata?.columns.length ? metadata.columns : undefined,
     issueTypes: prodPlaceholderIssueTypes,
     issues: [],
     selectedIssueKey: "",

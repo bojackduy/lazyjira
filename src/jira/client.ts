@@ -12,6 +12,21 @@ export type JiraBoardOption = {
   type: "scrum" | "kanban"
 }
 
+export type JiraBoardConfiguration = {
+  id?: number | string
+  name?: string
+  type?: string
+  columnConfig?: {
+    columns?: Array<{
+      name?: string
+      statuses?: Array<{
+        id?: string
+        self?: string
+      }>
+    }>
+  }
+}
+
 export type JiraErrorCategory = "auth" | "permission" | "not-found" | "rate-limit" | "network" | "invalid-response" | "http"
 
 export type JiraApiErrorOptions = {
@@ -71,6 +86,10 @@ export async function fetchProjectBoards(auth: JiraAuthConfig, projectKeyOrId: s
     if (!board.id || !board.name || (board.type !== "scrum" && board.type !== "kanban")) return []
     return [{ id: String(board.id), name: board.name, type: board.type }]
   })
+}
+
+export async function fetchBoardConfiguration(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch): Promise<JiraBoardConfiguration> {
+  return jiraRequest<JiraBoardConfiguration>(auth, `/rest/agile/1.0/board/${encodeURIComponent(boardId)}/configuration`, { endpoint: "board configuration" }, fetchImpl)
 }
 
 export async function fetchJiraPages<T>(auth: JiraAuthConfig, path: string, options: JiraPaginationOptions = {}, fetchImpl: FetchLike = fetch): Promise<T[]> {

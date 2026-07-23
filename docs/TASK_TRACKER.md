@@ -34,8 +34,8 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 
 - [x] A0 Auth, dev/prod runtime env, and discovery baseline.
 - [x] A1 Client foundation and actionable error mapping.
-- [ ] A1.5 Local workspace switcher and remote browse mode.
-- [ ] A2 Board metadata loader for columns, statuses, issue types, and fields.
+- [x] A1.5 Local workspace switcher and remote browse mode.
+- [~] A2 Board metadata loader for columns, statuses, issue types, and fields.
 - [ ] A3 Active sprint, future sprint, and bounded backlog issue loading.
 - [ ] A4 Local-first project selection and workspace loading integration with refresh/loading/error state.
 - [ ] A5 Issue detail and comments loading with stale-response protection.

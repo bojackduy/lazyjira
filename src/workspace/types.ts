@@ -23,6 +23,7 @@ export type WorkspaceFixtureInput = WorkspaceSelection & {
   activeSprintId?: string
   sprints: SprintSummary[]
   statuses: StatusDefinition[]
+  columns?: StatusColumn[]
   issueTypes: IssueTypeDefinition[]
   issues: IssueSummary[]
   quickFilters?: QuickFilterDefinition[]
@@ -44,7 +45,7 @@ export function createLoadedWorkspace(input: WorkspaceFixtureInput): LoadedWorks
     sprints: input.sprints,
     statuses: input.statuses,
     issueTypes: input.issueTypes,
-    columns: input.statuses.map((status) => ({
+    columns: input.columns ?? input.statuses.map((status) => ({
       id: status.id,
       name: status.name,
       issueKeys: enrichedIssues.filter((issue) => issue.sprintId === activeSprintId && issue.statusId === status.id).map((issue) => issue.key),

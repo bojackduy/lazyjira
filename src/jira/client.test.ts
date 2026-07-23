@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { fetchAccessibleProjects, fetchJiraPages, fetchProjectBoards, jiraRequest, JiraApiError } from "./client"
+import { fetchAccessibleProjects, fetchBoardConfiguration, fetchJiraPages, fetchProjectBoards, jiraRequest, JiraApiError } from "./client"
+import { normalizeBoardConfiguration } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
 const auth: JiraAuthConfig = { baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }
@@ -23,6 +24,35 @@ describe("Jira discovery client", () => {
     })
 
     expect(boards).toEqual([{ id: "42", name: "Product Scrum", type: "scrum" }])
+  })
+
+  test("fetches board configuration", async () => {
+    const config = await fetchBoardConfiguration(auth, "42", async (url) => {
+      expect(url).toBe("https://team.atlassian.net/rest/agile/1.0/board/42/configuration")
+      return jsonResponse({ id: 42, name: "Product Scrum", columnConfig: { columns: [{ name: "To Do", statuses: [{ id: "10000" }] }] } })
+    })
+
+    expect(config.columnConfig?.columns?.[0]?.name).toBe("To Do")
+  })
+
+  test("normalizes board columns into app statuses", () => {
+    const metadata = normalizeBoardConfiguration({
+      columnConfig: {
+        columns: [
+          { name: "To Do", statuses: [{ id: "10000" }] },
+          { name: "In Progress", statuses: [{ id: "3" }, { id: "10001" }] },
+          { name: "Done", statuses: [{ id: "10002" }] },
+        ],
+      },
+    })
+
+    expect(metadata.columns.map((column) => column.name)).toEqual(["To Do", "In Progress", "Done"])
+    expect(metadata.statuses).toEqual([
+      { id: "10000", name: "To Do", category: "todo", color: "#64748B" },
+      { id: "3", name: "In Progress 1", category: "in-progress", color: "#38BDF8" },
+      { id: "10001", name: "In Progress 2", category: "in-progress", color: "#38BDF8" },
+      { id: "10002", name: "Done", category: "done", color: "#22C55E" },
+    ])
   })
 
   test("sends Jira auth and JSON headers", async () => {

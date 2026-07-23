@@ -195,6 +195,8 @@ Verification:
 
 ### A1.5. Local Workspace Switcher And Remote Browse Mode
 
+Status: complete.
+
 Implementation:
 
 - Make `P` open a local workspace switcher first, backed by saved prod/dev recent workspaces.
@@ -214,6 +216,8 @@ Verification:
 - State tests proving final workspace loading happens only after board selection.
 
 ### A2. Board Metadata Loader
+
+Status: in progress. Board configuration, columns, and status IDs are wired; issue type/custom field discovery remains.
 
 Implementation:
 
