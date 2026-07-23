@@ -1,11 +1,23 @@
 import { describe, expect, test } from "bun:test"
 import { loadDevWorkspaceState } from "./dev"
-import { filteredProjectPickerBoards, filteredProjectPickerProjects } from "./project-picker"
+import { filteredProjectPickerBoards, filteredProjectPickerProjects, filteredProjectPickerWorkspaces } from "./project-picker"
 
 describe("project picker filtering", () => {
+  test("filters local workspaces by project and board", () => {
+    const state = loadDevWorkspaceState()
+    state.recentWorkspaces = [
+      { id: "PROJ:10", projectKey: "PROJ", projectName: "Product Platform", boardId: "10", boardName: "Platform Kanban", boardType: "kanban" },
+      { id: "MOB:20", projectKey: "MOB", projectName: "Mobile Apps", boardId: "20", boardName: "Release Scrum", boardType: "scrum" },
+    ]
+
+    state.projectPicker.searchQuery = "mobile scrum"
+
+    expect(filteredProjectPickerWorkspaces(state).map((workspace) => workspace.id)).toEqual(["MOB:20"])
+  })
+
   test("filters projects by key and name", () => {
     const state = loadDevWorkspaceState()
-    state.projectPicker.projects = [
+    state.projectPicker.remoteProjectCache = [
       { id: "dev-proj", key: "PROJ", name: "Product Platform" },
       { id: "dev-mob", key: "MOB", name: "Mobile Apps" },
       { id: "dev-ops", key: "OPS", name: "Internal Operations" },
@@ -20,7 +32,8 @@ describe("project picker filtering", () => {
 
   test("filters boards by name, type, and id", () => {
     const state = loadDevWorkspaceState()
-    state.projectPicker.boards = [
+    state.projectPicker.selectedProject = { id: "dev-proj", key: "PROJ", name: "Product Platform" }
+    state.projectPicker.remoteBoardsByProject.PROJ = [
       { id: "10", name: "Platform Kanban", type: "kanban" },
       { id: "20", name: "Release Scrum", type: "scrum" },
     ]

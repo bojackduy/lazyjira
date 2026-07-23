@@ -37,7 +37,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [ ] A1.5 Local workspace switcher and remote browse mode.
 - [ ] A2 Board metadata loader for columns, statuses, issue types, and fields.
 - [ ] A3 Active sprint, future sprint, and bounded backlog issue loading.
-- [ ] A4 Project selection and workspace loading integration with refresh/loading/error state.
+- [ ] A4 Local-first project selection and workspace loading integration with refresh/loading/error state.
 - [ ] A5 Issue detail and comments loading with stale-response protection.
 - [ ] A6 Remote search mode separate from `/` loaded filtering.
 - [ ] A7 Safe write review preparation from staged changes.

@@ -26,6 +26,8 @@ export type LazyJiraConfigFile = {
   jira?: JiraAuthConfig
   prodWorkspace?: JiraWorkspaceConfig
   devWorkspace?: JiraWorkspaceConfig
+  prodRecentWorkspaces?: JiraWorkspaceConfig[]
+  devRecentWorkspaces?: JiraWorkspaceConfig[]
 }
 
 export function lazyJiraConfigPath(env: Record<string, string | undefined> = process.env) {
@@ -64,12 +66,14 @@ export async function saveJiraAuthConfig(auth: JiraAuthConfig, env: Record<strin
 
 export async function saveProdWorkspaceConfig(workspace: JiraWorkspaceConfig, env: Record<string, string | undefined> = process.env) {
   const current = await loadExistingConfigForSave(env)
-  return saveLazyJiraConfig({ ...current, prodWorkspace: normalizeJiraWorkspaceConfig(workspace) }, env)
+  const normalized = normalizeJiraWorkspaceConfig(workspace)
+  return saveLazyJiraConfig({ ...current, prodWorkspace: normalized, prodRecentWorkspaces: recentWorkspacesWith(normalized, current?.prodRecentWorkspaces) }, env)
 }
 
 export async function saveDevWorkspaceConfig(workspace: JiraWorkspaceConfig, env: Record<string, string | undefined> = process.env) {
   const current = await loadExistingConfigForSave(env)
-  return saveLazyJiraConfig({ ...current, devWorkspace: normalizeJiraWorkspaceConfig(workspace) }, env)
+  const normalized = normalizeJiraWorkspaceConfig(workspace)
+  return saveLazyJiraConfig({ ...current, devWorkspace: normalized, devRecentWorkspaces: recentWorkspacesWith(normalized, current?.devRecentWorkspaces) }, env)
 }
 
 export async function saveLazyJiraConfig(config: LazyJiraConfigFile, env: Record<string, string | undefined> = process.env) {
@@ -78,6 +82,8 @@ export async function saveLazyJiraConfig(config: LazyJiraConfigFile, env: Record
     jira: config.jira ? normalizeJiraAuthConfig(config.jira) : undefined,
     prodWorkspace: config.prodWorkspace ? normalizeJiraWorkspaceConfig(config.prodWorkspace) : undefined,
     devWorkspace: config.devWorkspace ? normalizeJiraWorkspaceConfig(config.devWorkspace) : undefined,
+    prodRecentWorkspaces: normalizeRecentWorkspaces(config.prodRecentWorkspaces, config.prodWorkspace),
+    devRecentWorkspaces: normalizeRecentWorkspaces(config.devRecentWorkspaces, config.devWorkspace),
   }
   await mkdir(dirname(path), { recursive: true, mode: 0o700 })
   await writeFile(path, `${JSON.stringify(dropUndefined(normalized), null, 2)}\n`, { mode: 0o600 })
@@ -149,10 +155,14 @@ function parseConfigFile(value: unknown, path: string): LazyJiraConfigFile {
   if (typeof value.baseUrl === "string" || typeof value.email === "string" || typeof value.apiToken === "string") {
     return { jira: parseJiraAuth(value, path) }
   }
+  const prodWorkspace = workspaceFromValue(value.prodWorkspace ?? value.workspace, path)
+  const devWorkspace = workspaceFromValue(value.devWorkspace ?? value.demoWorkspace, path)
   return {
     jira: value.jira === undefined ? undefined : parseJiraAuth(value.jira, path),
-    prodWorkspace: workspaceFromValue(value.prodWorkspace ?? value.workspace, path),
-    devWorkspace: workspaceFromValue(value.devWorkspace ?? value.demoWorkspace, path),
+    prodWorkspace,
+    devWorkspace,
+    prodRecentWorkspaces: recentWorkspacesFromValue(value.prodRecentWorkspaces, path, prodWorkspace),
+    devRecentWorkspaces: recentWorkspacesFromValue(value.devRecentWorkspaces, path, devWorkspace),
   }
 }
 
@@ -186,6 +196,31 @@ function parseJiraWorkspace(value: unknown, path: string): JiraWorkspaceConfig {
   }
   const boardType = value.boardType === "kanban" ? "kanban" : "scrum"
   return normalizeJiraWorkspaceConfig({ projectKey: value.projectKey, projectName: value.projectName, boardId: value.boardId, boardName: value.boardName, boardType })
+}
+
+function recentWorkspacesFromValue(value: unknown, path: string, active?: JiraWorkspaceConfig) {
+  if (value === undefined) return normalizeRecentWorkspaces(undefined, active)
+  if (!Array.isArray(value)) throw new Error(`Invalid Jira recent workspace config at ${path}`)
+  return normalizeRecentWorkspaces(value.map((workspace) => parseJiraWorkspace(workspace, path)), active)
+}
+
+function normalizeRecentWorkspaces(workspaces: JiraWorkspaceConfig[] | undefined, active?: JiraWorkspaceConfig) {
+  const normalized = recentWorkspacesWith(active ? normalizeJiraWorkspaceConfig(active) : undefined, workspaces)
+  return normalized.length ? normalized : undefined
+}
+
+function recentWorkspacesWith(active: JiraWorkspaceConfig | undefined, workspaces: JiraWorkspaceConfig[] | undefined) {
+  const seen = new Set<string>()
+  const normalized: JiraWorkspaceConfig[] = []
+  for (const workspace of [active, ...(workspaces ?? [])]) {
+    if (!workspace) continue
+    const next = normalizeJiraWorkspaceConfig(workspace)
+    const key = `${next.projectKey}:${next.boardId}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    normalized.push(next)
+  }
+  return normalized
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

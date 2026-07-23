@@ -1,15 +1,22 @@
-import type { AppState, BoardOption, ProjectOption } from "./app-state"
+import type { AppState, BoardOption, ProjectOption, WorkspaceOption } from "./app-state"
+
+export function filteredProjectPickerWorkspaces(state: AppState): WorkspaceOption[] {
+  return state.recentWorkspaces.filter((workspace) => matchesQuery(state.projectPicker.searchQuery, [workspace.projectKey, workspace.projectName, workspace.boardId, workspace.boardName, workspace.boardType]))
+}
 
 export function filteredProjectPickerProjects(state: AppState): ProjectOption[] {
-  return state.projectPicker.projects.filter((project) => matchesQuery(state.projectPicker.searchQuery, [project.key, project.name, project.id]))
+  return (state.projectPicker.remoteProjectCache ?? []).filter((project) => matchesQuery(state.projectPicker.searchQuery, [project.key, project.name, project.id]))
 }
 
 export function filteredProjectPickerBoards(state: AppState): BoardOption[] {
-  return state.projectPicker.boards.filter((board) => matchesQuery(state.projectPicker.searchQuery, [board.name, board.type, board.id]))
+  const projectKey = state.projectPicker.selectedProject?.key
+  const boards = projectKey ? (state.projectPicker.remoteBoardsByProject[projectKey] ?? []) : []
+  return boards.filter((board) => matchesQuery(state.projectPicker.searchQuery, [board.name, board.type, board.id]))
 }
 
-export function filteredProjectPickerOptions(state: AppState): Array<ProjectOption | BoardOption> {
-  return state.projectPicker.step === "project" ? filteredProjectPickerProjects(state) : filteredProjectPickerBoards(state)
+export function filteredProjectPickerOptions(state: AppState): Array<WorkspaceOption | ProjectOption | BoardOption> {
+  if (state.projectPicker.mode === "local") return filteredProjectPickerWorkspaces(state)
+  return state.projectPicker.mode === "remote-projects" ? filteredProjectPickerProjects(state) : filteredProjectPickerBoards(state)
 }
 
 function matchesQuery(query: string, values: string[]) {

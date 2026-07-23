@@ -257,11 +257,13 @@ Credentials are stored at `~/.config/lazyjira/config.json` with user-only file p
 
 ### Jira Project Selection
 
-In prod runtime, after credentials are saved, the TUI opens a project picker backed by Jira project/board APIs. Press `P` later to switch the active project/board without editing config or restarting. In the picker, press `/` to filter by project key/name or board name/type.
+Press `P` to open the local workspace switcher. It shows recently saved project/board contexts instantly and does not fetch Jira's remote project list. Press `/` in this popup to filter saved workspaces, and press `Enter` to switch to the selected local workspace.
 
-For local smoke testing without Jira credentials, start with `lazyjira dev` or `bun run start:dev` and choose from bundled dev Kanban projects and boards. Press `P` later to reopen the same picker. Dev runtime loads different fixture tickets for `PROJ`, `MOB`, and `OPS`.
+Remote Jira discovery is explicit. From the workspace switcher, press `a` to browse Jira projects. Only then does `lazyjira` fetch the remote project list. In remote project mode, press `/` to filter the fetched project list locally, `r` to refresh projects, and `Enter` to choose one project. `lazyjira` then fetches boards only for that project. In board mode, press `Enter` to select the final project+board, save it to recent workspaces, make it active, and load/sync only that selected workspace. Press `h` or Backspace from boards to return to remote projects, then again to return to local workspaces.
 
-Prod selections are persisted under `prodWorkspace`; dev selections are persisted separately under `devWorkspace`. Auth updates preserve both workspaces, and workspace updates preserve the saved API token. Prod issue/sprint/backlog data loading is not wired yet, so prod runtime intentionally shows an empty not-wired workspace after selecting a real project instead of leaking dev fixture tickets.
+For local smoke testing without Jira credentials, start with `lazyjira dev` or `bun run start:dev`. Press `P` for saved fixture workspaces or `a` to browse the bundled dev projects and boards. Dev runtime loads different fixture tickets for `PROJ`, `MOB`, and `OPS`.
+
+Prod selections are persisted under `prodWorkspace` and `prodRecentWorkspaces`; dev selections are persisted separately under `devWorkspace` and `devRecentWorkspaces`. Auth updates preserve workspace context, and workspace updates preserve the saved API token. Prod issue/sprint/backlog data loading is not wired yet, so prod runtime intentionally shows an empty not-wired workspace after selecting a real project instead of leaking dev fixture tickets.
 
 ### Phase 1: Dev Fixture Board Foundation
 

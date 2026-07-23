@@ -11,7 +11,7 @@ Success means a configured user can choose a Jira-backed project/board in `prod`
 - Auth/config exists in `src/auth/config.ts` and supports one Jira site, email, API token, selected prod workspace, and selected dev workspace.
 - Project/board discovery exists in `src/jira/client.ts` with `fetchAccessibleProjects()` and `fetchProjectBoards()`, and is consumed by `src/workspace/prod/source.ts`.
 - Runtime env exists in `src/runtime/env.ts`: normal startup defaults to `prod`; `dev` opts into fixture-backed workspace data.
-- Startup loads config in `src/main.tsx`, injects either prod or dev `WorkspaceSource`, injects either prod or dev workspace persistence, opens onboarding when prod lacks auth, and opens the project picker when the active env has no saved workspace.
+- Startup loads config in `src/main.tsx`, injects either prod or dev `WorkspaceSource`, injects either prod or dev workspace persistence, opens onboarding when prod lacks auth, and opens the local-first workspace switcher when the active env has no saved workspace.
 - Project selection already calls `source.loadWorkspace()`, persists the selected workspace, and applies the loaded workspace into shared app state.
 - UI state already has project, board, sprint, status, issue, issue draft, delete draft, config draft, search, and remote-write review fields.
 - Rendering already reads from shared state/selectors; Jira calls should stay out of route/component render code.
@@ -20,7 +20,7 @@ Success means a configured user can choose a Jira-backed project/board in `prod`
 
 - Dev env must be explicit and must keep working without credentials.
 - Prod env must not silently fall back to fixture data when credentials are missing; it should open auth onboarding instead.
-- Prod selections persist under `prodWorkspace`; dev selections persist under `devWorkspace`; auth saves must preserve both.
+- Prod selections persist under `prodWorkspace` and `prodRecentWorkspaces`; dev selections persist under `devWorkspace` and `devRecentWorkspaces`; auth saves must preserve both.
 - UI components must not import Jira endpoint functions directly.
 - Raw Jira DTOs must not leak beyond `src/jira/*` and loader/normalizer tests.
 - `/` remains `Filter loaded`; remote Jira/JQL search is a separate mode.
@@ -48,18 +48,22 @@ The existing `src/jira/client.ts` can be evolved in place instead of moving file
 
 ## Project Selection Contract
 
-Project selection is already wired through `WorkspaceSource` and should stay the entry point for real data loading.
+Project selection is already wired through `WorkspaceSource` and should stay the entry point for real data loading. The chooser is local-first: `P` means "switch workspace," not "load all Jira projects."
 
 Runtime behavior:
 
 - `lazyjira` / `bun run start`: `runtimeEnv = "prod"`, use `createProdWorkspaceSource()`, read/write selected workspace through `prodWorkspace`, and require Jira credentials.
 - `lazyjira dev` / `bun run start:dev` / `bun run dev`: `runtimeEnv = "dev"`, use `createDevWorkspaceSource()`, read/write selected workspace through `devWorkspace`, and never require Jira credentials.
-- `P` reopens the same picker source for the current runtime env.
-- `saveSelectedProjectContext()` loads the selected workspace through `source.loadWorkspace()`, persists the correct workspace config key through injected persistence, and applies the loaded workspace into state.
+- `P` opens saved local workspaces immediately with no remote discovery.
+- In the local switcher, `/` filters saved workspaces and `Enter` switches to the selected saved project+board.
+- In the local switcher, `a` enters remote project discovery; only this path calls `source.fetchProjects()`.
+- Remote project mode filters the cached project list locally with `/`, refreshes it with `r`, and fetches boards only after one project is selected.
+- Remote board mode fetches/refreshes boards only for the selected project; `Enter` finalizes the selected project+board.
+- `saveSelectedProjectContext()` loads the final selected workspace through `source.loadWorkspace()`, persists the correct workspace config key and recent list through injected persistence, and applies the loaded workspace into state.
 
 When read-only issue loading is added:
 
-- Selecting a prod board should load the workspace through `createProdWorkspaceSource().loadWorkspace()`; today this returns an explicit empty/not-wired workspace, and future phases should replace that with real Jira issue loading.
+- Selecting a prod board should load only that selected workspace through `createProdWorkspaceSource().loadWorkspace()`; today this returns an explicit empty/not-wired workspace, and future phases should replace that with real Jira issue loading.
 - Selecting a dev board should keep using fixture data through `createDevWorkspaceSource()`, not real Jira endpoints.
 - Same-workspace refresh can keep previous successful data visible until replacement data is ready.
 - Cross-workspace switching should either keep the old workspace active until the new load succeeds or switch to a clear loading/empty/error state; it must not display old issues under the new project header.

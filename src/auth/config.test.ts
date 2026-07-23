@@ -93,6 +93,20 @@ describe("Jira auth config", () => {
       const loaded = await loadLazyJiraConfig(env)
       expect(loaded?.jira).toEqual({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" })
       expect(loaded?.prodWorkspace).toEqual({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" })
+      expect(loaded?.prodRecentWorkspaces).toEqual([{ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" }])
+    })
+  })
+
+  test("keeps most recent prod workspaces first without duplicates", async () => {
+    await withTempConfig(async (env) => {
+      await saveProdWorkspaceConfig({ projectKey: "PROJ", projectName: "Product", boardId: "42", boardName: "Product Kanban", boardType: "kanban" }, env)
+      await saveProdWorkspaceConfig({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" }, env)
+      await saveProdWorkspaceConfig({ projectKey: "PROJ", projectName: "Product", boardId: "42", boardName: "Product Kanban", boardType: "kanban" }, env)
+
+      const loaded = await loadLazyJiraConfig(env)
+
+      expect(loaded?.prodWorkspace?.projectKey).toBe("PROJ")
+      expect(loaded?.prodRecentWorkspaces?.map((workspace) => `${workspace.projectKey}:${workspace.boardId}`)).toEqual(["PROJ:42", "ENG:7"])
     })
   })
 
@@ -106,6 +120,8 @@ describe("Jira auth config", () => {
       expect(loaded?.jira?.apiToken).toBe("token")
       expect(loaded?.devWorkspace).toEqual({ projectKey: "DEV", projectName: "Dev", boardId: "dev-1", boardName: "Dev Kanban", boardType: "kanban" })
       expect(loaded?.prodWorkspace).toEqual({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" })
+      expect(loaded?.devRecentWorkspaces?.map((workspace) => workspace.projectKey)).toEqual(["DEV"])
+      expect(loaded?.prodRecentWorkspaces?.map((workspace) => workspace.projectKey)).toEqual(["ENG"])
     })
   })
 
@@ -119,6 +135,8 @@ describe("Jira auth config", () => {
       const loaded = await loadLazyJiraConfig(env)
       expect(loaded?.prodWorkspace?.projectKey).toBe("ENG")
       expect(loaded?.devWorkspace?.projectKey).toBe("DEV")
+      expect(loaded?.prodRecentWorkspaces?.map((workspace) => workspace.projectKey)).toEqual(["ENG"])
+      expect(loaded?.devRecentWorkspaces?.map((workspace) => workspace.projectKey)).toEqual(["DEV"])
     })
   })
 

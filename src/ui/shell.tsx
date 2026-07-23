@@ -8,7 +8,7 @@ import { useToast } from "../context/toast"
 import { RouteSurface } from "../routes"
 import { issueByKey } from "../state/issue-drafts"
 import type { AppState } from "../state/app-state"
-import { filteredProjectPickerBoards, filteredProjectPickerProjects } from "../state/project-picker"
+import { filteredProjectPickerBoards, filteredProjectPickerProjects, filteredProjectPickerWorkspaces } from "../state/project-picker"
 import { routeLabel, sidebarRoutes } from "../state/routes"
 import { allIssues, issueList } from "../state/selectors"
 import { stagedChanges, type StagedChange } from "../state/staged-changes"
@@ -165,7 +165,7 @@ function Footer() {
 
   return (
     <box height={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.panel} flexDirection="row" justifyContent="space-between">
-      <text fg={theme.textMuted}>{state.searchOpen ? "filter loaded: type query  enter apply  esc close  empty enter clears" : footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open)}</text>
+      <text fg={theme.textMuted}>{state.searchOpen ? "filter loaded: type query  enter apply  esc close  empty enter clears" : footerText(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open ? state.projectPicker.mode : undefined)}</text>
       <text fg={theme.textSubtle}>{toast.message() ?? "dev/prod runtime scaffold"}</text>
     </box>
   )
@@ -304,14 +304,9 @@ function ProjectPickerPopup() {
   const theme = useTheme()
   let searchInput: InputRenderable | undefined
   const rows = () => projectPickerRows(state)
-  const totalCount = () => state.projectPicker.step === "project" ? state.projectPicker.projects.length : state.projectPicker.boards.length
-  const optionLabel = () => state.projectPicker.step === "project" ? "projects" : "boards"
+  const totalCount = () => projectPickerTotalCount(state)
+  const optionLabel = () => state.projectPicker.mode === "local" ? "workspaces" : state.projectPicker.mode === "remote-projects" ? "projects" : "boards"
   useProjectPickerKeyboard(appState)
-
-  createEffect(() => {
-    if (!state.projectPicker.open || state.projectPicker.loading || state.projectPicker.error) return
-    if (state.projectPicker.step === "project" && !state.projectPicker.projects.length) void appState.refreshProjectPicker()
-  })
 
   createEffect(() => {
     if (!state.projectPicker.searchOpen) return
@@ -322,15 +317,15 @@ function ProjectPickerPopup() {
     <Show when={state.projectPicker.open}>
       <ModalFrame borderColor={theme.accent} width={88}>
         <box flexDirection="row" justifyContent="space-between">
-          <text attributes={TextAttributes.BOLD} fg={theme.accent}>{state.projectPicker.step === "project" ? "Choose Jira Project" : "Choose Jira Board"}</text>
-          <text fg={theme.textSubtle}>/ search · j/k choose · enter select · r reload · Esc close</text>
+          <text attributes={TextAttributes.BOLD} fg={theme.accent}>{projectPickerTitle(state)}</text>
+          <text fg={theme.textSubtle}>{projectPickerHint(state)}</text>
         </box>
-        <text fg={theme.textMuted}>lazyjira keeps one active Jira project context at a time.</text>
+        <text fg={theme.textMuted}>P switches saved workspaces instantly. Press a only when you want Jira discovery.</text>
         <Show when={state.runtimeEnv === "dev"}>
           <text fg={theme.warning}>Using dev runtime fixtures. New data-backed features need matching dev fixture data.</text>
         </Show>
-        <Show when={state.projectPicker.step === "board" && state.projectPicker.selectedProject}>
-          {(project) => <text fg={theme.warning} wrapMode="none">Project: {project().key} {project().name} · h/backspace picks another project</text>}
+        <Show when={state.projectPicker.mode === "remote-boards" && state.projectPicker.selectedProject}>
+          {(project) => <text fg={theme.warning} wrapMode="none">Project: {project().key} {project().name} · h/backspace returns to remote projects</text>}
         </Show>
         <Show when={state.projectPicker.error}>
           {(error) => <text fg={theme.danger} wrapMode="none">{error()}</text>}
@@ -349,7 +344,7 @@ function ProjectPickerPopup() {
                 searchInput = element
                 setTimeout(() => !element.isDestroyed && element.focus(), 1)
               }}
-              placeholder={state.projectPicker.step === "project" ? "project key or name" : "board name or type"}
+              placeholder={projectPickerPlaceholder(state)}
               placeholderColor={theme.textSubtle}
               textColor={theme.text}
               focusedTextColor={theme.text}
@@ -361,7 +356,7 @@ function ProjectPickerPopup() {
             <text fg={theme.textSubtle} wrapMode="none">{rows().length}/{totalCount()}</text>
           </box>
         </Show>
-        <Show when={rows().length} fallback={<text fg={theme.textMuted}>{state.projectPicker.searchQuery ? "No matches. Edit the filter or press Esc." : "No options loaded. Press r to retry."}</text>}>
+        <Show when={rows().length} fallback={<text fg={theme.textMuted}>{projectPickerEmptyText(state)}</text>}>
           <For each={visibleProjectPickerRows(rows(), state.projectPicker.selectedIndex)}>
             {(row) => (
               <text fg={row.selected ? theme.selectedText : theme.text} bg={row.selected ? theme.selected : undefined} wrapMode="none">
@@ -493,6 +488,12 @@ function useProjectPickerKeyboard(appState: ReturnType<typeof useAppState>) {
         appState.openProjectPickerSearch()
         return
       }
+      if (event.name === "a" && appState.state.projectPicker.mode === "local") {
+        event.preventDefault()
+        event.stopPropagation()
+        void appState.browseRemoteProjects()
+        return
+      }
       if (event.name === "j" || event.name === "down") {
         event.preventDefault()
         event.stopPropagation()
@@ -505,13 +506,13 @@ function useProjectPickerKeyboard(appState: ReturnType<typeof useAppState>) {
         appState.moveProjectPickerSelection(-1)
         return
       }
-      if (event.name === "r") {
+      if (event.name === "r" && appState.state.projectPicker.mode !== "local") {
         event.preventDefault()
         event.stopPropagation()
         void appState.refreshProjectPicker()
         return
       }
-      if ((event.name === "h" || event.name === "left" || event.name === "backspace") && appState.state.projectPicker.step === "board") {
+      if ((event.name === "h" || event.name === "left" || event.name === "backspace") && appState.state.projectPicker.mode !== "local") {
         event.preventDefault()
         event.stopPropagation()
         appState.backProjectPickerStep()
@@ -567,9 +568,11 @@ function stagedChangeText(change: StagedChange, issueTitle?: string) {
   return `${change.issueKey} ${change.label} · ${preview}`
 }
 
-function footerText(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerOpen: boolean) {
+function footerText(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerMode?: AppState["projectPicker"]["mode"]) {
   if (authOnboardingOpen) return "prod setup: Enter continue/save  Esc skip setup"
-  if (projectPickerOpen) return "project picker: / filter  j/k choose  enter select  r reload  esc/q close"
+  if (projectPickerMode === "local") return "workspace switcher: / filter local  enter switch  a browse Jira  esc/q close"
+  if (projectPickerMode === "remote-projects") return "remote projects: / filter  j/k choose  enter load boards  r refresh  h local"
+  if (projectPickerMode === "remote-boards") return "remote boards: / filter  j/k choose  enter switch  r refresh boards  h projects"
   if (remoteApplyOpen) return "remote write: W final apply placeholder  esc/q close"
   if (stagedDiscardOpen) return "discard staged: j/k choose  space mark  enter discard  esc/q close"
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  P project  q quit"
@@ -591,7 +594,18 @@ function runtimeEnvText(config: ReturnType<typeof useConfig>, jiraAuthReady = fa
 }
 
 function projectPickerRows(state: AppState) {
-  if (state.projectPicker.step === "project") {
+  if (state.projectPicker.mode === "local") {
+    return filteredProjectPickerWorkspaces(state).map((workspace, index) => {
+      const active = state.project.key === workspace.projectKey && state.board.id === workspace.boardId
+      return {
+        id: workspace.id,
+        title: `${workspace.projectKey} ${workspace.projectName}`,
+        subtitle: `${workspace.boardName} · ${workspace.boardType} board${active ? " · active" : ""}`,
+        selected: index === state.projectPicker.selectedIndex,
+      }
+    })
+  }
+  if (state.projectPicker.mode === "remote-projects") {
     return filteredProjectPickerProjects(state).map((project, index) => ({
       id: project.id,
       title: `${project.key} ${project.name}`,
@@ -605,6 +619,38 @@ function projectPickerRows(state: AppState) {
     subtitle: `${board.type} board · ${board.id}`,
     selected: index === state.projectPicker.selectedIndex,
   }))
+}
+
+function projectPickerTotalCount(state: AppState) {
+  if (state.projectPicker.mode === "local") return state.recentWorkspaces.length
+  if (state.projectPicker.mode === "remote-projects") return state.projectPicker.remoteProjectCache?.length ?? 0
+  const projectKey = state.projectPicker.selectedProject?.key
+  return projectKey ? (state.projectPicker.remoteBoardsByProject[projectKey]?.length ?? 0) : 0
+}
+
+function projectPickerTitle(state: AppState) {
+  if (state.projectPicker.mode === "local") return "Switch Workspace"
+  if (state.projectPicker.mode === "remote-projects") return "Browse Jira Projects"
+  return "Choose Jira Board"
+}
+
+function projectPickerHint(state: AppState) {
+  if (state.projectPicker.mode === "local") return "/ filter · j/k choose · enter switch · a add · Esc close"
+  if (state.projectPicker.mode === "remote-projects") return "/ filter · j/k choose · enter boards · r refresh · h local"
+  return "/ filter · j/k choose · enter switch · r refresh · h projects"
+}
+
+function projectPickerPlaceholder(state: AppState) {
+  if (state.projectPicker.mode === "local") return "project, board, or type"
+  if (state.projectPicker.mode === "remote-projects") return "project key or name"
+  return "board name or type"
+}
+
+function projectPickerEmptyText(state: AppState) {
+  if (state.projectPicker.searchQuery) return "No matches. Edit the filter or press Esc."
+  if (state.projectPicker.mode === "local") return "No saved workspaces yet. Press a to browse Jira projects."
+  if (state.projectPicker.mode === "remote-projects") return "No projects loaded. Press r to retry."
+  return "No boards loaded for this project. Press r to retry."
 }
 
 function visibleProjectPickerRows<T>(rows: T[], selectedIndex: number) {

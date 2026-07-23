@@ -122,17 +122,26 @@ export type BoardOption = {
   type: "scrum" | "kanban"
 }
 
+export type WorkspaceOption = {
+  id: string
+  projectKey: string
+  projectName: string
+  boardId: string
+  boardName: string
+  boardType: "scrum" | "kanban"
+}
+
 export type ProjectPickerState = {
   open: boolean
-  step: "project" | "board"
+  mode: "local" | "remote-projects" | "remote-boards"
   searchOpen: boolean
   searchQuery: string
   loading: boolean
   saving: boolean
   error?: string
   selectedIndex: number
-  projects: ProjectOption[]
-  boards: BoardOption[]
+  remoteProjectCache?: ProjectOption[]
+  remoteBoardsByProject: Record<string, BoardOption[]>
   selectedProject?: ProjectOption
 }
 
@@ -206,6 +215,7 @@ export type AppState = {
   workspaceNotice?: string
   authOnboarding: AuthOnboardingState
   projectPicker: ProjectPickerState
+  recentWorkspaces: WorkspaceOption[]
   sidebarSelectedIndex: number
   workspaceSelectedIndex: number
   workspaceFocusedArea: WorkspaceFocusArea

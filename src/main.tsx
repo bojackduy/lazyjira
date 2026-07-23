@@ -3,7 +3,7 @@ import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { render } from "@opentui/solid"
 import { App } from "./app"
 import { runAuthCli } from "./auth/cli"
-import { jiraAuthSummary, loadJiraAuthConfig, loadLazyJiraConfig, saveDevWorkspaceConfig, saveProdWorkspaceConfig } from "./auth/config"
+import { jiraAuthSummary, loadJiraAuthConfig, loadLazyJiraConfig, saveDevWorkspaceConfig, saveProdWorkspaceConfig, type JiraWorkspaceConfig } from "./auth/config"
 import type { AppConfig } from "./context/config"
 import { LazyJiraKeymapProvider } from "./context/keymap"
 import { AppProviders } from "./context/providers"
@@ -29,6 +29,7 @@ const authConfig = runtimeEnv === "prod" ? await loadJiraAuthConfig().catch((err
   return undefined
 }) : undefined
 const workspaceConfig = runtimeEnv === "dev" ? savedConfig?.devWorkspace : savedConfig?.prodWorkspace
+const recentWorkspaceConfigs = runtimeEnv === "dev" ? savedConfig?.devRecentWorkspaces : savedConfig?.prodRecentWorkspaces
 const source = runtimeEnv === "dev" ? createDevWorkspaceSource() : createProdWorkspaceSource()
 const initialWorkspace = workspaceConfig
   ? await source.loadWorkspace(selectionFromConfig(workspaceConfig))
@@ -39,6 +40,7 @@ const initialState = createInitialAppState(initialWorkspace, runtimeEnv)
 const shouldOpenProjectPicker = !workspaceConfig && (runtimeEnv === "dev" || !!authConfig)
 initialState.jiraAuthReady = !!authConfig
 initialState.jiraProjectReady = !!workspaceConfig
+initialState.recentWorkspaces = (recentWorkspaceConfigs ?? []).map(workspaceOptionFromConfig)
 initialState.authOnboarding = {
   open: runtimeEnv === "prod" && !authConfig,
   step: "baseUrl",
@@ -50,14 +52,13 @@ initialState.authOnboarding = {
 }
 initialState.projectPicker = {
   open: shouldOpenProjectPicker,
-  step: "project",
+  mode: "local",
   searchOpen: false,
   searchQuery: "",
   loading: false,
   saving: false,
   selectedIndex: 0,
-  projects: [],
-  boards: [],
+  remoteBoardsByProject: {},
 }
 const saveWorkspaceConfig = runtimeEnv === "dev" ? saveDevWorkspaceConfig : saveProdWorkspaceConfig
 const appConfig: AppConfig = {
@@ -122,5 +123,16 @@ function selectionFromConfig(workspace: NonNullable<Awaited<ReturnType<typeof lo
   return {
     project: { key: workspace.projectKey, name: workspace.projectName },
     board: { id: workspace.boardId, name: workspace.boardName, type: workspace.boardType },
+  }
+}
+
+function workspaceOptionFromConfig(workspace: JiraWorkspaceConfig) {
+  return {
+    id: `${workspace.projectKey}:${workspace.boardId}`,
+    projectKey: workspace.projectKey,
+    projectName: workspace.projectName,
+    boardId: workspace.boardId,
+    boardName: workspace.boardName,
+    boardType: workspace.boardType,
   }
 }
