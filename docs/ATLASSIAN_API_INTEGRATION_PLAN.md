@@ -230,7 +230,7 @@ Verification:
 
 ### A3. Sprint And Backlog Issue Loading
 
-Status: in progress. Active/future sprint discovery is wired; active sprint issue loading and bounded backlog loading remain.
+Status: in progress. Active/future sprint discovery and active sprint issue loading are wired; bounded backlog loading remains.
 
 Implementation:
 

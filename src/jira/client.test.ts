@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { fetchAccessibleProjects, fetchBoardConfiguration, fetchBoardSprints, fetchJiraPages, fetchProjectBoards, jiraRequest, JiraApiError } from "./client"
-import { normalizeBoardConfiguration, normalizeBoardSprints } from "./normalize"
+import { fetchAccessibleProjects, fetchBoardConfiguration, fetchBoardSprints, fetchJiraPages, fetchProjectBoards, fetchSprintIssues, jiraRequest, JiraApiError } from "./client"
+import { normalizeBoardConfiguration, normalizeBoardSprints, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
 const auth: JiraAuthConfig = { baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }
@@ -46,6 +46,18 @@ describe("Jira discovery client", () => {
     expect(sprints).toEqual([{ id: 7, state: "active", name: "Sprint 7", goal: "Ship board metadata" }])
   })
 
+  test("fetches active sprint issues", async () => {
+    const requests: string[] = []
+    const issues = await fetchSprintIssues(auth, "7", async (url) => {
+      requests.push(url)
+      return jsonResponse({ issues: [{ key: "PROJ-1", fields: { summary: "Load active sprint" } }] })
+    })
+
+    expect(requests[0]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/7/issue?fields=")).toBe(true)
+    expect(requests[0]).toContain("&startAt=0&maxResults=50")
+    expect(issues).toEqual([{ key: "PROJ-1", fields: { summary: "Load active sprint" } }])
+  })
+
   test("normalizes board columns into app statuses", () => {
     const metadata = normalizeBoardConfiguration({
       columnConfig: {
@@ -77,6 +89,49 @@ describe("Jira discovery client", () => {
       { id: "7", name: "Sprint 7", goal: "Finish read path", state: "active" },
       { id: "8", name: "Sprint 8", goal: "", state: "future" },
     ])
+  })
+
+  test("normalizes active sprint issues", () => {
+    const issues = normalizeSprintIssues([
+      {
+        key: "PROJ-1",
+        fields: {
+          summary: "Load active sprint",
+          issuetype: { name: "Story" },
+          priority: { name: "High" },
+          status: { id: "10001", name: "In Progress" },
+          assignee: { displayName: "Duy" },
+          reporter: { displayName: "Mina" },
+          labels: ["frontend"],
+          components: [{ name: "TUI" }],
+          fixVersions: [{ name: "2026.08" }],
+          versions: [{ name: "2026.07" }],
+          description: { content: [{ content: [{ text: "Read Jira issues" }] }] },
+          issuelinks: [{ outwardIssue: { key: "PROJ-2" } }],
+          subtasks: [{ key: "PROJ-3" }],
+          created: "2026-07-01T00:00:00.000+0000",
+          updated: "2026-07-02T00:00:00.000+0000",
+          duedate: "2026-08-01",
+        },
+      },
+    ], "7", [{ id: "10001", name: "In Progress", category: "in-progress", color: "#38BDF8" }])
+
+    expect(issues[0]).toMatchObject({
+      key: "PROJ-1",
+      title: "Load active sprint",
+      type: "Story",
+      priority: "High",
+      statusId: "10001",
+      assignee: "Duy",
+      reporter: "Mina",
+      sprintId: "7",
+      labels: ["frontend"],
+      components: ["TUI"],
+      fixVersions: ["2026.08"],
+      affectsVersions: ["2026.07"],
+      description: "Read Jira issues",
+      links: ["PROJ-2", "PROJ-3"],
+    })
   })
 
   test("sends Jira auth and JSON headers", async () => {

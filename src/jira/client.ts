@@ -34,6 +34,52 @@ export type JiraSprint = {
   goal?: string
 }
 
+export type JiraIssue = {
+  id?: string
+  key?: string
+  fields?: {
+    summary?: string
+    issuetype?: { name?: string }
+    priority?: { name?: string }
+    status?: { id?: string; name?: string }
+    assignee?: { displayName?: string } | null
+    reporter?: { displayName?: string } | null
+    parent?: { key?: string }
+    labels?: string[]
+    components?: Array<{ name?: string }>
+    fixVersions?: Array<{ name?: string }>
+    versions?: Array<{ name?: string }>
+    description?: unknown
+    issuelinks?: Array<{ outwardIssue?: { key?: string }; inwardIssue?: { key?: string } }>
+    subtasks?: Array<{ key?: string }>
+    created?: string
+    updated?: string
+    duedate?: string
+    resolution?: { name?: string } | null
+  }
+}
+
+const jiraIssueFields = [
+  "summary",
+  "issuetype",
+  "priority",
+  "status",
+  "assignee",
+  "reporter",
+  "parent",
+  "labels",
+  "components",
+  "fixVersions",
+  "versions",
+  "description",
+  "issuelinks",
+  "subtasks",
+  "created",
+  "updated",
+  "duedate",
+  "resolution",
+]
+
 export type JiraErrorCategory = "auth" | "permission" | "not-found" | "rate-limit" | "network" | "invalid-response" | "http"
 
 export type JiraApiErrorOptions = {
@@ -101,6 +147,10 @@ export async function fetchBoardConfiguration(auth: JiraAuthConfig, boardId: str
 
 export async function fetchBoardSprints(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch): Promise<JiraSprint[]> {
   return fetchJiraPages<JiraSprint>(auth, `/rest/agile/1.0/board/${encodeURIComponent(boardId)}/sprint?state=${encodeURIComponent("active,future")}`, { endpoint: "board sprints" }, fetchImpl)
+}
+
+export async function fetchSprintIssues(auth: JiraAuthConfig, sprintId: string, fetchImpl: FetchLike = fetch): Promise<JiraIssue[]> {
+  return fetchJiraPages<JiraIssue>(auth, `/rest/agile/1.0/sprint/${encodeURIComponent(sprintId)}/issue?fields=${encodeURIComponent(jiraIssueFields.join(","))}`, { endpoint: "active sprint issues", itemKey: "issues" }, fetchImpl)
 }
 
 export async function fetchJiraPages<T>(auth: JiraAuthConfig, path: string, options: JiraPaginationOptions = {}, fetchImpl: FetchLike = fetch): Promise<T[]> {

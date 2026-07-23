@@ -1,5 +1,7 @@
-import type { SprintSummary, StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
-import type { JiraBoardConfiguration, JiraSprint } from "./client"
+import type { IssuePriority, IssueSummary, SprintSummary, StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
+import type { JiraBoardConfiguration, JiraIssue, JiraSprint } from "./client"
+
+type JiraIssueFields = NonNullable<JiraIssue["fields"]>
 
 export type BoardMetadata = {
   statuses: StatusDefinition[]
@@ -41,6 +43,40 @@ export function normalizeBoardSprints(sprints: JiraSprint[]): SprintSummary[] {
   })
 }
 
+export function normalizeSprintIssues(issues: JiraIssue[], sprintId: string, statuses: StatusDefinition[]): IssueSummary[] {
+  return issues.flatMap((issue) => {
+    if (!issue.key) return []
+    const fields = issue.fields ?? {}
+    const statusId = fields.status?.id ?? statuses[0]?.id ?? "unknown"
+    const statusCategory = statuses.find((status) => status.id === statusId)?.category
+    const labels = stringArray(fields.labels)
+    return [{
+      key: issue.key,
+      title: fields.summary?.trim() || issue.key,
+      type: fields.issuetype?.name ?? "Task",
+      priority: normalizePriority(fields.priority?.name),
+      statusId,
+      assignee: fields.assignee?.displayName ?? "Unassigned",
+      reporter: fields.reporter?.displayName ?? "Unknown",
+      sprintId,
+      parentKey: fields.parent?.key,
+      dueDate: fields.duedate,
+      createdAt: fields.created,
+      updatedAt: fields.updated,
+      resolution: fields.resolution?.name,
+      fixVersions: names(fields.fixVersions),
+      affectsVersions: names(fields.versions),
+      labels,
+      components: names(fields.components),
+      blocked: statusCategory === "blocked" || labels.some((label) => label.toLowerCase().includes("block")),
+      staleDays: 0,
+      description: jiraDescriptionText(fields.description),
+      comments: [],
+      links: linkedIssueKeys(fields.issuelinks, fields.subtasks),
+    }]
+  })
+}
+
 function statusName(columnName: string, index: number, columnStatusCount: number) {
   return columnStatusCount > 1 ? `${columnName} ${index + 1}` : columnName
 }
@@ -78,4 +114,43 @@ function statusColor(category: StatusCategory) {
 
 function isSprintState(value: string | undefined): value is SprintSummary["state"] {
   return value === "active" || value === "future" || value === "closed"
+}
+
+function normalizePriority(name: string | undefined): IssuePriority {
+  const normalized = name?.toLowerCase() ?? ""
+  if (normalized.includes("critical") || normalized.includes("highest")) return "Critical"
+  if (normalized.includes("high")) return "High"
+  if (normalized.includes("low") || normalized.includes("lowest")) return "Low"
+  return "Medium"
+}
+
+function names(values: Array<{ name?: string }> | undefined) {
+  return (values ?? []).flatMap((value) => value.name ? [value.name] : [])
+}
+
+function stringArray(values: string[] | undefined) {
+  return (values ?? []).filter((value): value is string => typeof value === "string")
+}
+
+function linkedIssueKeys(links: JiraIssueFields["issuelinks"], subtasks: JiraIssueFields["subtasks"]) {
+  return [
+    ...(links ?? []).flatMap((link) => [link.outwardIssue?.key, link.inwardIssue?.key].filter((key): key is string => !!key)),
+    ...(subtasks ?? []).flatMap((subtask) => subtask.key ? [subtask.key] : []),
+  ]
+}
+
+function jiraDescriptionText(value: unknown) {
+  if (typeof value === "string") return value
+  const text = adfText(value).trim()
+  return text || ""
+}
+
+function adfText(value: unknown): string {
+  if (typeof value === "string") return value
+  if (!value || typeof value !== "object") return ""
+  if (Array.isArray(value)) return value.map(adfText).filter(Boolean).join(" ")
+  const record = value as Record<string, unknown>
+  const ownText = typeof record.text === "string" ? record.text : ""
+  const childText = adfText(record.content)
+  return [ownText, childText].filter(Boolean).join(" ")
 }
