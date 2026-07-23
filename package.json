@@ -6,7 +6,9 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot src/main.tsx",
+    "dev:demo": "bun --hot src/main.tsx demo",
     "start": "bun src/main.tsx",
+    "demo": "bun src/main.tsx demo",
     "auth:login": "bun src/main.tsx auth login",
     "auth:status": "bun src/main.tsx auth status",
     "auth:logout": "bun src/main.tsx auth logout",

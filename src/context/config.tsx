@@ -1,8 +1,10 @@
 import { createRequiredContext, type ProviderProps } from "./helper"
 import type { JiraAuthSummary } from "../auth/config"
+import type { RuntimeMode } from "../runtime/mode"
 
 export type AppConfig = {
   appName: string
+  runtimeMode: RuntimeMode
   demoMode: boolean
   jira?: JiraAuthSummary
 }

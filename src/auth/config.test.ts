@@ -8,6 +8,7 @@ import {
   loadLazyJiraConfig,
   loadJiraAuthConfig,
   removeJiraAuthConfig,
+  saveDemoWorkspaceConfig,
   saveJiraAuthConfig,
   saveJiraWorkspaceConfig,
 } from "./config"
@@ -91,6 +92,19 @@ describe("Jira auth config", () => {
 
       const loaded = await loadLazyJiraConfig(env)
       expect(loaded?.jira).toEqual({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" })
+      expect(loaded?.workspace).toEqual({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" })
+    })
+  })
+
+  test("keeps demo and Jira workspace contexts separate", async () => {
+    await withTempConfig(async (env) => {
+      await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }, env)
+      await saveDemoWorkspaceConfig({ projectKey: "DEMO", projectName: "Demo", boardId: "mock-1", boardName: "Demo Kanban", boardType: "kanban" }, env)
+      await saveJiraWorkspaceConfig({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" }, env)
+
+      const loaded = await loadLazyJiraConfig(env)
+      expect(loaded?.jira?.apiToken).toBe("token")
+      expect(loaded?.demoWorkspace).toEqual({ projectKey: "DEMO", projectName: "Demo", boardId: "mock-1", boardName: "Demo Kanban", boardType: "kanban" })
       expect(loaded?.workspace).toEqual({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" })
     })
   })

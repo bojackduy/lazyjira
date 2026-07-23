@@ -1,8 +1,7 @@
 import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
-import { loadJiraAuthConfig, normalizeBaseUrl, saveJiraAuthConfig, saveJiraWorkspaceConfig } from "../auth/config"
-import { fetchAccessibleProjects, fetchProjectBoards } from "../jira/client"
-import { mockAccessibleProjects, mockProjectBoards } from "../jira/mock"
+import { normalizeBaseUrl, saveJiraAuthConfig, type JiraWorkspaceConfig } from "../auth/config"
+import type { JiraDiscoverySource } from "../jira/discovery"
 import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, ProjectOption, QuickFilterId, StatusCategory } from "../state/app-state"
 import {
   colorableConfigSection,
@@ -98,14 +97,14 @@ const [AppStateContextProvider, useAppState] = createRequiredContext<AppStateCon
 
 export { useAppState }
 
-export function AppStateProvider(props: ProviderProps<{ initialState: AppState }>) {
+export function AppStateProvider(props: ProviderProps<{ initialState: AppState; discovery: JiraDiscoverySource; saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> }>) {
   const [state, setState] = createStore<AppState>(props.initialState)
   const toast = useToast()
 
   async function saveSelectedProjectContext(project: ProjectOption, board: BoardOption) {
     setState("projectPicker", "saving", true)
     try {
-      await saveJiraWorkspaceConfig({
+      await props.saveWorkspaceConfig({
         projectKey: project.key,
         projectName: project.name,
         boardId: board.id,
@@ -117,7 +116,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("jiraProjectReady", true)
       setState("projectPicker", "open", false)
       setState("projectPicker", "error", undefined)
-      toast.show(`Project ${project.key} selected. Jira data fetch can be wired next.`)
+      toast.show(props.discovery.mode === "mock" ? `Mock project ${project.key} selected.` : `Project ${project.key} selected. Jira issue loading can be wired next.`)
     } finally {
       setState("projectPicker", "saving", false)
       setState("projectPicker", "loading", false)
@@ -181,7 +180,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       }
     },
     openProjectPicker() {
-      if (!state.jiraAuthReady && !state.demoMode) {
+      if (!state.jiraAuthReady && props.discovery.mode === "jira") {
         context.openAuthOnboarding()
         return
       }
@@ -202,20 +201,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
       setState("projectPicker", "loading", true)
       setState("projectPicker", "error", undefined)
       try {
-        const auth = state.demoMode ? undefined : await loadJiraAuthConfig()
-        if (!auth && !state.demoMode) {
-          setState("projectPicker", "open", false)
-          context.openAuthOnboarding()
-          return
-        }
         if (state.projectPicker.step === "board" && state.projectPicker.selectedProject) {
-          const boards = auth ? await fetchProjectBoards(auth, state.projectPicker.selectedProject.key) : mockProjectBoards(state.projectPicker.selectedProject.key)
+          const boards = await props.discovery.fetchBoards(state.projectPicker.selectedProject.key)
           setState("projectPicker", "boards", boards)
           setState("projectPicker", "selectedIndex", 0)
           if (!boards.length) setState("projectPicker", "error", `No Jira Software boards found for ${state.projectPicker.selectedProject.key}`)
           return
         }
-        const projects = auth ? await fetchAccessibleProjects(auth) : mockAccessibleProjects()
+        const projects = await props.discovery.fetchProjects()
         setState("projectPicker", "projects", projects)
         setState("projectPicker", "selectedIndex", 0)
         if (!projects.length) setState("projectPicker", "error", "No accessible Jira projects found")
@@ -243,18 +236,12 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState }
     async selectProjectPickerItem() {
       if (state.projectPicker.loading || state.projectPicker.saving) return
       try {
-        const auth = state.demoMode ? undefined : await loadJiraAuthConfig()
-        if (!auth && !state.demoMode) {
-          setState("projectPicker", "open", false)
-          context.openAuthOnboarding()
-          return
-        }
         if (state.projectPicker.step === "project") {
           const project = state.projectPicker.projects[state.projectPicker.selectedIndex]
           if (!project) return
           setState("projectPicker", "loading", true)
           setState("projectPicker", "error", undefined)
-          const boards = auth ? await fetchProjectBoards(auth, project.key) : mockProjectBoards(project.key)
+          const boards = await props.discovery.fetchBoards(project.key)
           if (!boards.length) {
             setState("projectPicker", "error", `No Jira Software boards found for ${project.key}`)
             return

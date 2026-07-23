@@ -524,10 +524,10 @@ function footerText(focusedPane: string, route: string, stagedDiscardOpen: boole
 }
 
 function runtimeModeText(config: ReturnType<typeof useConfig>, jiraAuthReady = false, jiraProjectReady = false) {
-  if (config.demoMode && jiraProjectReady) return "mock data · Jira project selected"
-  if (config.demoMode && (config.jira || jiraAuthReady)) return "mock data · choose Jira project"
-  if (config.demoMode) return "mock data · P project · auth optional"
-  return config.jira ? "jira mode" : "jira mode · no auth"
+  if (config.runtimeMode === "demo") return jiraProjectReady ? "demo mode · mock project selected" : "demo mode · mock projects"
+  if (jiraProjectReady) return "jira mode · project selected"
+  if (config.jira || jiraAuthReady) return "jira mode · choose project"
+  return "jira mode · no auth"
 }
 
 function projectPickerRows(state: AppState) {
