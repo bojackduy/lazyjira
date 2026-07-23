@@ -8,6 +8,7 @@ import { useToast } from "../context/toast"
 import { RouteSurface } from "../routes"
 import { issueByKey } from "../state/issue-drafts"
 import type { AppState } from "../state/app-state"
+import { filteredProjectPickerBoards, filteredProjectPickerProjects } from "../state/project-picker"
 import { routeLabel, sidebarRoutes } from "../state/routes"
 import { allIssues, issueList } from "../state/selectors"
 import { stagedChanges, type StagedChange } from "../state/staged-changes"
@@ -301,7 +302,10 @@ function ProjectPickerPopup() {
   const appState = useAppState()
   const { state } = appState
   const theme = useTheme()
+  let searchInput: InputRenderable | undefined
   const rows = () => projectPickerRows(state)
+  const totalCount = () => state.projectPicker.step === "project" ? state.projectPicker.projects.length : state.projectPicker.boards.length
+  const optionLabel = () => state.projectPicker.step === "project" ? "projects" : "boards"
   useProjectPickerKeyboard(appState)
 
   createEffect(() => {
@@ -309,12 +313,17 @@ function ProjectPickerPopup() {
     if (state.projectPicker.step === "project" && !state.projectPicker.projects.length) void appState.refreshProjectPicker()
   })
 
+  createEffect(() => {
+    if (!state.projectPicker.searchOpen) return
+    setTimeout(() => searchInput && !searchInput.isDestroyed && searchInput.focus(), 1)
+  })
+
   return (
     <Show when={state.projectPicker.open}>
       <ModalFrame borderColor={theme.accent} width={88}>
         <box flexDirection="row" justifyContent="space-between">
           <text attributes={TextAttributes.BOLD} fg={theme.accent}>{state.projectPicker.step === "project" ? "Choose Jira Project" : "Choose Jira Board"}</text>
-          <text fg={theme.textSubtle}>j/k choose · enter select · r reload · Esc close</text>
+          <text fg={theme.textSubtle}>/ search · j/k choose · enter select · r reload · Esc close</text>
         </box>
         <text fg={theme.textMuted}>lazyjira keeps one active Jira project context at a time.</text>
         <Show when={state.runtimeEnv === "dev"}>
@@ -329,7 +338,30 @@ function ProjectPickerPopup() {
         <Show when={state.projectPicker.loading || state.projectPicker.saving}>
           <text fg={theme.textMuted}>{state.projectPicker.saving ? "Saving workspace..." : "Loading from Jira..."}</text>
         </Show>
-        <Show when={rows().length} fallback={<text fg={theme.textMuted}>No options loaded. Press r to retry.</text>}>
+        <Show when={state.projectPicker.searchOpen || state.projectPicker.searchQuery} fallback={<text fg={theme.textSubtle}>Press / to filter · {rows().length}/{totalCount()} {optionLabel()}</text>}>
+          <box borderStyle="rounded" borderColor={state.projectPicker.searchOpen ? theme.borderActive : theme.border} paddingLeft={1} paddingRight={1} height={3} flexDirection="row" gap={1} alignItems="center">
+            <text attributes={TextAttributes.BOLD} fg={theme.warning} wrapMode="none">Filter</text>
+            <input
+              value={state.projectPicker.searchQuery}
+              onInput={(value) => appState.updateProjectPickerSearch(value)}
+              onSubmit={() => void appState.selectProjectPickerItem()}
+              ref={(element: InputRenderable) => {
+                searchInput = element
+                setTimeout(() => !element.isDestroyed && element.focus(), 1)
+              }}
+              placeholder={state.projectPicker.step === "project" ? "project key or name" : "board name or type"}
+              placeholderColor={theme.textSubtle}
+              textColor={theme.text}
+              focusedTextColor={theme.text}
+              cursorColor={theme.accent}
+              backgroundColor={theme.panel}
+              focusedBackgroundColor={theme.panel}
+              flexGrow={1}
+            />
+            <text fg={theme.textSubtle} wrapMode="none">{rows().length}/{totalCount()}</text>
+          </box>
+        </Show>
+        <Show when={rows().length} fallback={<text fg={theme.textMuted}>{state.projectPicker.searchQuery ? "No matches. Edit the filter or press Esc." : "No options loaded. Press r to retry."}</text>}>
           <For each={visibleProjectPickerRows(rows(), state.projectPicker.selectedIndex)}>
             {(row) => (
               <text fg={row.selected ? theme.selectedText : theme.text} bg={row.selected ? theme.selected : undefined} wrapMode="none">
@@ -433,6 +465,34 @@ function useProjectPickerKeyboard(appState: ReturnType<typeof useAppState>) {
         void appState.selectProjectPickerItem()
         return
       }
+      if (appState.state.projectPicker.searchOpen) {
+        if (event.name === "up") {
+          event.preventDefault()
+          event.stopPropagation()
+          appState.moveProjectPickerSelection(-1)
+          return
+        }
+        if (event.name === "down") {
+          event.preventDefault()
+          event.stopPropagation()
+          appState.moveProjectPickerSelection(1)
+          return
+        }
+        if (event.name === "escape") {
+          event.preventDefault()
+          event.stopPropagation()
+          if (appState.state.projectPicker.searchQuery) appState.clearProjectPickerSearch()
+          else appState.closeProjectPicker()
+          return
+        }
+        return
+      }
+      if (event.name === "/") {
+        event.preventDefault()
+        event.stopPropagation()
+        appState.openProjectPickerSearch()
+        return
+      }
       if (event.name === "j" || event.name === "down") {
         event.preventDefault()
         event.stopPropagation()
@@ -509,7 +569,7 @@ function stagedChangeText(change: StagedChange, issueTitle?: string) {
 
 function footerText(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerOpen: boolean) {
   if (authOnboardingOpen) return "prod setup: Enter continue/save  Esc skip setup"
-  if (projectPickerOpen) return "project picker: j/k choose  enter select  r reload  esc/q close"
+  if (projectPickerOpen) return "project picker: / filter  j/k choose  enter select  r reload  esc/q close"
   if (remoteApplyOpen) return "remote write: W final apply placeholder  esc/q close"
   if (stagedDiscardOpen) return "discard staged: j/k choose  space mark  enter discard  esc/q close"
   if (focusedPane === "sidebar") return "sidebar: j/k choose  enter/l open/toggle  space filter  P project  q quit"
@@ -532,14 +592,14 @@ function runtimeEnvText(config: ReturnType<typeof useConfig>, jiraAuthReady = fa
 
 function projectPickerRows(state: AppState) {
   if (state.projectPicker.step === "project") {
-    return state.projectPicker.projects.map((project, index) => ({
+    return filteredProjectPickerProjects(state).map((project, index) => ({
       id: project.id,
       title: `${project.key} ${project.name}`,
       subtitle: "project",
       selected: index === state.projectPicker.selectedIndex,
     }))
   }
-  return state.projectPicker.boards.map((board, index) => ({
+  return filteredProjectPickerBoards(state).map((board, index) => ({
     id: board.id,
     title: board.name,
     subtitle: `${board.type} board · ${board.id}`,

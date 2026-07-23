@@ -125,6 +125,8 @@ export type BoardOption = {
 export type ProjectPickerState = {
   open: boolean
   step: "project" | "board"
+  searchOpen: boolean
+  searchQuery: string
   loading: boolean
   saving: boolean
   error?: string

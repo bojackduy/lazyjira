@@ -18,6 +18,7 @@ import {
 import { sidebarRoutes, type AppRoute } from "../state/routes"
 import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldDisplayValue, issueFields, selectedIssueField } from "../state/issue-fields"
+import { filteredProjectPickerBoards, filteredProjectPickerOptions, filteredProjectPickerProjects } from "../state/project-picker"
 import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from "../state/staged-changes"
 import { workspaceCurrentResults, workspaceItems, workspaceSelectedItem } from "../state/workspace"
 import { useToast } from "./toast"
@@ -31,6 +32,9 @@ export type AppStateContext = {
   openProjectPicker: () => void
   closeProjectPicker: () => void
   refreshProjectPicker: () => Promise<void>
+  openProjectPickerSearch: () => void
+  updateProjectPickerSearch: (query: string) => void
+  clearProjectPickerSearch: () => void
   backProjectPickerStep: () => void
   moveProjectPickerSelection: (delta: number) => void
   selectProjectPickerItem: () => Promise<void>
@@ -211,6 +215,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         setState("authOnboarding", "apiToken", "")
         setState("projectPicker", "open", true)
         setState("projectPicker", "step", "project")
+        setState("projectPicker", "searchOpen", false)
+        setState("projectPicker", "searchQuery", "")
         setState("projectPicker", "selectedIndex", 0)
         toast.show("Jira credentials saved. Choose a project next.")
         void context.refreshProjectPicker()
@@ -227,6 +233,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("projectPicker", "open", true)
       setState("projectPicker", "step", "project")
       setState("projectPicker", "error", undefined)
+      setState("projectPicker", "searchOpen", false)
+      setState("projectPicker", "searchQuery", "")
       setState("projectPicker", "selectedIndex", 0)
       if (!state.projectPicker.projects.length) void context.refreshProjectPicker()
     },
@@ -235,6 +243,9 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("projectPicker", "loading", false)
       setState("projectPicker", "saving", false)
       setState("projectPicker", "error", undefined)
+      setState("projectPicker", "searchOpen", false)
+      setState("projectPicker", "searchQuery", "")
+      setState("projectPicker", "selectedIndex", 0)
     },
     async refreshProjectPicker() {
       if (state.projectPicker.loading) return
@@ -258,18 +269,32 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         setState("projectPicker", "loading", false)
       }
     },
+    openProjectPickerSearch() {
+      setState("projectPicker", "searchOpen", true)
+    },
+    updateProjectPickerSearch(query) {
+      setState("projectPicker", "searchQuery", query)
+      setState("projectPicker", "selectedIndex", 0)
+    },
+    clearProjectPickerSearch() {
+      setState("projectPicker", "searchOpen", false)
+      setState("projectPicker", "searchQuery", "")
+      setState("projectPicker", "selectedIndex", 0)
+    },
     backProjectPickerStep() {
       if (state.projectPicker.step !== "board") return
       const selectedProject = state.projectPicker.selectedProject
-      const selectedIndex = selectedProject ? Math.max(0, state.projectPicker.projects.findIndex((project) => project.key === selectedProject.key)) : 0
       setState("projectPicker", "step", "project")
       setState("projectPicker", "selectedProject", undefined)
       setState("projectPicker", "boards", [])
+      setState("projectPicker", "searchOpen", false)
+      setState("projectPicker", "searchQuery", "")
+      const selectedIndex = selectedProject ? Math.max(0, filteredProjectPickerProjects(state).findIndex((project) => project.key === selectedProject.key)) : 0
       setState("projectPicker", "selectedIndex", selectedIndex)
       setState("projectPicker", "error", undefined)
     },
     moveProjectPickerSelection(delta) {
-      const options = projectPickerOptions(state)
+      const options = filteredProjectPickerOptions(state)
       if (!options.length) return
       setState("projectPicker", "selectedIndex", (state.projectPicker.selectedIndex + delta + options.length) % options.length)
     },
@@ -277,7 +302,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       if (state.projectPicker.loading || state.projectPicker.saving) return
       try {
         if (state.projectPicker.step === "project") {
-          const project = state.projectPicker.projects[state.projectPicker.selectedIndex]
+          const project = filteredProjectPickerProjects(state)[state.projectPicker.selectedIndex]
           if (!project) return
           setState("projectPicker", "loading", true)
           setState("projectPicker", "error", undefined)
@@ -293,12 +318,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           setState("projectPicker", "selectedProject", project)
           setState("projectPicker", "boards", boards)
           setState("projectPicker", "step", "board")
+          setState("projectPicker", "searchOpen", false)
+          setState("projectPicker", "searchQuery", "")
           setState("projectPicker", "selectedIndex", 0)
           return
         }
 
         const project = state.projectPicker.selectedProject
-        const board = state.projectPicker.boards[state.projectPicker.selectedIndex]
+        const board = filteredProjectPickerBoards(state)[state.projectPicker.selectedIndex]
         if (!project || !board) return
         await saveSelectedProjectContext(project, board)
       } catch (error) {
@@ -715,10 +742,6 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
 
 function clampOffset(offset: number, statusCount: number) {
   return Math.max(0, Math.min(offset, Math.max(0, statusCount - 1)))
-}
-
-function projectPickerOptions(state: AppState) {
-  return state.projectPicker.step === "project" ? state.projectPicker.projects : state.projectPicker.boards
 }
 
 export function detailBodyInitialValue(state: AppState, issue: IssueSummary) {

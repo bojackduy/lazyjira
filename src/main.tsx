@@ -51,6 +51,8 @@ initialState.authOnboarding = {
 initialState.projectPicker = {
   open: shouldOpenProjectPicker,
   step: "project",
+  searchOpen: false,
+  searchQuery: "",
   loading: false,
   saving: false,
   selectedIndex: 0,

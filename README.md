@@ -257,7 +257,7 @@ Credentials are stored at `~/.config/lazyjira/config.json` with user-only file p
 
 ### Jira Project Selection
 
-In prod runtime, after credentials are saved, the TUI opens a project picker backed by Jira project/board APIs. Press `P` later to switch the active project/board without editing config or restarting.
+In prod runtime, after credentials are saved, the TUI opens a project picker backed by Jira project/board APIs. Press `P` later to switch the active project/board without editing config or restarting. In the picker, press `/` to filter by project key/name or board name/type.
 
 For local smoke testing without Jira credentials, start with `lazyjira dev` or `bun run start:dev` and choose from bundled dev Kanban projects and boards. Press `P` later to reopen the same picker. Dev runtime loads different fixture tickets for `PROJ`, `MOB`, and `OPS`.
 

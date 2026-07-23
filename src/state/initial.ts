@@ -22,6 +22,8 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     projectPicker: {
       open: false,
       step: "project",
+      searchOpen: false,
+      searchQuery: "",
       loading: false,
       saving: false,
       selectedIndex: 0,
