@@ -4,9 +4,10 @@ import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
-import type { IssueSummary } from "../state/app-state"
+import type { IssuePageState, IssueSummary } from "../state/app-state"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
+import { backlogIssuePageSourceId, loadedIssueCount, sprintIssuePageSourceId } from "../state/issue-pages"
 import { groupBacklogIssues, groupModeLabel, issueTypeColor, statusColor, statusName } from "../state/selectors"
 
 export function BacklogRoute() {
@@ -46,7 +47,7 @@ export function BacklogRoute() {
       <box flexDirection="column" gap={1} flexGrow={1} minHeight={0} overflow="hidden">
         <box height={3} flexShrink={0} flexDirection="column">
           <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">Backlog: {state.board.name}</text>
-          <text fg={theme.textMuted} wrapMode="none">Grouped by {groupModeLabel(state.backlogGroupBy)} · g cycle group · h/l jump group</text>
+          <text fg={theme.textMuted} wrapMode="none">Grouped by {groupModeLabel(state.backlogGroupBy)} · g cycle group · h/l jump group · L load more</text>
         </box>
         <BacklogLegend width={mainWidth()} />
         <Show when={state.workspaceNotice}>
@@ -77,6 +78,9 @@ export function BacklogRoute() {
                     return issue ? <BacklogRow issue={issue} selected={state.selectedIssueKey === issue.key} compact={compact()} /> : null
                   }}
                 </For>
+                <Show when={state.backlogGroupBy === "sprint"}>
+                  <IssuePageLine sourceId={backlogGroupSourceId(group.id)} />
+                </Show>
               </box>
             )}
           </For>
@@ -91,6 +95,36 @@ export function BacklogRoute() {
   function sectionPoints(issueKeys: string[]) {
     return issueKeys.reduce((total, issueKey) => total + (issueByKey(state, issueKey)?.storyPoints ?? 0), 0)
   }
+}
+
+function IssuePageLine(props: { sourceId: string }) {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const page = () => state.issuePageStateBySource[props.sourceId]
+
+  return (
+    <Show when={page()}>
+      {(value) => (
+        <text fg={value().error ? theme.danger : value().loading ? theme.warning : theme.textSubtle} wrapMode="none">
+          {issuePageText(value())}
+        </text>
+      )}
+    </Show>
+  )
+}
+
+function issuePageText(page: IssuePageState) {
+  return page.loading
+    ? "Loading more Jira issues..."
+    : page.error
+      ? `Load more failed: ${page.error}`
+      : page.isLast
+        ? `Loaded ${loadedIssueCount(page)}${typeof page.total === "number" ? `/${page.total}` : ""} Jira issues`
+        : `Loaded ${loadedIssueCount(page)}${typeof page.total === "number" ? `/${page.total}` : ""} Jira issues · L load more`
+}
+
+function backlogGroupSourceId(groupId: string) {
+  return groupId === "backlog" ? backlogIssuePageSourceId : sprintIssuePageSourceId(groupId)
 }
 
 function BacklogLegend(props: { width: number }) {

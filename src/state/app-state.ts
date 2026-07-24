@@ -45,6 +45,17 @@ export type IssueComment = {
   age: string
 }
 
+export type IssuePageState = {
+  sourceId: string
+  startAt: number
+  cursor?: string
+  maxResults: number
+  total?: number
+  isLast: boolean
+  loading: boolean
+  error?: string
+}
+
 export type BoardGroupBy = "none" | "assignee" | "epic" | "feature" | "space" | "issueType" | "priority"
 
 export type BoardMode = "active-sprint" | "kanban"
@@ -155,7 +166,7 @@ export type FocusPane = "sidebar" | "main" | "inspector"
 
 export type WorkspaceFocusArea = "cards" | "results"
 
-export type SearchMode = "loaded"
+export type SearchMode = "loaded" | "remote"
 
 export type QuickFilterId = "mine" | "blocked" | "stale" | "unassigned"
 
@@ -233,6 +244,10 @@ export type AppState = {
   searchMode: SearchMode
   searchQuery: string
   searchDraft: string
+  remoteSearchQuery: string
+  remoteSearchIssueKeys: string[]
+  remoteSearchPageState: IssuePageState
+  remoteSearchRequestId: number
   configSelectedSectionIndex: number
   configSelectedRowIndex: number
   configFocusedArea: ConfigFocusArea
@@ -263,6 +278,12 @@ export type AppState = {
   inspectorEditValue: string
   issueDrafts: Record<string, IssueDraft>
   issueDeletes: string[]
+  issueDetailLoadingByKey: Record<string, boolean>
+  issueDetailErrorByKey: Record<string, string | undefined>
+  issueDetailLoadedAtByKey: Record<string, string>
+  issueDetailRequestId: number
+  issuePageStateBySource: Record<string, IssuePageState>
+  issuePageRequestIdBySource: Record<string, number>
   pendingDeleteIssueKey?: string
   remoteApplyOpen: boolean
   stagedDiscardOpen: boolean

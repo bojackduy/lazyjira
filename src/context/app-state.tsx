@@ -1,7 +1,7 @@
 import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
 import { normalizeBaseUrl, saveJiraAuthConfig, type JiraWorkspaceConfig } from "../auth/config"
-import type { WorkspaceSource, LoadedWorkspace } from "../workspace/types"
+import { workspaceStats, type WorkspaceSource, type LoadedWorkspace } from "../workspace/types"
 import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, ProjectOption, QuickFilterId, StatusCategory, WorkspaceOption } from "../state/app-state"
 import {
   colorableConfigSection,
@@ -23,6 +23,7 @@ import { isEditableField, issueFieldDisplayValue, issueFields, selectedIssueFiel
 import { filteredProjectPickerBoards, filteredProjectPickerOptions, filteredProjectPickerProjects, filteredProjectPickerWorkspaces } from "../state/project-picker"
 import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from "../state/staged-changes"
 import { workspaceCurrentResults, workspaceItems, workspaceSelectedItem } from "../state/workspace"
+import { defaultIssuePageState, remoteSearchIssuePageSourceId } from "../state/issue-pages"
 import { useToast } from "./toast"
 
 export type AppStateContext = {
@@ -53,10 +54,12 @@ export type AppStateContext = {
   focusWorkspaceResults: () => void
   closeWorkspaceResults: () => void
   openSearch: () => void
+  openRemoteSearch: () => void
   closeSearch: () => void
   updateSearchDraft: (value: string) => void
   commitSearch: () => void
   clearSearch: () => void
+  loadMoreRemoteSearch: () => Promise<void>
   moveConfigSelection: (delta: number) => void
   focusConfigArea: (area: ConfigFocusArea) => void
   startConfigAdd: () => void
@@ -68,6 +71,8 @@ export type AppStateContext = {
   stageConfigRemove: () => void
   selectIssue: (issueKey: string) => void
   openIssueDetail: (issueKey?: string) => void
+  loadIssueDetail: (issueKey?: string) => Promise<void>
+  loadIssuePage: (sourceId: string) => Promise<void>
   closeIssueDetail: () => void
   moveInspectorSelection: (delta: number) => void
   moveInspectorChoice: (delta: number) => void
@@ -146,7 +151,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("jiraProjectReady", true)
       setState("projectPicker", "open", false)
       setState("projectPicker", "error", undefined)
-      toast.show(active ? `${project.key} · ${board.name} saved to recent workspaces.` : props.source.env === "dev" ? `Dev project ${project.key} loaded from fixtures.` : `Prod project ${project.key} selected. Jira issue loading is not wired yet.`)
+      toast.show(active ? `${project.key} · ${board.name} saved to recent workspaces.` : props.source.env === "dev" ? `Dev project ${project.key} loaded from fixtures.` : `Prod project ${project.key} loaded from Jira.`)
     } finally {
       setState("projectPicker", "saving", false)
       setState("projectPicker", "loading", false)
@@ -173,10 +178,21 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("workspaceFocusedArea", "cards")
     setState("workspaceResultSelectedIndex", 0)
     setState("searchOpen", false)
+    setState("searchMode", "loaded")
     setState("searchQuery", "")
     setState("searchDraft", "")
+    setState("remoteSearchQuery", "")
+    setState("remoteSearchIssueKeys", [])
+    setState("remoteSearchPageState", defaultIssuePageState(remoteSearchIssuePageSourceId, 50))
+    setState("remoteSearchRequestId", 0)
     setState("issueDrafts", reconcile({}))
     setState("issueDeletes", [])
+    setState("issueDetailLoadingByKey", reconcile({}))
+    setState("issueDetailErrorByKey", reconcile({}))
+    setState("issueDetailLoadedAtByKey", reconcile({}))
+    setState("issueDetailRequestId", 0)
+    setState("issuePageStateBySource", reconcile(workspace.issuePageStateBySource))
+    setState("issuePageRequestIdBySource", reconcile({}))
     setState("pendingDeleteIssueKey", undefined)
     setState("inspectorSelectedFieldIndex", 1)
     setState("inspectorEditingFieldId", undefined)
@@ -189,6 +205,57 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("stagedDiscardSelections", [])
     setState("activeSprintStatusOffset", 0)
     setState("kanbanStatusOffset", 0)
+  }
+
+  async function runRemoteSearch(query: string, append: boolean) {
+    const trimmed = query.trim()
+    if (!trimmed) {
+      context.clearSearch()
+      return
+    }
+    if (state.remoteSearchPageState.loading) return
+    if (append && state.remoteSearchPageState.isLast) {
+      toast.show("No more Jira search results to load")
+      return
+    }
+    const pageState = append && state.remoteSearchQuery === trimmed
+      ? state.remoteSearchPageState
+      : defaultIssuePageState(remoteSearchIssuePageSourceId, 50)
+    const requestId = state.remoteSearchRequestId + 1
+    setState("remoteSearchRequestId", requestId)
+    setState("searchMode", "remote")
+    setState("remoteSearchQuery", trimmed)
+    setState("remoteSearchPageState", { ...pageState, loading: true, error: undefined })
+    if (!append) setState("remoteSearchIssueKeys", [])
+    try {
+      const loaded = await props.source.searchIssues(trimmed, {
+        project: state.project,
+        board: state.board,
+        statuses: state.statuses,
+        pageState,
+      })
+      if (state.remoteSearchRequestId !== requestId) return
+      const nextIssues = { ...state.issues }
+      for (const issue of loaded.issues) nextIssues[issue.key] = mergeLoadedPageIssue(nextIssues[issue.key], issue)
+      const nextKeys = uniqueStrings([...(append ? state.remoteSearchIssueKeys : []), ...loaded.issues.map((issue) => issue.key)])
+      setState("issues", reconcile(nextIssues))
+      setState("stats", workspaceStats(state.statuses, Object.values(nextIssues)))
+      setState("remoteSearchIssueKeys", nextKeys)
+      setState("remoteSearchPageState", reconcile({ ...loaded.pageState, loading: false, error: undefined }))
+      setState("searchOpen", false)
+      setState("searchDraft", trimmed)
+      setState("route", "workspace")
+      setState("sidebarSelectedIndex", sidebarRoutes.findIndex((route) => route.id === "workspace"))
+      setState("workspaceFocusedArea", "cards")
+      setState("workspaceSelectedIndex", remoteSearchWorkspaceItemIndex(state))
+      setState("workspaceResultSelectedIndex", 0)
+    } catch (error) {
+      if (state.remoteSearchRequestId !== requestId) return
+      const message = error instanceof Error ? error.message : String(error)
+      setState("remoteSearchPageState", { ...pageState, loading: false, error: message })
+      setState("searchOpen", false)
+      toast.show(message)
+    }
   }
 
   const context: AppStateContext = {
@@ -456,25 +523,47 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("workspaceResultSelectedIndex", 0)
     },
     openSearch() {
+      setState("searchMode", "loaded")
       setState("searchOpen", true)
       setState("searchDraft", state.searchQuery)
       setState("focusedPane", "main")
     },
+    openRemoteSearch() {
+      setState("searchMode", "remote")
+      setState("searchOpen", true)
+      setState("searchDraft", state.remoteSearchQuery)
+      setState("focusedPane", "main")
+    },
     closeSearch() {
       setState("searchOpen", false)
-      setState("searchDraft", state.searchQuery)
+      setState("searchDraft", state.searchMode === "remote" ? state.remoteSearchQuery : state.searchQuery)
     },
     updateSearchDraft(value) {
       setState("searchDraft", value)
     },
     commitSearch() {
+      if (state.searchMode === "remote") {
+        void runRemoteSearch(state.searchDraft.trim(), false)
+        return
+      }
       setState("searchQuery", state.searchDraft.trim())
       setState("searchOpen", false)
     },
     clearSearch() {
+      if (state.searchMode === "remote") {
+        setState("remoteSearchQuery", "")
+        setState("remoteSearchIssueKeys", [])
+        setState("remoteSearchPageState", defaultIssuePageState(remoteSearchIssuePageSourceId, 50))
+        setState("searchDraft", "")
+        setState("searchOpen", false)
+        return
+      }
       setState("searchQuery", "")
       setState("searchDraft", "")
       setState("searchOpen", false)
+    },
+    async loadMoreRemoteSearch() {
+      await runRemoteSearch(state.remoteSearchQuery, true)
     },
     moveConfigSelection(delta) {
       const sectionId = configSectionIdAt(state.configSelectedSectionIndex)
@@ -561,10 +650,70 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("selectedIssueKey", issueKey)
     },
     openIssueDetail(issueKey) {
+      const targetIssueKey = issueKey ?? state.selectedIssueKey
       if (issueKey) setState("selectedIssueKey", issueKey)
       if (state.route !== "issue-detail") setState("previousRoute", state.route)
       setState("route", "issue-detail")
       setState("focusedPane", "main")
+      void context.loadIssueDetail(targetIssueKey)
+    },
+    async loadIssueDetail(issueKey = state.selectedIssueKey) {
+      if (!issueKey) return
+      const existingIssue = issueByKey(state, issueKey)
+      if (existingIssue?.isDraft) return
+      const requestId = state.issueDetailRequestId + 1
+      setState("issueDetailRequestId", requestId)
+      setState("issueDetailLoadingByKey", issueKey, true)
+      setState("issueDetailErrorByKey", issueKey, undefined)
+      try {
+        const loaded = await props.source.loadIssueDetail(issueKey, {
+          project: state.project,
+          board: state.board,
+          statuses: state.statuses,
+          existingIssue,
+        })
+        if (state.issueDetailRequestId !== requestId) return
+        setState("issues", loaded.issue.key, reconcile(loaded.issue))
+        setState("issueDetailLoadedAtByKey", loaded.issue.key, new Date().toISOString())
+      } catch (error) {
+        if (state.issueDetailRequestId !== requestId) return
+        const message = error instanceof Error ? error.message : String(error)
+        setState("issueDetailErrorByKey", issueKey, message)
+        toast.show(message)
+      } finally {
+        if (state.issueDetailRequestId === requestId) setState("issueDetailLoadingByKey", issueKey, false)
+      }
+    },
+    async loadIssuePage(sourceId) {
+      const currentPage = state.issuePageStateBySource[sourceId] ?? defaultIssuePageState(sourceId)
+      if (currentPage.loading) return
+      if (currentPage.isLast) {
+        toast.show("No more Jira issues to load for this section")
+        return
+      }
+      const requestId = (state.issuePageRequestIdBySource[sourceId] ?? 0) + 1
+      setState("issuePageRequestIdBySource", sourceId, requestId)
+      setState("issuePageStateBySource", sourceId, { ...currentPage, loading: true, error: undefined })
+      try {
+        const loaded = await props.source.loadIssuePage(sourceId, {
+          project: state.project,
+          board: state.board,
+          statuses: state.statuses,
+          pageState: currentPage,
+        })
+        if (state.issuePageRequestIdBySource[sourceId] !== requestId) return
+        const nextIssues = { ...state.issues }
+        for (const issue of loaded.issues) nextIssues[issue.key] = mergeLoadedPageIssue(nextIssues[issue.key], issue)
+        setState("issues", reconcile(nextIssues))
+        setState("stats", workspaceStats(state.statuses, Object.values(nextIssues)))
+        setState("issuePageStateBySource", sourceId, reconcile({ ...loaded.pageState, loading: false, error: undefined }))
+        if (!state.selectedIssueKey && loaded.issues[0]) setState("selectedIssueKey", loaded.issues[0].key)
+      } catch (error) {
+        if (state.issuePageRequestIdBySource[sourceId] !== requestId) return
+        const message = error instanceof Error ? error.message : String(error)
+        setState("issuePageStateBySource", sourceId, { ...currentPage, loading: false, error: message })
+        toast.show(message)
+      }
     },
     closeIssueDetail() {
       if (state.route !== "issue-detail") return
@@ -794,6 +943,25 @@ function clampOffset(offset: number, statusCount: number) {
 
 export function detailBodyInitialValue(state: AppState, issue: IssueSummary) {
   return state.issueDrafts[issue.key]?.description ?? issue.description
+}
+
+function mergeLoadedPageIssue(existing: IssueSummary | undefined, issue: IssueSummary): IssueSummary {
+  return {
+    ...existing,
+    ...issue,
+    description: issue.description || existing?.description || "",
+    comments: existing?.comments.length ? existing.comments : issue.comments,
+    links: issue.links.length ? issue.links : existing?.links ?? [],
+    isDraft: existing?.isDraft ?? issue.isDraft,
+  }
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values)]
+}
+
+function remoteSearchWorkspaceItemIndex(state: AppState) {
+  return Math.max(0, workspaceItems(state).findIndex((item) => item.id === "search:remote"))
 }
 
 function configDraftFromEdit(state: AppState): ConfigDraft | undefined {

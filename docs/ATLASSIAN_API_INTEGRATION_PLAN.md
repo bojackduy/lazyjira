@@ -13,10 +13,11 @@ Success means a configured user can choose a Jira-backed project/board in `prod`
 - Runtime env exists in `src/runtime/env.ts`: normal startup defaults to `prod`; `dev` opts into fixture-backed workspace data.
 - Startup loads config in `src/main.tsx`, injects either prod or dev `WorkspaceSource`, injects either prod or dev workspace persistence, opens onboarding when prod lacks auth, and opens the local-first workspace switcher when the active env has no saved workspace.
 - Project selection already calls `source.loadWorkspace()`, persists the selected workspace, and applies the loaded workspace into shared app state.
-- UI state already has project, board, sprint, status, issue, issue draft, delete draft, config draft, search, and remote-write review fields.
+- UI state already has project, board, sprint, status, issue, issue draft, delete draft, config draft, loaded filtering, remote search, and remote-write review fields.
 - Rendering already reads from shared state/selectors; Jira calls should stay out of route/component render code.
 - Prod board selection now loads board metadata, active/future sprint metadata, all active sprint issues, Jira field IDs for sprint/points/rank, and one bounded backlog page.
-- Future sprint issue pages, issue detail/comments, remote Jira search, pagination UI, and remote writes are still not wired.
+- Opening or refreshing an issue detail view now loads full Jira issue detail and comments with stale-response protection.
+- Future sprint, backlog, and board issue load-more pages are wired. Explicit remote Jira search is wired through `S`; Jira writes are still not wired.
 
 ## Non-Negotiables
 
@@ -63,9 +64,9 @@ Runtime behavior:
 - Remote board mode fetches/refreshes boards only for the selected project; `Enter` finalizes the selected project+board.
 - `saveSelectedProjectContext()` loads the final selected workspace through `source.loadWorkspace()`, persists the correct workspace config key and recent list through injected persistence, and applies the loaded workspace into state.
 
-When read-only issue loading is added:
+Read-only issue loading behavior:
 
-- Selecting a prod board should load only that selected workspace through `createProdWorkspaceSource().loadWorkspace()`; today this returns an explicit empty/not-wired workspace, and future phases should replace that with real Jira issue loading.
+- Selecting a prod board loads only that selected workspace through `createProdWorkspaceSource().loadWorkspace()`.
 - Selecting a dev board should keep using fixture data through `createDevWorkspaceSource()`, not real Jira endpoints.
 - Same-workspace refresh can keep previous successful data visible until replacement data is ready.
 - Cross-workspace switching should either keep the old workspace active until the new load succeeds or switch to a clear loading/empty/error state; it must not display old issues under the new project header.
@@ -209,7 +210,7 @@ Verification:
 Goal: make large boards safe and explicit.
 
 - Introduce a reusable page state: source id, `startAt`, `maxResults`, `total`, `isLast`, `loading`, and `error`.
-- Keep `fetchJiraPages()` for small all-page metadata reads; add bounded page readers for backlog, future sprint issues, board issues, and remote search.
+- Keep `fetchJiraPages()` for small all-page metadata reads; add bounded page readers for backlog, future sprint issues, and board issues. Remote search pagination belongs to R3.
 - Add explicit load-more commands for backlog and future sprint sections.
 - Keep future sprint issue pages unloaded by default; for example, do not auto-load the `HPCE Test` future sprint with hundreds of issues.
 - Dedupe appended issues by key and preserve staged overlays.
@@ -350,7 +351,7 @@ Verification:
 
 ### A3. Sprint And Backlog Issue Loading
 
-Status: in progress. Active/future sprint discovery, all active sprint issue loading, and bounded backlog loading are wired; future sprint issue pagination/load-more remains.
+Status: implemented for active/future sprint discovery, all active sprint issue loading, bounded backlog loading, and explicit future sprint issue load-more.
 
 Implementation:
 
@@ -381,6 +382,8 @@ Verification:
 
 ### A5. Issue Detail Loading
 
+Status: implemented for selected issue detail/comments; attachments, links, and subtasks are still placeholder-only.
+
 Implementation:
 
 - Load full issue detail and comments on explicit detail open or refresh.
@@ -397,9 +400,9 @@ Verification:
 
 Implementation:
 
-- Add bounded page readers for backlog, future sprint issues, board issues, and remote search.
+- Add bounded page readers for backlog, future sprint issues, and board issues. Remote search pagination is tracked under A6/A6.1.
 - Add page state with `startAt`, `maxResults`, `total`, `isLast`, `loading`, and `error`.
-- Add explicit load-more commands for backlog and future sprint sections.
+- Add explicit load-more commands for backlog, future sprint sections, and kanban board issues.
 - Deduplicate loaded pages by issue key and preserve staged overlays.
 
 Verification:
@@ -407,6 +410,8 @@ Verification:
 - Tests for bounded page metadata, append/dedupe, and no automatic large future sprint loads.
 
 ### A6. Remote Search Mode
+
+Status: implemented for explicit `S` remote Jira search, workspace result display, and remote result pagination append/dedupe.
 
 Implementation:
 

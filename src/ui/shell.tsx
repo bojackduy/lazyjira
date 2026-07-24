@@ -123,16 +123,23 @@ function SearchBar() {
   const { state } = appState
   const theme = useTheme()
   let input: InputRenderable | undefined
-  const visible = () => state.route !== "config" && (state.searchOpen || !!state.searchQuery)
+  const visible = () => state.route !== "config" && (state.searchOpen || !!state.searchQuery || !!state.remoteSearchQuery || !!state.remoteSearchIssueKeys.length || state.remoteSearchPageState.loading || !!state.remoteSearchPageState.error)
+  const remoteMode = () => state.searchMode === "remote"
   const filteredCount = () => issueList(state).length
   const loadedCount = () => allIssues(state).length
+  const remoteLoadedCount = () => state.remoteSearchIssueKeys.length
+  const remoteTotal = () => typeof state.remoteSearchPageState.total === "number" ? `/${state.remoteSearchPageState.total}` : ""
 
   return (
     <Show when={visible()}>
       <box borderStyle="rounded" borderColor={state.searchOpen ? theme.borderActive : theme.border} paddingLeft={1} paddingRight={1} height={3} flexShrink={0} flexDirection="row" gap={1} alignItems="center">
-        <text attributes={TextAttributes.BOLD} fg={theme.warning} wrapMode="none">Filter loaded</text>
+        <text attributes={TextAttributes.BOLD} fg={remoteMode() ? theme.accent : theme.warning} wrapMode="none">{remoteMode() ? "Search Jira" : "Filter loaded"}</text>
         <Show when={state.searchOpen} fallback={
-          <text fg={theme.textMuted} wrapMode="none">{state.searchQuery || "empty"} · {filteredCount()}/{loadedCount()} loaded · / edit · empty Enter clears</text>
+          <text fg={state.remoteSearchPageState.error && remoteMode() ? theme.danger : theme.textMuted} wrapMode="none">
+            {remoteMode()
+              ? `${state.remoteSearchQuery || "empty"} · ${remoteLoadedCount()}${remoteTotal()} Jira results${state.remoteSearchPageState.loading ? " · loading" : state.remoteSearchPageState.error ? ` · ${state.remoteSearchPageState.error}` : ""} · S edit`
+              : `${state.searchQuery || "empty"} · ${filteredCount()}/${loadedCount()} loaded · / edit · empty Enter clears`}
+          </text>
         }>
           <input
             value={state.searchDraft}
@@ -151,7 +158,7 @@ function SearchBar() {
             focusedBackgroundColor={theme.panel}
             flexGrow={1}
           />
-          <text fg={theme.textSubtle} wrapMode="none">{filteredCount()}/{loadedCount()} loaded</text>
+          <text fg={theme.textSubtle} wrapMode="none">{remoteMode() ? `${remoteLoadedCount()}${remoteTotal()} Jira` : `${filteredCount()}/${loadedCount()} loaded`}</text>
         </Show>
       </box>
     </Show>
@@ -163,7 +170,7 @@ function Footer() {
   const theme = useTheme()
   const toast = useToast()
   const items = () => state.searchOpen
-    ? ["filter loaded", "type query", "enter apply", "esc close", "empty enter clears"]
+    ? state.searchMode === "remote" ? ["search Jira", "type text", "enter run", "esc close", "empty enter clears"] : ["filter loaded", "type query", "enter apply", "esc close", "empty enter clears"]
     : footerItems(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open ? state.projectPicker.mode : undefined)
 
   return (
@@ -266,7 +273,7 @@ function RemoteApplyPopup() {
             )}
           </For>
         </Show>
-        <text fg={theme.warning} wrapMode="none">Jira API is not wired yet; confirming now keeps staged changes intact.</text>
+        <text fg={theme.warning} wrapMode="none">Jira writes are not wired yet; confirming now keeps staged changes intact.</text>
       </ModalFrame>
     </Show>
   )
@@ -599,12 +606,12 @@ function footerItems(focusedPane: string, route: string, stagedDiscardOpen: bool
   if (stagedDiscardOpen) return ["discard staged", "j/k choose", "space mark", "enter discard", "esc/q close"]
   if (focusedPane === "sidebar") return ["sidebar", "j/k choose", "enter/l open/toggle", "space filter", "P project", "q quit"]
   if (focusedPane === "inspector") return ["inspector", "j/k field", "e/enter edit", "ctrl-enter stage", "x delete", "X discard", "w render", "W Jira"]
-  if (route === "issue-detail") return ["detail", "j/k line", "d/u half-page", "e edit body", "ctrl-enter stage", "X discard", "w render", "W Jira"]
-  if (route === "workspace") return ["workspace", "j/k choose", "d/u page", "enter open", "/ filter", "P project", "X discard", "W Jira"]
+  if (route === "issue-detail") return ["detail", "j/k line", "d/u half-page", "e edit body", "r refresh", "ctrl-enter stage", "W Jira"]
+  if (route === "workspace") return ["workspace", "j/k choose", "d/u page", "enter open", "/ filter", "S Jira search", "W Jira"]
   if (route === "config") return ["config", "j/k choose", "d/u page", "h/l pane", "a add", "e rename", "c color", "W Jira"]
-  if (route === "active-sprint") return ["sprint", "j/k card", "h/l column", "enter open/new", "/ filter", "n new", "W Jira"]
-  if (route === "kanban") return ["kanban", "j/k row", "h/l column", "enter open/new", "/ filter", "g group", "W Jira"]
-  if (route === "backlog") return ["backlog", "j/k row", "h/l group", "/ filter", "P project", "n new", "W Jira"]
+  if (route === "active-sprint") return ["sprint", "j/k card", "h/l column", "enter open/new", "/ filter", "S Jira search", "W Jira"]
+  if (route === "kanban") return ["kanban", "j/k row", "h/l column", "enter open/new", "L load more", "S Jira search", "W Jira"]
+  if (route === "backlog") return ["backlog", "j/k row", "h/l group", "L load more", "/ filter", "S Jira search", "W Jira"]
   return ["1 workspace", "2 sprint", "3 backlog", "4 kanban", "P project", "/ filter loaded", "q quit"]
 }
 

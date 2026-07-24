@@ -176,6 +176,7 @@ Purpose: let users jump anywhere without navigating through panes.
 Should support:
 
 - Search issues.
+- Search Jira remotely with an explicit command.
 - Search boards/projects.
 - Search Confluence/docs links.
 - Run actions by name.
@@ -191,6 +192,7 @@ The app should use lazy-family muscle memory, adapted to Jira's board and backlo
 |---|---|
 | `?` | Help for current context |
 | `/` | Search or filter current screen |
+| `S` | Search Jira remotely |
 | `q` | Back, close, or quit depending on context |
 | `Esc` | Cancel modal/search/selection |
 | `Tab` / `Shift-Tab` | Cycle focus between major regions |
@@ -265,7 +267,7 @@ Remote Jira discovery is explicit. From the workspace switcher, press `a` to bro
 
 For local smoke testing without Jira credentials, start with `lazyjira dev` or `bun run start:dev`. Press `P` for saved fixture workspaces or `a` to browse the bundled dev projects and boards. Dev runtime loads different fixture tickets for `PROJ`, `MOB`, and `OPS`.
 
-Prod selections are persisted under `prodWorkspace` and `prodRecentWorkspaces`; dev selections are persisted separately under `devWorkspace` and `devRecentWorkspaces`. Auth updates preserve workspace context, and workspace updates preserve the saved API token. Prod board metadata, sprints, all active sprint issues, Jira sprint/points/rank field IDs, and a bounded backlog page are loaded from Jira after selection. Future sprint issue pagination, issue detail/comments, remote Jira search, and Jira writes are still being wired; `/` remains loaded-data filtering only.
+Prod selections are persisted under `prodWorkspace` and `prodRecentWorkspaces`; dev selections are persisted separately under `devWorkspace` and `devRecentWorkspaces`. Auth updates preserve workspace context, and workspace updates preserve the saved API token. Prod board metadata, sprints, all active sprint issues, Jira sprint/points/rank field IDs, a bounded backlog page, future sprint/backlog/kanban load-more pages, selected issue detail/comments, and explicit remote Jira search are loaded from Jira. Jira writes are still being wired; `/` remains loaded-data filtering only.
 
 ### Phase 1: Dev Fixture Board Foundation
 

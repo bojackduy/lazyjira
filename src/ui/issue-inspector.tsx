@@ -67,6 +67,12 @@ export function IssueInspector(props: { compact: boolean }) {
               </For>
               <box flexShrink={0} marginTop={1}>
                 <text attributes={TextAttributes.BOLD} fg={theme.warning}>Comments</text>
+                <Show when={state.issueDetailLoadingByKey[selectedIssue().key]}>
+                  <text fg={theme.warning} wrapMode="none">Loading Jira comments...</text>
+                </Show>
+                <Show when={state.issueDetailErrorByKey[selectedIssue().key]}>
+                  {(message) => <text fg={theme.danger} wrapMode="none">Detail load failed: {message()}</text>}
+                </Show>
                 <For each={selectedIssue().comments} fallback={<text fg={theme.textSubtle}>No comments</text>}>
                   {(comment) => (
                     <box flexDirection="column" marginTop={1}>

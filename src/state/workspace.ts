@@ -1,6 +1,7 @@
 import type { AppRoute } from "./routes"
 import type { AppState, IssueSummary } from "./app-state"
 import { effectiveIssueSearchQuery } from "./issue-search"
+import { loadedIssueCount } from "./issue-pages"
 import { allIssues, activeSprint, groupModeLabel, issueList, statusName } from "./selectors"
 import { stagedChanges } from "./staged-changes"
 
@@ -93,17 +94,37 @@ export function workspacePendingItem(state: AppState): WorkspaceItem {
 }
 
 export function workspaceSearchItems(state: AppState): WorkspaceItem[] {
+  const items: WorkspaceItem[] = []
   const query = effectiveIssueSearchQuery(state).trim()
-  if (!query) return []
-  const issues = issueList(state)
-  return [{
-    id: "search:loaded",
-    section: "search",
-    title: "Filtered Loaded",
-    subtitle: `${issues.length}/${allIssues(state).length} loaded issues · ${query}`,
-    count: issues.length,
-    issueKeys: issues.map((issue) => issue.key),
-  }]
+  if (query) {
+    const issues = issueList(state)
+    items.push({
+      id: "search:loaded",
+      section: "search",
+      title: "Filtered Loaded",
+      subtitle: `${issues.length}/${allIssues(state).length} loaded issues · ${query}`,
+      count: issues.length,
+      issueKeys: issues.map((issue) => issue.key),
+    })
+  }
+  if (state.remoteSearchQuery || state.remoteSearchIssueKeys.length || state.remoteSearchPageState.loading || state.remoteSearchPageState.error) {
+    items.push({
+      id: "search:remote",
+      section: "search",
+      title: "Remote Jira Search",
+      subtitle: remoteSearchSubtitle(state),
+      count: state.remoteSearchIssueKeys.length,
+      issueKeys: state.remoteSearchIssueKeys,
+    })
+  }
+  return items
+}
+
+function remoteSearchSubtitle(state: AppState) {
+  const page = state.remoteSearchPageState
+  const total = typeof page.total === "number" ? `/${page.total}` : ""
+  const suffix = page.loading ? " · loading" : page.error ? ` · ${page.error}` : page.isLast ? "" : " · L more"
+  return `${loadedIssueCount(page)}${total} Jira results · ${state.remoteSearchQuery || "empty"}${suffix}`
 }
 
 export function workspaceAttentionQueues(state: AppState): WorkspaceItem[] {

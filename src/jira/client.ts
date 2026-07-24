@@ -86,6 +86,14 @@ export type JiraIssue = {
   }
 }
 
+export type JiraComment = {
+  id?: string
+  author?: { displayName?: string }
+  body?: unknown
+  created?: string
+  updated?: string
+}
+
 const jiraIssueFields = [
   "summary",
   "issuetype",
@@ -140,7 +148,9 @@ export type JiraRequestOptions = Omit<RequestInit, "headers"> & {
 export type JiraPaginatedResponse<T> = {
   values?: T[]
   issues?: T[]
+  comments?: T[]
   startAt?: number
+  nextPageToken?: string
   maxResults?: number
   total?: number
   isLast?: boolean
@@ -148,8 +158,18 @@ export type JiraPaginatedResponse<T> = {
 
 export type JiraPaginationOptions = {
   endpoint?: string
-  itemKey?: "values" | "issues"
+  itemKey?: "values" | "issues" | "comments"
   maxResults?: number
+}
+
+export type JiraPage<T> = {
+  items: T[]
+  startAt: number
+  cursor?: string
+  maxResults: number
+  total?: number
+  isLast: boolean
+  nextStartAt: number
 }
 
 export async function fetchAccessibleProjects(auth: JiraAuthConfig, fetchImpl: FetchLike = fetch): Promise<JiraProjectOption[]> {
@@ -192,14 +212,57 @@ export async function fetchSprintIssues(auth: JiraAuthConfig, sprintId: string, 
   return fetchJiraPages<JiraIssue>(auth, `/rest/agile/1.0/sprint/${encodeURIComponent(sprintId)}/issue?fields=${encodeURIComponent(issueFields(customFields).join(","))}`, { endpoint: `sprint ${sprintId} issues`, itemKey: "issues" }, fetchImpl)
 }
 
-export async function fetchBoardBacklogIssues(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch, customFields: string[] = [], maxResults = 100): Promise<JiraIssue[]> {
+export async function fetchSprintIssuePage(auth: JiraAuthConfig, sprintId: string, fetchImpl: FetchLike = fetch, customFields: string[] = [], startAt = 0, maxResults = 100): Promise<JiraPage<JiraIssue>> {
   const response = await jiraRequest<JiraPaginatedResponse<JiraIssue>>(
     auth,
-    `/rest/agile/1.0/board/${encodeURIComponent(boardId)}/backlog?fields=${encodeURIComponent(issueFields(customFields).join(","))}&startAt=0&maxResults=${encodeURIComponent(String(maxResults))}`,
-    { endpoint: "board backlog issues" },
+    `/rest/agile/1.0/sprint/${encodeURIComponent(sprintId)}/issue?fields=${encodeURIComponent(issueFields(customFields).join(","))}&startAt=${encodeURIComponent(String(startAt))}&maxResults=${encodeURIComponent(String(maxResults))}`,
+    { endpoint: `sprint ${sprintId} issue page` },
     fetchImpl,
   )
-  return response.issues ?? []
+  return jiraPage(response, "issues", startAt, maxResults)
+}
+
+export async function fetchIssueDetail(auth: JiraAuthConfig, issueKey: string, fetchImpl: FetchLike = fetch, customFields: string[] = []): Promise<JiraIssue> {
+  return jiraRequest<JiraIssue>(auth, `/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=${encodeURIComponent(issueFields(customFields).join(","))}`, { endpoint: `issue ${issueKey}` }, fetchImpl)
+}
+
+export async function fetchIssueComments(auth: JiraAuthConfig, issueKey: string, fetchImpl: FetchLike = fetch, maxResults = 50): Promise<JiraComment[]> {
+  return fetchJiraPages<JiraComment>(auth, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`, { endpoint: `issue ${issueKey} comments`, itemKey: "comments", maxResults }, fetchImpl)
+}
+
+export async function fetchBoardBacklogIssues(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch, customFields: string[] = [], maxResults = 100): Promise<JiraIssue[]> {
+  return (await fetchBoardBacklogIssuePage(auth, boardId, fetchImpl, customFields, 0, maxResults)).items
+}
+
+export async function fetchBoardBacklogIssuePage(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch, customFields: string[] = [], startAt = 0, maxResults = 100): Promise<JiraPage<JiraIssue>> {
+  const response = await jiraRequest<JiraPaginatedResponse<JiraIssue>>(
+    auth,
+    `/rest/agile/1.0/board/${encodeURIComponent(boardId)}/backlog?fields=${encodeURIComponent(issueFields(customFields).join(","))}&startAt=${encodeURIComponent(String(startAt))}&maxResults=${encodeURIComponent(String(maxResults))}`,
+    { endpoint: "board backlog issue page" },
+    fetchImpl,
+  )
+  return jiraPage(response, "issues", startAt, maxResults)
+}
+
+export async function fetchBoardIssuePage(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch, customFields: string[] = [], startAt = 0, maxResults = 100): Promise<JiraPage<JiraIssue>> {
+  const response = await jiraRequest<JiraPaginatedResponse<JiraIssue>>(
+    auth,
+    `/rest/agile/1.0/board/${encodeURIComponent(boardId)}/issue?fields=${encodeURIComponent(issueFields(customFields).join(","))}&startAt=${encodeURIComponent(String(startAt))}&maxResults=${encodeURIComponent(String(maxResults))}`,
+    { endpoint: "board issue page" },
+    fetchImpl,
+  )
+  return jiraPage(response, "issues", startAt, maxResults)
+}
+
+export async function fetchJiraSearchIssuePage(auth: JiraAuthConfig, jql: string, fetchImpl: FetchLike = fetch, customFields: string[] = [], startAt = 0, maxResults = 50, cursor?: string): Promise<JiraPage<JiraIssue>> {
+  const cursorParam = cursor ? `&nextPageToken=${encodeURIComponent(cursor)}` : ""
+  const response = await jiraRequest<JiraPaginatedResponse<JiraIssue>>(
+    auth,
+    `/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=${encodeURIComponent(issueFields(customFields).join(","))}&maxResults=${encodeURIComponent(String(maxResults))}${cursorParam}`,
+    { endpoint: "Jira issue search" },
+    fetchImpl,
+  )
+  return jiraPage(response, "issues", startAt, maxResults)
 }
 
 export async function fetchJiraPages<T>(auth: JiraAuthConfig, path: string, options: JiraPaginationOptions = {}, fetchImpl: FetchLike = fetch): Promise<T[]> {
@@ -267,6 +330,16 @@ function paginatedPath(path: string, startAt: number, maxResults: number) {
 
 function issueFields(customFields: string[]) {
   return [...new Set([...jiraIssueFields, ...customFields.filter(Boolean)])]
+}
+
+function jiraPage<T>(response: JiraPaginatedResponse<T>, itemKey: "values" | "issues" | "comments", requestedStartAt: number, requestedMaxResults: number): JiraPage<T> {
+  const items = response[itemKey] ?? []
+  const startAt = typeof response.startAt === "number" ? response.startAt : requestedStartAt
+  const maxResults = typeof response.maxResults === "number" ? response.maxResults : requestedMaxResults
+  const nextStartAt = startAt + items.length
+  const hasNextCursor = !!response.nextPageToken
+  const isLast = !!response.isLast || !items.length || (!hasNextCursor && ((typeof response.total === "number" && nextStartAt >= response.total) || items.length < maxResults))
+  return { items, startAt, cursor: response.nextPageToken, maxResults, total: response.total, isLast, nextStartAt }
 }
 
 function jiraUrl(auth: JiraAuthConfig, path: string) {

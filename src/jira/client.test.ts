@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { fetchAccessibleProjects, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardSprints, fetchJiraFields, fetchJiraPages, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError } from "./client"
-import { discoverJiraIssueFieldIds, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
+import { fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError } from "./client"
+import { discoverJiraIssueFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
 const auth: JiraAuthConfig = { baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }
@@ -95,6 +95,65 @@ describe("Jira discovery client", () => {
 
     expect(requests).toEqual(["https://team.atlassian.net/rest/agile/1.0/board/42/backlog?fields=summary%2Cissuetype%2Cpriority%2Cstatus%2Cassignee%2Creporter%2Cparent%2Clabels%2Ccomponents%2CfixVersions%2Cversions%2Cdescription%2Cissuelinks%2Csubtasks%2Ccreated%2Cupdated%2Cduedate%2Cresolution%2Ccustomfield_10020&startAt=0&maxResults=25"])
     expect(issues).toEqual([{ key: "PROJ-9", fields: { summary: "Backlog issue" } }])
+  })
+
+  test("fetches bounded issue pages with metadata", async () => {
+    const backlogPage = await fetchBoardBacklogIssuePage(auth, "42", async (url) => {
+      expect(url).toContain("/rest/agile/1.0/board/42/backlog?")
+      expect(url).toContain("&startAt=25&maxResults=25")
+      return jsonResponse({ startAt: 25, maxResults: 25, total: 75, issues: Array.from({ length: 25 }, (_, index) => ({ key: `PROJ-${index}` })) })
+    }, [], 25, 25)
+    const sprintPage = await fetchSprintIssuePage(auth, "7", async (url) => {
+      expect(url).toContain("/rest/agile/1.0/sprint/7/issue?")
+      expect(url).toContain("&startAt=0&maxResults=10")
+      return jsonResponse({ startAt: 0, maxResults: 10, total: 3, issues: [{ key: "PROJ-1" }, { key: "PROJ-2" }, { key: "PROJ-3" }] })
+    }, [], 0, 10)
+    const boardPage = await fetchBoardIssuePage(auth, "42", async (url) => {
+      expect(url).toContain("/rest/agile/1.0/board/42/issue?")
+      expect(url).toContain("&startAt=0&maxResults=10")
+      return jsonResponse({ startAt: 0, maxResults: 10, total: 1, issues: [{ key: "PROJ-4" }] })
+    }, [], 0, 10)
+
+    expect(backlogPage).toMatchObject({ startAt: 25, maxResults: 25, total: 75, isLast: false, nextStartAt: 50 })
+    expect(backlogPage.items).toHaveLength(25)
+    expect(sprintPage).toMatchObject({ total: 3, isLast: true, nextStartAt: 3 })
+    expect(boardPage).toMatchObject({ total: 1, isLast: true, nextStartAt: 1 })
+  })
+
+  test("fetches bounded Jira search issue pages", async () => {
+    const page = await fetchJiraSearchIssuePage(auth, "project = \"PROJ\" AND text ~ \"login\" ORDER BY updated DESC", async (url) => {
+      expect(url).toContain("/rest/api/3/search/jql?")
+      expect(url).toContain("jql=project%20%3D%20%22PROJ%22%20AND%20text%20~%20%22login%22%20ORDER%20BY%20updated%20DESC")
+      expect(url).toContain("&maxResults=25&nextPageToken=cursor-1")
+      return jsonResponse({ nextPageToken: "cursor-2", maxResults: 25, isLast: false, issues: [{ key: "PROJ-1" }] })
+    }, [], 0, 25, "cursor-1")
+
+    expect(page).toMatchObject({ cursor: "cursor-2", isLast: false, nextStartAt: 1 })
+    expect(page.items).toEqual([{ key: "PROJ-1" }])
+  })
+
+  test("fetches issue detail with custom fields", async () => {
+    const issue = await fetchIssueDetail(auth, "PROJ-1", async (url) => {
+      expect(url).toBe("https://team.atlassian.net/rest/api/3/issue/PROJ-1?fields=summary%2Cissuetype%2Cpriority%2Cstatus%2Cassignee%2Creporter%2Cparent%2Clabels%2Ccomponents%2CfixVersions%2Cversions%2Cdescription%2Cissuelinks%2Csubtasks%2Ccreated%2Cupdated%2Cduedate%2Cresolution%2Ccustomfield_10020")
+      return jsonResponse({ key: "PROJ-1", fields: { summary: "Detailed issue" } })
+    }, ["customfield_10020"])
+
+    expect(issue.key).toBe("PROJ-1")
+  })
+
+  test("fetches paginated issue comments", async () => {
+    const requests: string[] = []
+    const comments = await fetchIssueComments(auth, "PROJ-1", async (url) => {
+      requests.push(url)
+      if (url.endsWith("startAt=0&maxResults=1")) return jsonResponse({ startAt: 0, total: 2, comments: [{ id: "1" }] })
+      return jsonResponse({ startAt: 1, total: 2, comments: [{ id: "2" }] })
+    }, 1)
+
+    expect(requests).toEqual([
+      "https://team.atlassian.net/rest/api/3/issue/PROJ-1/comment?startAt=0&maxResults=1",
+      "https://team.atlassian.net/rest/api/3/issue/PROJ-1/comment?startAt=1&maxResults=1",
+    ])
+    expect(comments.map((comment) => comment.id)).toEqual(["1", "2"])
   })
 
   test("normalizes board columns into app statuses with real workflow names", () => {
@@ -221,6 +280,21 @@ describe("Jira discovery client", () => {
     ], [{ id: "10000", name: "To Do", category: "todo", color: "#94A3B8" }], { fieldIds: { sprint: "customfield_10020", storyPointEstimate: "customfield_10016" } })
 
     expect(issues[0]).toMatchObject({ key: "PROJ-3", sprintId: undefined, storyPoints: 3, estimate: 3 })
+  })
+
+  test("normalizes Jira comments and merges detail over an existing issue", () => {
+    const existing = normalizeJiraIssues([
+      { key: "PROJ-4", fields: { summary: "Summary", status: { id: "10000" } } },
+    ], [{ id: "10000", name: "To Do", category: "todo", color: "#94A3B8" }])[0]!
+    const detail = normalizeJiraIssues([
+      { key: "PROJ-4", fields: { summary: "Detailed summary", status: { id: "10000" }, description: { content: [{ content: [{ text: "Detailed body" }] }] } } },
+    ], [{ id: "10000", name: "To Do", category: "todo", color: "#94A3B8" }])[0]!
+    const comments = normalizeJiraComments([
+      { id: "10001", author: { displayName: "Mina" }, body: { content: [{ content: [{ text: "Looks good" }] }] }, updated: "2026-07-24T10:00:00.000+0000" },
+    ])
+
+    expect(comments).toEqual([{ id: "10001", author: "Mina", body: "Looks good", age: "2026-07-24" }])
+    expect(mergeIssueDetail(existing, detail, comments)).toMatchObject({ title: "Detailed summary", description: "Detailed body", comments })
   })
 
   test("sends Jira auth and JSON headers", async () => {

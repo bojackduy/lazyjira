@@ -4,11 +4,12 @@ import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
-import type { BoardLocation, IssueSummary } from "../state/app-state"
+import type { BoardLocation, IssuePageState, IssueSummary } from "../state/app-state"
 import type { BoardCellItem } from "../state/board-navigation"
 import { boardCellItems, selectedBoardItemLocation } from "../state/board-navigation"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
+import { boardIssuePageSourceId, loadedIssueCount } from "../state/issue-pages"
 import {
   activeSprint,
   boardGroupsForMode,
@@ -83,6 +84,9 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
         <box flexDirection="column" alignItems={compactHeader() ? "flex-start" : "flex-end"}>
           <text fg={theme.text}>Group by: {groupModeLabel(groupBy())}</text>
           <text fg={theme.textSubtle}>Statuses {displayedStatusStart()}-{Math.min(displayedStatusStart() + visibleStatuses().length - 1, configuredStatuses(state).length)}/{configuredStatuses(state).length}</text>
+          <Show when={props.mode === "kanban" && state.issuePageStateBySource[boardIssuePageSourceId]}>
+            {(page) => <text fg={page().error ? theme.danger : page().loading ? theme.warning : theme.textSubtle} wrapMode="none">{issuePageText(page())}</text>}
+          </Show>
         </box>
       </box>
       <Legend statuses={visibleStatuses()} />
@@ -128,6 +132,16 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
       </scrollbox>
     </box>
   )
+}
+
+function issuePageText(page: IssuePageState) {
+  return page.loading
+    ? "Loading more Jira issues..."
+    : page.error
+      ? `Load more failed: ${page.error}`
+      : page.isLast
+        ? `Loaded ${loadedIssueCount(page)}${typeof page.total === "number" ? `/${page.total}` : ""} Jira issues`
+        : `Loaded ${loadedIssueCount(page)}${typeof page.total === "number" ? `/${page.total}` : ""} Jira issues · L load more`
 }
 
 function IssueCell(props: { item?: BoardCellItem; location: BoardLocation; mode: "active-sprint" | "kanban"; selected: boolean }) {

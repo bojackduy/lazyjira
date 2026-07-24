@@ -1,6 +1,7 @@
 import type { RuntimeEnv } from "../runtime/env"
 import type { LoadedWorkspace } from "../workspace/types"
 import type { AppState } from "./app-state"
+import { defaultIssuePageState, remoteSearchIssuePageSourceId } from "./issue-pages"
 
 export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: RuntimeEnv): AppState {
   return {
@@ -38,6 +39,10 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     searchMode: "loaded",
     searchQuery: "",
     searchDraft: "",
+    remoteSearchQuery: "",
+    remoteSearchIssueKeys: [],
+    remoteSearchPageState: defaultIssuePageState(remoteSearchIssuePageSourceId, 50),
+    remoteSearchRequestId: 0,
     configSelectedSectionIndex: 0,
     configSelectedRowIndex: 0,
     configFocusedArea: "sections",
@@ -66,6 +71,12 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     inspectorEditValue: "",
     issueDrafts: {},
     issueDeletes: [],
+    issueDetailLoadingByKey: {},
+    issueDetailErrorByKey: {},
+    issueDetailLoadedAtByKey: {},
+    issueDetailRequestId: 0,
+    issuePageStateBySource: workspace.issuePageStateBySource,
+    issuePageRequestIdBySource: {},
     pendingDeleteIssueKey: undefined,
     remoteApplyOpen: false,
     stagedDiscardOpen: false,

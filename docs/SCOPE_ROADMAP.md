@@ -443,7 +443,7 @@ Next Work:
 
 - A2: board metadata loader for statuses, columns, issue types, and field IDs.
 - A3: active sprint, future sprint, and bounded backlog issue loading.
-- A5: issue detail and comments loading with stale-response protection.
+- A6: remote search mode and remote search pagination.
 - Add fixture JSON responses for normalization tests.
 
 Verification:
@@ -721,8 +721,7 @@ Out Of Scope:
 
 Next Work:
 
-- Wire full issue detail loading after A5.
-- Add comments/subtasks/links display from real normalized detail data.
+- Add subtasks/links display from real normalized detail data.
 - Keep field choices driven by current metadata/status/type definitions.
 
 Verification:
@@ -865,6 +864,7 @@ Out Of Scope:
 Current Behavior:
 
 - `/` opens loaded filter.
+- `S` opens explicit remote Jira search.
 - `searchOpen` makes input own normal typing keys.
 - Search applies through `issueList(state)`.
 
@@ -891,13 +891,14 @@ Read First:
 - `src/jira/client.ts`
 - `src/state/issue-search.ts`
 - `src/ui/shell.tsx`
-- future `src/jira/endpoints.ts`.
 
 Main Files:
 
-- future `src/jira/endpoints.ts`
-- future remote search state in `src/state/app-state.ts`
-- future remote search UI component or popup.
+- `src/jira/client.ts`
+- `src/workspace/prod/source.ts`
+- `src/state/app-state.ts`
+- `src/ui/shell.tsx`
+- `src/state/workspace.ts`
 
 Dependencies:
 
@@ -909,14 +910,13 @@ Dependencies:
 Out Of Scope:
 
 - Do not fetch all Jira issues to support local filtering.
-- Do not mix remote search results into loaded board data unless the user opens/loads one.
+- Do not make remote search results affect `/` loaded filtering semantics.
 - Do not run remote search on every keypress until throttling/cancellation is designed.
 
 Next Work:
 
-- Define keybinding and UI entry point for remote search.
-- Add paginated `/rest/api/3/search/jql` endpoint wrapper.
-- Let `Enter` open/load one selected remote result.
+- Add richer query syntax help if remote search grows beyond simple text search.
+- Consider a dedicated remote result route if workspace result cards become cramped.
 
 Verification:
 
@@ -1016,7 +1016,7 @@ Next Work:
 
 - Split large popup code from `shell.tsx` if it starts blocking focused work.
 - Redesign project picker for local-first and remote-add modes.
-- Add loading/error surfaces for workspace refresh and issue detail refresh.
+- Add loading/error surfaces for workspace refresh and pagination/search work.
 
 Verification:
 

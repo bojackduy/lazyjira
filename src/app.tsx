@@ -6,6 +6,7 @@ import { useExit } from "./context/exit"
 import { AppShell } from "./ui/shell"
 import { configuredStatuses } from "./state/config-drafts"
 import { issueByKey } from "./state/issue-drafts"
+import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageCanLoadMore, sprintIssuePageSourceId } from "./state/issue-pages"
 import { sidebarRoutes } from "./state/routes"
 import type { BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
 import {
@@ -104,6 +105,9 @@ export function App() {
       { name: "route.config", run: () => (canRunGlobalShortcut() ? appState.setRoute("config") : false) },
       { name: "project.switch", run: () => (canRunGlobalShortcut() ? appState.openProjectPicker() : false) },
       { name: "search.open", run: () => (canRunGlobalShortcut() && state.route !== "config" ? appState.openSearch() : false) },
+      { name: "search.remote-open", run: () => (canRunGlobalShortcut() && state.route !== "config" ? appState.openRemoteSearch() : false) },
+      { name: "issue.refresh-detail", run: () => refreshSelectedIssueDetail() },
+      { name: "issue.load-more", run: () => loadMoreIssues() },
       { name: "focus.next", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(1)) },
       { name: "focus.previous", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(-1)) },
       { name: "pane.down", run: () => moveVertical(1) },
@@ -143,6 +147,9 @@ export function App() {
       { key: "5", cmd: "route.config", preventDefault: false },
       { key: { name: "p", shift: true }, cmd: "project.switch", preventDefault: false },
       { key: "/", cmd: "search.open", preventDefault: false },
+      { key: { name: "s", shift: true }, cmd: "search.remote-open", preventDefault: false },
+      { key: "r", cmd: "issue.refresh-detail", preventDefault: false },
+      { key: { name: "l", shift: true }, cmd: "issue.load-more", preventDefault: false },
       { key: "j", cmd: "staged-discard.down", preventDefault: false },
       { key: "down", cmd: "staged-discard.down", preventDefault: false },
       { key: "k", cmd: "staged-discard.up", preventDefault: false },
@@ -401,6 +408,34 @@ export function App() {
       return
     }
     appState.openRemoteIssueApply()
+  }
+
+  function refreshSelectedIssueDetail() {
+    if (!canRunGlobalShortcut() || state.route !== "issue-detail") return false
+    void appState.loadIssueDetail()
+  }
+
+  function loadMoreIssues() {
+    if (!canRunGlobalShortcut() || state.focusedPane !== "main") return false
+    if (state.searchMode === "remote" && state.remoteSearchQuery && issuePageCanLoadMore(state.remoteSearchPageState)) {
+      void appState.loadMoreRemoteSearch()
+      return
+    }
+    const sourceId = loadMoreSourceId()
+    if (!sourceId) return false
+    void appState.loadIssuePage(sourceId)
+  }
+
+  function loadMoreSourceId() {
+    if (state.route === "kanban") return boardIssuePageSourceId
+    if (state.route !== "backlog") return undefined
+    const selectedIssue = issueByKey(state, state.selectedIssueKey)
+    const selectedSourceId = selectedIssue?.sprintId ? sprintIssuePageSourceId(selectedIssue.sprintId) : backlogIssuePageSourceId
+    if (issuePageCanLoadMore(state.issuePageStateBySource[selectedSourceId])) return selectedSourceId
+    return [
+      ...state.sprints.map((sprint) => sprintIssuePageSourceId(sprint.id)),
+      backlogIssuePageSourceId,
+    ].find((sourceId) => issuePageCanLoadMore(state.issuePageStateBySource[sourceId]))
   }
 
   function isPopupOpen() {

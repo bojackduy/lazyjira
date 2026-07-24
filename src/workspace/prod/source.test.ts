@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { createProdWorkspaceSource } from "./source"
+import { backlogIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
 
 describe("prod workspace source", () => {
   test("requires auth for project discovery", async () => {
@@ -80,8 +81,83 @@ describe("prod workspace source", () => {
     expect(workspace.issues["REAL-2"]?.sprintId).toBe("13")
     expect(workspace.issues["REAL-2"]?.storyPoints).toBe(3)
     expect(workspace.issues["REAL-3"]?.sprintId).toBeUndefined()
+    expect(workspace.issuePageStateBySource[backlogIssuePageSourceId]).toMatchObject({ startAt: 1, maxResults: 100, total: 85, isLast: true, loading: false })
+    expect(workspace.issuePageStateBySource[sprintIssuePageSourceId("14")]).toMatchObject({ startAt: 0, maxResults: 100, isLast: false, loading: false })
     expect(workspace.selectedIssueKey).toBe("REAL-1")
-    expect(workspace.notice).toContain("Prod active sprint and bounded backlog issues are loaded from Jira")
+    expect(workspace.notice).toContain("Prod active sprint and bounded backlog issues are loaded from Jira. Issue detail and comments load on open")
+  })
+
+  test("loads issue detail and comments", async () => {
+    const requests: string[] = []
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url) => {
+        requests.push(url)
+        if (url.includes("/field")) return jsonResponse([{ id: "customfield_10020", name: "Sprint", schema: { custom: "com.pyxis.greenhopper.jira:gh-sprint" } }])
+        if (url.includes("/comment")) return jsonResponse({ startAt: 0, total: 1, comments: [{ id: "c1", author: { displayName: "Mina" }, body: { content: [{ content: [{ text: "Ready to test" }] }] }, updated: "2026-07-24T10:00:00.000+0000" }] })
+        return jsonResponse({ key: "REAL-1", fields: { summary: "Detailed Jira issue", status: { id: "10000" }, description: { content: [{ content: [{ text: "Full issue body" }] }] }, customfield_10020: [{ id: 12, state: "active", name: "Sprint 12" }] } })
+      },
+    )
+
+    const detail = await source.loadIssueDetail("REAL-1", {
+      project: { key: "REAL", name: "Real Jira Project" },
+      board: { id: "100", name: "Real Board", type: "scrum" },
+      statuses: [{ id: "10000", name: "Selected for Work", category: "todo", color: "#94A3B8" }],
+    })
+
+    expect(requests).toContain("https://team.atlassian.net/rest/api/3/field")
+    expect(requests.some((url) => url.startsWith("https://team.atlassian.net/rest/api/3/issue/REAL-1?fields="))).toBe(true)
+    expect(requests).toContain("https://team.atlassian.net/rest/api/3/issue/REAL-1/comment?startAt=0&maxResults=50")
+    expect(detail.issue).toMatchObject({ key: "REAL-1", title: "Detailed Jira issue", description: "Full issue body", sprintId: "12" })
+    expect(detail.issue.comments).toEqual([{ id: "c1", author: "Mina", body: "Ready to test", age: "2026-07-24" }])
+  })
+
+  test("loads bounded issue pages for a source", async () => {
+    const requests: string[] = []
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url) => {
+        requests.push(url)
+        if (url.includes("/field")) return jsonResponse([{ id: "customfield_10020", name: "Sprint", schema: { custom: "com.pyxis.greenhopper.jira:gh-sprint" } }])
+        return jsonResponse({ startAt: 100, maxResults: 50, total: 101, issues: [{ key: "REAL-101", fields: { summary: "Next backlog issue", status: { id: "10000" }, issuetype: { name: "Task" }, customfield_10020: [] } }] })
+      },
+    )
+
+    const page = await source.loadIssuePage(backlogIssuePageSourceId, {
+      project: { key: "REAL", name: "Real Jira Project" },
+      board: { id: "100", name: "Real Board", type: "scrum" },
+      statuses: [{ id: "10000", name: "Selected for Work", category: "todo", color: "#94A3B8" }],
+      pageState: { sourceId: backlogIssuePageSourceId, startAt: 100, maxResults: 50, total: 101, isLast: false, loading: false },
+    })
+
+    expect(requests).toContain("https://team.atlassian.net/rest/api/3/field")
+    expect(requests.some((url) => url.includes("/rest/agile/1.0/board/100/backlog?") && url.includes("&startAt=100&maxResults=50"))).toBe(true)
+    expect(page.issues).toHaveLength(1)
+    expect(page.issues[0]).toMatchObject({ key: "REAL-101", title: "Next backlog issue" })
+    expect(page.pageState).toMatchObject({ sourceId: backlogIssuePageSourceId, startAt: 101, maxResults: 50, total: 101, isLast: true, loading: false })
+  })
+
+  test("searches Jira issues with project-scoped JQL", async () => {
+    const requests: string[] = []
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url) => {
+        requests.push(url)
+        if (url.includes("/field")) return jsonResponse([])
+        return jsonResponse({ maxResults: 50, isLast: false, nextPageToken: "cursor-2", issues: [{ key: "REAL-7", fields: { summary: "Login remote result", status: { id: "10000" }, issuetype: { name: "Bug" } } }] })
+      },
+    )
+
+    const result = await source.searchIssues("login", {
+      project: { key: "REAL", name: "Real Jira Project" },
+      board: { id: "100", name: "Real Board", type: "scrum" },
+      statuses: [{ id: "10000", name: "Selected for Work", category: "todo", color: "#94A3B8" }],
+      pageState: { sourceId: "remote-search", startAt: 0, maxResults: 50, isLast: false, loading: false },
+    })
+
+    expect(requests.some((url) => url.includes("/rest/api/3/search/jql?") && url.includes("jql=project%20%3D%20%22REAL%22%20AND%20text%20~%20%22login%22%20ORDER%20BY%20updated%20DESC"))).toBe(true)
+    expect(result.issues[0]).toMatchObject({ key: "REAL-7", title: "Login remote result" })
+    expect(result.pageState).toMatchObject({ sourceId: "remote-search", startAt: 1, cursor: "cursor-2", isLast: false })
   })
 })
 

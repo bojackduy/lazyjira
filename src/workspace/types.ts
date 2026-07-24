@@ -1,5 +1,5 @@
 import type { RuntimeEnv } from "../runtime/env"
-import type { AppState, BoardSummary, IssueSummary, IssueTypeDefinition, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, WorkspaceStats } from "../state/app-state"
+import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, WorkspaceStats } from "../state/app-state"
 import { statusColorForCategory } from "../state/metadata-colors"
 
 export type WorkspaceSelection = {
@@ -7,9 +7,37 @@ export type WorkspaceSelection = {
   board: BoardSummary
 }
 
-export type LoadedWorkspace = WorkspaceSelection & Pick<AppState, "currentUser" | "quickFilters" | "activeSprintId" | "sprints" | "statuses" | "issueTypes" | "columns" | "stats" | "selectedIssueKey"> & {
+export type LoadedWorkspace = WorkspaceSelection & Pick<AppState, "currentUser" | "quickFilters" | "activeSprintId" | "sprints" | "statuses" | "issueTypes" | "columns" | "stats" | "selectedIssueKey" | "issuePageStateBySource"> & {
   issues: Record<string, IssueSummary>
   notice?: string
+}
+
+export type IssueDetailContext = WorkspaceSelection & Pick<AppState, "statuses"> & {
+  existingIssue?: IssueSummary
+}
+
+export type LoadedIssueDetail = {
+  issue: IssueSummary
+}
+
+export type IssuePageContext = WorkspaceSelection & Pick<AppState, "statuses"> & {
+  pageState: IssuePageState
+}
+
+export type LoadedIssuePage = {
+  sourceId: string
+  issues: IssueSummary[]
+  pageState: IssuePageState
+}
+
+export type RemoteSearchContext = WorkspaceSelection & Pick<AppState, "statuses"> & {
+  pageState: IssuePageState
+}
+
+export type LoadedRemoteSearch = {
+  query: string
+  issues: IssueSummary[]
+  pageState: IssuePageState
 }
 
 export type WorkspaceSource = {
@@ -17,6 +45,9 @@ export type WorkspaceSource = {
   fetchProjects: () => Promise<Array<ProjectSummary & { id: string }>>
   fetchBoards: (projectKeyOrId: string) => Promise<BoardSummary[]>
   loadWorkspace: (selection: WorkspaceSelection) => Promise<LoadedWorkspace>
+  loadIssueDetail: (issueKey: string, context: IssueDetailContext) => Promise<LoadedIssueDetail>
+  loadIssuePage: (sourceId: string, context: IssuePageContext) => Promise<LoadedIssuePage>
+  searchIssues: (query: string, context: RemoteSearchContext) => Promise<LoadedRemoteSearch>
 }
 
 export type WorkspaceFixtureInput = WorkspaceSelection & {
@@ -29,6 +60,7 @@ export type WorkspaceFixtureInput = WorkspaceSelection & {
   issues: IssueSummary[]
   quickFilters?: QuickFilterDefinition[]
   selectedIssueKey?: string
+  issuePageStateBySource?: Record<string, IssuePageState>
   notice?: string
 }
 
@@ -57,6 +89,7 @@ export function createLoadedWorkspace(input: WorkspaceFixtureInput): LoadedWorks
     issues,
     stats: workspaceStats(input.statuses, enrichedIssues),
     selectedIssueKey,
+    issuePageStateBySource: input.issuePageStateBySource ?? {},
     notice: input.notice,
   }
 }
@@ -85,7 +118,7 @@ function enrichIssue(statuses: StatusDefinition[], issue: IssueSummary, index: n
   }
 }
 
-function workspaceStats(statuses: StatusDefinition[], issues: IssueSummary[]): WorkspaceStats {
+export function workspaceStats(statuses: StatusDefinition[], issues: IssueSummary[]): WorkspaceStats {
   return {
     todo: issues.filter((issue) => statuses.find((status) => status.id === issue.statusId)?.category === "todo").length,
     inProgress: issues.filter((issue) => ["in-progress", "review", "blocked"].includes(statuses.find((status) => status.id === issue.statusId)?.category ?? "")).length,

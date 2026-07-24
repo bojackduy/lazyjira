@@ -1,6 +1,6 @@
-import type { IssuePriority, IssueSummary, SprintSummary, StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
+import type { IssueComment, IssuePriority, IssueSummary, SprintSummary, StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
 import { statusColorForStatus } from "../state/metadata-colors"
-import type { JiraBoardConfiguration, JiraField, JiraIssue, JiraProjectStatusesByIssueType, JiraSprint } from "./client"
+import type { JiraBoardConfiguration, JiraComment, JiraField, JiraIssue, JiraProjectStatusesByIssueType, JiraSprint } from "./client"
 
 type JiraIssueFields = NonNullable<JiraIssue["fields"]>
 
@@ -129,6 +129,28 @@ export function normalizeJiraIssues(issues: JiraIssue[], statuses: StatusDefinit
       rank: stringField(fields, fieldIds.rank),
     }]
   })
+}
+
+export function normalizeJiraComments(comments: JiraComment[]): IssueComment[] {
+  return comments.flatMap((comment) => {
+    if (!comment.id) return []
+    return [{
+      id: comment.id,
+      author: comment.author?.displayName ?? "Unknown",
+      body: jiraDescriptionText(comment.body),
+      age: jiraDateLabel(comment.updated ?? comment.created),
+    }]
+  })
+}
+
+export function mergeIssueDetail(existing: IssueSummary | undefined, detail: IssueSummary, comments: IssueComment[]): IssueSummary {
+  return {
+    ...existing,
+    ...detail,
+    comments,
+    staleDays: existing?.staleDays ?? detail.staleDays,
+    isDraft: existing?.isDraft ?? detail.isDraft,
+  }
 }
 
 function fieldId(fields: JiraField[], matches: (field: JiraField) => boolean) {
@@ -263,6 +285,11 @@ function jiraDescriptionText(value: unknown) {
   if (typeof value === "string") return value
   const text = adfText(value).trim()
   return text || ""
+}
+
+function jiraDateLabel(value: string | undefined) {
+  if (!value) return "unknown"
+  return value.slice(0, 10) || value
 }
 
 function adfText(value: unknown): string {

@@ -56,6 +56,7 @@ export function IssueDetailRoute() {
       {(selectedIssue) => (
         <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
           <IssueHeader issue={selectedIssue()} />
+          <DetailLoadState issueKey={selectedIssue().key} />
           <DetailSection title="Body">
             <BodyEditor issue={selectedIssue()} />
           </DetailSection>
@@ -91,6 +92,30 @@ export function IssueDetailRoute() {
           </DetailSection>
         </scrollbox>
       )}
+    </Show>
+  )
+}
+
+function DetailLoadState(props: { issueKey: string }) {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const loading = () => state.issueDetailLoadingByKey[props.issueKey]
+  const error = () => state.issueDetailErrorByKey[props.issueKey]
+  const loadedAt = () => state.issueDetailLoadedAtByKey[props.issueKey]
+
+  return (
+    <Show when={loading() || error() || loadedAt()}>
+      <box flexDirection="column" gap={0} marginBottom={1}>
+        <Show when={loading()}>
+          <text fg={theme.warning} wrapMode="none">Loading Jira issue detail...</text>
+        </Show>
+        <Show when={error()}>
+          {(message) => <text fg={theme.danger} wrapMode="none">Detail load failed: {message()}</text>}
+        </Show>
+        <Show when={!loading() && !error() && loadedAt()}>
+          {(value) => <text fg={theme.textSubtle} wrapMode="none">Jira detail loaded {value().slice(0, 19).replace("T", " ")} · r refresh</text>}
+        </Show>
+      </box>
     </Show>
   )
 }
