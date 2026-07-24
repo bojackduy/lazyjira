@@ -856,9 +856,16 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const issueDrafts = { ...state.issueDrafts }
       let issueDeletes = [...state.issueDeletes]
       let configDrafts = [...state.configDrafts]
+      const issues = { ...state.issues }
       for (const change of changes) {
         if (!selectedIds.has(change.id)) continue
         discardedCount += 1
+        if (change.kind === "create") {
+          delete issues[change.issueKey]
+          delete issueDrafts[change.issueKey]
+          issueDeletes = issueDeletes.filter((issueKey) => issueKey !== change.issueKey)
+          continue
+        }
         if (change.kind === "config") {
           configDrafts = configDrafts.filter((draft) => draft.id !== change.draftId)
           continue
@@ -872,6 +879,9 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         if (Object.keys(draft).length) issueDrafts[change.issueKey] = draft
         else delete issueDrafts[change.issueKey]
       }
+      setState("issues", reconcile(issues))
+      if (!issues[state.selectedIssueKey]) setState("selectedIssueKey", Object.keys(issues)[0] ?? "")
+      setState("stats", workspaceStats(state.statuses, Object.values(issues)))
       setState("issueDrafts", reconcile(issueDrafts))
       setState("issueDeletes", issueDeletes)
       setState("configDrafts", reconcile(configDrafts))

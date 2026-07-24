@@ -7,6 +7,7 @@ import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts
 import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldColor, issueFieldDisplayValue, issueFields, type IssueFieldDefinition } from "../state/issue-fields"
 import { issueTypeColor, statusColor, statusName } from "../state/selectors"
+import { stagedChanges } from "../state/staged-changes"
 
 export function IssueInspector(props: { compact: boolean }) {
   const appState = useAppState()
@@ -15,7 +16,7 @@ export function IssueInspector(props: { compact: boolean }) {
   let scrollbox: ScrollBoxRenderable | undefined
   const issue = () => issueByKey(state, state.selectedIssueKey)
   const focused = () => state.focusedPane === "inspector"
-  const stagedCount = () => Object.values(state.issueDrafts).reduce((total, draft) => total + Object.keys(draft).length, 0) + state.issueDeletes.length
+  const stagedCount = () => stagedChanges(state).length
 
   useBindings(() => ({
     commands: [

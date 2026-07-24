@@ -3,12 +3,16 @@ import { configDraftSummary } from "./config-drafts"
 import { issueFields } from "./issue-fields"
 
 export type StagedChange =
+  | { id: string; kind: "create"; issueKey: string; label: string }
   | { id: string; kind: "edit"; issueKey: string; fieldId: IssueEditableField; label: string; value: string }
   | { id: string; kind: "delete"; issueKey: string; label: string }
   | { id: string; kind: "config"; draftId: string; label: string; value: string }
 
 export function stagedChanges(state: AppState): StagedChange[] {
   const changes: StagedChange[] = []
+  for (const issue of Object.values(state.issues)) {
+    if (issue.isDraft) changes.push({ id: stagedCreateId(issue.key), kind: "create", issueKey: issue.key, label: "Create issue" })
+  }
   for (const [issueKey, draft] of Object.entries(state.issueDrafts)) {
     for (const [fieldId, value] of Object.entries(draft) as [IssueEditableField, string][]) {
       changes.push({ id: stagedEditId(issueKey, fieldId), kind: "edit", issueKey, fieldId, label: stagedFieldLabel(fieldId), value })
@@ -21,6 +25,10 @@ export function stagedChanges(state: AppState): StagedChange[] {
     changes.push({ id: stagedConfigId(draft), kind: "config", draftId: draft.id, label: "Config", value: configDraftSummary(draft) })
   }
   return changes
+}
+
+export function stagedCreateId(issueKey: string) {
+  return `create:${issueKey}`
 }
 
 export function stagedEditId(issueKey: string, fieldId: IssueEditableField) {
@@ -51,7 +59,13 @@ export function discardedActiveEditors(
   let inspector = false
   let detailBody = false
   for (const change of changes) {
-    if (!discardedIds.has(change.id) || change.kind !== "edit" || change.issueKey !== selectedIssueKey) continue
+    if (!discardedIds.has(change.id) || change.kind === "config" || change.issueKey !== selectedIssueKey) continue
+    if (change.kind === "create") {
+      inspector = true
+      detailBody = true
+      continue
+    }
+    if (change.kind !== "edit") continue
     if (change.fieldId === inspectorEditingFieldId) inspector = true
     if (change.fieldId === "description" && detailBodyEditing) detailBody = true
   }

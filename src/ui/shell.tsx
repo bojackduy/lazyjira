@@ -237,7 +237,7 @@ function StagedDiscardPopup() {
               const selected = () => state.stagedDiscardSelectedIndex === index()
               const checked = () => state.stagedDiscardSelections.includes(change.id)
               return (
-                  <text fg={change.kind === "delete" ? theme.danger : selected() ? theme.selectedText : theme.text} bg={selected() ? theme.selected : undefined} wrapMode="none">
+                  <text fg={change.kind === "delete" ? theme.danger : change.kind === "create" ? theme.accent : selected() ? theme.selectedText : theme.text} bg={selected() ? theme.selected : undefined} wrapMode="none">
                     {selected() ? ">" : " "} [{checked() ? "x" : " "}] {stagedChangeText(change, change.kind === "config" ? undefined : issueByKey(state, change.issueKey)?.title)}
                 </text>
               )
@@ -267,8 +267,8 @@ function RemoteApplyPopup() {
         <Show when={changes().length} fallback={<text fg={theme.textMuted}>No staged writes. Edit a field and stage it before using W.</text>}>
           <For each={changes()}>
             {(change) => (
-              <text fg={change.kind === "delete" ? theme.danger : change.kind === "config" ? theme.warning : theme.text} wrapMode="none">
-                {change.kind === "delete" ? "-" : "~"} {stagedChangeText(change, change.kind === "config" ? undefined : issueByKey(state, change.issueKey)?.title)}
+              <text fg={change.kind === "delete" ? theme.danger : change.kind === "create" ? theme.accent : change.kind === "config" ? theme.warning : theme.text} wrapMode="none">
+                {change.kind === "delete" ? "-" : change.kind === "create" ? "+" : "~"} {stagedChangeText(change, change.kind === "config" ? undefined : issueByKey(state, change.issueKey)?.title)}
               </text>
             )}
           </For>
@@ -592,6 +592,7 @@ function ModalFrame(props: { borderColor: string; width: number; children: JSX.E
 
 function stagedChangeText(change: StagedChange, issueTitle?: string) {
   if (change.kind === "config") return change.value
+  if (change.kind === "create") return `${change.issueKey} create issue · ${issueTitle ?? "New issue"}`
   if (change.kind === "delete") return `${change.issueKey} delete issue · ${issueTitle ?? "Unknown issue"}`
   const preview = change.value.replace(/\s+/g, " ").slice(0, 48)
   return `${change.issueKey} ${change.label} · ${preview}`

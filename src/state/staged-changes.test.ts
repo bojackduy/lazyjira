@@ -16,6 +16,14 @@ describe("staged changes", () => {
     expect(stagedChanges(state).map((change) => change.label)).toEqual(["Summary", "Body", "Delete issue"])
   })
 
+  test("lists draft issues as staged creates", () => {
+    const state = loadDevWorkspaceState()
+    state.issues["DRAFT-1"] = { ...state.issues["PROJ-121"]!, key: "DRAFT-1", title: "New issue", isDraft: true }
+
+    expect(stagedChanges(state).map((change) => change.id)).toContain("create:DRAFT-1")
+    expect(stagedChanges(state).find((change) => change.id === "create:DRAFT-1")).toMatchObject({ kind: "create", issueKey: "DRAFT-1", label: "Create issue" })
+  })
+
   test("defaults discard target to the highlighted staged change", () => {
     const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { title: "Updated summary", description: "Updated body" }

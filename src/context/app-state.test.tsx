@@ -4,6 +4,7 @@ import { ToastProvider } from "./toast"
 import { AppStateProvider, useAppState, type AppStateContext } from "./app-state"
 import { createInitialAppState } from "../state/initial"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
+import { stagedChanges } from "../state/staged-changes"
 import { devBoardsByProjectKey, devProjects, loadDevWorkspaceFixture } from "../workspace/dev/fixtures"
 import type { LoadedIssueDetail, WorkspaceSource } from "../workspace/types"
 import type { JiraWorkspaceConfig } from "../auth/config"
@@ -232,6 +233,23 @@ describe("app state project picker", () => {
     expect(appState.state.issueDrafts["PROJ-128"]?.title).toBe("Local staged summary")
     expect(appState.state.issues["PROJ-999"]?.title).toBe("New page issue")
     expect(appState.state.issuePageStateBySource[boardIssuePageSourceId]).toMatchObject({ startAt: 2, total: 2, isLast: true, loading: false })
+  })
+
+  test("tracks draft issue creation as staged and discards it", () => {
+    const draft = { ...loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!, key: "DRAFT-1", title: "New issue", isDraft: true }
+    const appState = createTestAppState()
+
+    appState.createDraftIssue(draft)
+    expect(stagedChanges(appState.state).map((change) => change.id)).toContain("create:DRAFT-1")
+    expect(appState.state.selectedIssueKey).toBe("DRAFT-1")
+
+    appState.openStagedDiscard()
+    appState.confirmStagedDiscard()
+
+    expect(appState.state.issues["DRAFT-1"]).toBeUndefined()
+    expect(appState.state.issueDrafts["DRAFT-1"]).toBeUndefined()
+    expect(appState.state.selectedIssueKey).not.toBe("DRAFT-1")
+    expect(stagedChanges(appState.state).some((change) => change.id === "create:DRAFT-1")).toBe(false)
   })
 
   test("keeps slash filtering local and runs remote search separately", async () => {

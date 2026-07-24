@@ -239,12 +239,14 @@ function countLabel(count: number, label: string) {
 
 function stagedResultTitle(change: ReturnType<typeof stagedChanges>[number]) {
   if (change.kind === "config") return change.value
+  if (change.kind === "create") return `${change.issueKey} create issue`
   if (change.kind === "delete") return `${change.issueKey} delete issue`
   return `${change.issueKey} ${change.label}`
 }
 
 function stagedResultSubtitle(state: AppState, change: ReturnType<typeof stagedChanges>[number]) {
   if (change.kind === "config") return "Local metadata overlay"
+  if (change.kind === "create") return state.issues[change.issueKey]?.title ?? "New issue"
   if (change.kind === "delete") return state.issues[change.issueKey]?.title ?? "Unknown issue"
   return change.value.replace(/\s+/g, " ").slice(0, 72)
 }
