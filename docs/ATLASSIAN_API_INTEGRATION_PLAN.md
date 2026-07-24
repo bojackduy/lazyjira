@@ -15,6 +15,8 @@ Success means a configured user can choose a Jira-backed project/board in `prod`
 - Project selection already calls `source.loadWorkspace()`, persists the selected workspace, and applies the loaded workspace into shared app state.
 - UI state already has project, board, sprint, status, issue, issue draft, delete draft, config draft, search, and remote-write review fields.
 - Rendering already reads from shared state/selectors; Jira calls should stay out of route/component render code.
+- Prod board selection now loads board metadata, active/future sprint metadata, all active sprint issues, Jira field IDs for sprint/points/rank, and one bounded backlog page.
+- Future sprint issue pages, issue detail/comments, remote Jira search, pagination UI, and remote writes are still not wired.
 
 ## Non-Negotiables
 
@@ -164,6 +166,123 @@ The `W` path should eventually convert `stagedChanges(state)` into Jira operatio
 
 Before remote writes are implemented, `W` should continue to show a review and keep staged changes intact. When writes are implemented, failures must leave failed staged changes in place and report the exact Jira reason.
 
+## Remaining API Roadmap
+
+Implement the rest of the Jira API in this order: pagination/state foundation, complete read API, remote search API, write preview/planning, then write execution. Pagination/state comes first because detail loading, search results, backlog load-more, future sprint load-more, and write retries all need the same loading/error/cursor/stale-response model.
+
+### R0. API State And Loader Foundation
+
+Goal: make async Jira work reliable before adding more endpoints.
+
+- Add route-scoped loading and error state for workspace refresh, issue detail, pagination, remote search, and write apply.
+- Add request tokens or generation counters so stale issue/detail/search responses cannot overwrite newer selections.
+- Move multi-call orchestration into `src/jira/loaders.ts` or equivalent app-level loader functions; keep raw endpoint calls in `src/jira/client.ts`.
+- Preserve previous successful data during same-workspace refresh, but never show previous workspace issues under a new project/board header.
+- Keep staged `issueDrafts`, `issueDeletes`, and `configDrafts` visible across refresh unless the user explicitly discards them.
+- Update copy that still says issue loading or Jira API is generally "not wired" to name the specific unsupported action.
+
+Verification:
+
+- State tests for same-workspace refresh preserving old data on failure.
+- State tests for cross-workspace load failure not relabeling old issues as the new workspace.
+- Loader tests proving stale detail/search responses are ignored.
+
+### R1. Complete Read API
+
+Goal: make read-only browsing complete enough for daily work.
+
+- Add `GET /rest/api/3/issue/{issueKey}` for full issue detail.
+- Add `GET /rest/api/3/issue/{issueKey}/comment` for comments.
+- Normalize comments into `IssueComment[]` and merge detail fields into the existing `IssueSummary` without replacing staged overlays.
+- Add explicit `r` refresh behavior for the current route and selected issue.
+- Add Kanban-board issue loading that is bounded and board-scoped; do not fetch broad `/board/{id}/issue` pages blindly when totals are large.
+- Add optional read metadata needed later by writes: priorities, transitions for selected issue, assignable users, and create metadata.
+
+Verification:
+
+- Unit tests for detail merge, comments, attachments/links/subtasks, and missing fields.
+- UI/state tests proving opening issue detail triggers detail fetch when stale or missing.
+- Dev-runtime tests proving fixture mode never calls Jira.
+
+### R2. Pagination And Load More
+
+Goal: make large boards safe and explicit.
+
+- Introduce a reusable page state: source id, `startAt`, `maxResults`, `total`, `isLast`, `loading`, and `error`.
+- Keep `fetchJiraPages()` for small all-page metadata reads; add bounded page readers for backlog, future sprint issues, board issues, and remote search.
+- Add explicit load-more commands for backlog and future sprint sections.
+- Keep future sprint issue pages unloaded by default; for example, do not auto-load the `HPCE Test` future sprint with hundreds of issues.
+- Dedupe appended issues by key and preserve staged overlays.
+- Show loaded count versus total when Jira provides `total`.
+
+Verification:
+
+- Tests for bounded page response metadata.
+- Tests for appending pages without duplicating issues.
+- Tests for closed-sprint-history issues staying in Backlog unless the Sprint field has active/future values.
+
+### R3. Remote Search API
+
+Goal: add Jira-backed search without changing `/` local filter semantics.
+
+- Keep `/` as loaded-data filtering only.
+- Add a separate remote search command/mode, preferably command-palette first to avoid keybinding conflicts.
+- Add `GET /rest/api/3/search/jql` with project/board-scoped JQL generation for simple text search.
+- Store remote search query, results, selected index, pagination cursor, loading, and error separately from loaded filter state.
+- Normalize search result issues into `state.issues` so the inspector and issue detail route work the same way.
+- Let `Enter` on a remote result select/open the issue and trigger detail fetch when needed.
+
+Verification:
+
+- Tests proving `/` does not call Jira.
+- Tests proving remote search calls Jira with project/board scope.
+- Tests for search pagination append/dedupe and failure preserving previous results.
+
+### R4. Write Preview And Operation Planning
+
+Goal: make `W` show exact Jira operations before any mutation.
+
+- Convert `stagedChanges(state)` into typed Jira operation previews.
+- Mark unsupported changes as blocked in the review instead of silently dropping them.
+- Resolve field IDs for summary, description, priority, labels, components, versions, due date, sprint, story points, and custom fields before writes.
+- Resolve status changes through transition IDs, not direct `statusId` field updates.
+- Resolve assignees through Jira account IDs before assignee writes.
+- Keep config drafts local/demo-only until Jira admin metadata writes are deliberately scoped.
+- Keep delete disabled or require a stronger confirmation until product explicitly allows destructive writes.
+
+Verification:
+
+- Planner tests for field edits, transitions, assignee, comments, sprint move, rank, create, unsupported config, and disabled delete.
+- Review UI tests proving unsupported rows are visible and supported rows show exact before/after values.
+
+### R5. Write API Execution
+
+Goal: apply supported staged changes safely and keep failed changes staged.
+
+Roll out writes in this order:
+
+- Comments: `POST /rest/api/3/issue/{issueKey}/comment`.
+- Field updates: `PUT /rest/api/3/issue/{issueKey}` for summary, description, priority, labels, components, versions, due date, and story points.
+- Status transitions: `POST /rest/api/3/issue/{issueKey}/transitions` after transition discovery.
+- Assignee: `PUT /rest/api/3/issue/{issueKey}/assignee` after account ID resolution.
+- Sprint/backlog moves: Jira Agile sprint/backlog endpoints after exact target confirmation.
+- Rank: Jira Agile rank endpoint after adjacent issue context is modeled.
+- Create issue: `POST /rest/api/3/issue` after create metadata is available.
+- Delete issue: last, only if explicitly approved and heavily confirmed.
+
+Execution behavior:
+
+- Apply only operations marked supported in the review.
+- Clear staged rows only after their corresponding Jira operation succeeds.
+- Keep failed staged rows intact and show Jira's exact error message.
+- Refresh affected issues after successful writes without clearing unrelated staged work.
+
+Verification:
+
+- Endpoint tests for request bodies and error mapping.
+- State tests for partial success, partial failure, and retry.
+- Manual smoke on a non-production Jira project before enabling high-impact operations.
+
 ## Task Breakdown
 
 ### A0. Auth, Runtime Env, And Workspace Source Baseline
@@ -248,9 +367,9 @@ Verification:
 
 Implementation:
 
-- Add loading/error state for project switch, workspace refresh, and issue detail refresh.
+- Add loading/error state for project switch, workspace refresh, pagination, remote search, and issue detail refresh.
 - Add commands/actions that call loaders from the state layer, not render components.
-- After a real board is selected, load the selected workspace's board metadata, sprints, active sprint issues, and bounded backlog data.
+- After a real board is selected, load the selected workspace's board metadata, sprints, all active sprint issues, and bounded backlog data.
 - Keep dev board selection on fixture data and out of real Jira endpoints.
 - Prevent stale previous-workspace issues from rendering under a newly selected project/board.
 - Preserve selected issue when possible and fall back safely when it disappears.
@@ -267,10 +386,25 @@ Implementation:
 - Load full issue detail and comments on explicit detail open or refresh.
 - Merge detail fields into the selected issue's base data while keeping staged overlays visible.
 - Protect against stale responses when selection changes quickly.
+- Add route-visible loading and error states for detail/comment loading.
+- Add current-route refresh behavior for selected issue detail.
 
 Verification:
 
 - Unit tests for detail merge, comments, attachment/link/subtask normalization, and stale-response ignore.
+
+### A5.5. Pagination And Load More
+
+Implementation:
+
+- Add bounded page readers for backlog, future sprint issues, board issues, and remote search.
+- Add page state with `startAt`, `maxResults`, `total`, `isLast`, `loading`, and `error`.
+- Add explicit load-more commands for backlog and future sprint sections.
+- Deduplicate loaded pages by issue key and preserve staged overlays.
+
+Verification:
+
+- Tests for bounded page metadata, append/dedupe, and no automatic large future sprint loads.
 
 ### A6. Remote Search Mode
 
@@ -290,10 +424,25 @@ Implementation:
 - Keep `W` as review-only until write endpoints are explicitly added.
 - Add translation tests from `StagedChange` to future Jira operation previews.
 - Mark unsupported operations as blocked in the review instead of silently dropping them.
+- Resolve status edits to transition previews and assignee edits to account-id previews.
+- Keep delete and config writes blocked until separately approved.
 
 Verification:
 
 - Tests for edit, transition, delete-disabled, and config-unsupported preview rows.
+
+### A7.5. Safe Write Execution
+
+Implementation:
+
+- Apply writes in low-risk order: comment, field update, transition, assignee, sprint/backlog move, rank, create, delete last.
+- Clear staged rows only after their matching Jira operation succeeds.
+- Keep failed rows staged and show Jira's actionable error.
+- Refresh affected issues after successful writes.
+
+Verification:
+
+- Tests for request bodies, partial success, partial failure, retry, and staged-row clearing.
 
 ### A8. Documentation And Smoke Checks
 

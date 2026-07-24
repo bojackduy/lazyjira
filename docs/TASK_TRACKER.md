@@ -26,7 +26,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [~] `07-readonly-jira-api`: read-only Jira client and normalization.
 - [x] Wire project/board discovery into workspace state.
 - [x] Add concrete Atlassian API integration plan in `docs/ATLASSIAN_API_INTEGRATION_PLAN.md`.
-- [ ] Wire active sprint/backlog/issue detail loading.
+- [~] Wire active sprint/backlog/issue detail loading.
 - [ ] Keep dev runtime independent from credentials.
 - [ ] Verify Checkpoint D in `BUILD_PLAN.md`.
 
@@ -37,15 +37,23 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [x] A1.5 Local workspace switcher and remote browse mode.
 - [~] A2 Board metadata loader for columns, statuses, issue types, and fields.
 - [x] A2.1 Board configuration columns/status IDs wired.
-- [ ] A2.2 Issue type and custom field discovery.
+- [~] A2.2 Issue type and custom field discovery.
 - [~] A3 Active sprint, future sprint, and bounded backlog issue loading.
 - [x] A3.1 Active/future sprint discovery wired.
 - [x] A3.2 Active sprint issue loading wired.
 - [x] A3.3 Bounded backlog issue loading.
-- [ ] A4 Local-first project selection and workspace loading integration with refresh/loading/error state.
+- [ ] A3.4 Future sprint issue load-more.
+- [ ] A4 Loader/state foundation for refresh/loading/error/stale-response handling.
+- [ ] A4.1 Same-workspace refresh keeps previous successful data visible on failure.
+- [ ] A4.2 Cross-workspace load failure cannot relabel old issues as the new workspace.
 - [ ] A5 Issue detail and comments loading with stale-response protection.
+- [ ] A5.1 Current-route `r` refresh for selected issue detail.
+- [ ] A5.5 Pagination/load-more API for backlog, future sprints, board issues, and remote search.
 - [ ] A6 Remote search mode separate from `/` loaded filtering.
+- [ ] A6.1 Remote search pagination append/dedupe.
 - [ ] A7 Safe write review preparation from staged changes.
+- [ ] A7.1 Jira operation planner for fields, comments, transitions, assignee, sprint move, rank, create, and blocked unsupported rows.
+- [ ] A7.5 Safe write execution rollout: comment, field update, transition, assignee, sprint move, rank, create, delete last.
 - [ ] A8 Documentation updates and real Jira smoke checklist.
 
 ## Wave 3
