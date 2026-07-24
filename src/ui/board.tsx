@@ -4,7 +4,9 @@ import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
-import type { IssueSummary } from "../state/app-state"
+import type { BoardLocation, IssueSummary } from "../state/app-state"
+import type { BoardCellItem } from "../state/board-navigation"
+import { boardCellItems, selectedBoardItemLocation } from "../state/board-navigation"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
 import {
@@ -53,7 +55,8 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
 
   createEffect(() => {
     if (state.route !== props.mode) return
-    scrollbox?.scrollChildIntoView(`issue-${state.selectedIssueKey}`)
+    const location = selectedBoardItemLocation(state, props.mode)
+    if (location) scrollbox?.scrollChildIntoView(boardItemElementId(props.mode, location))
   })
 
   function scrollPage(delta: 1 | -1) {
@@ -61,8 +64,11 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
     scrollbox?.scrollBy(delta, "viewport")
   }
 
-  function rowsForGroup(issueKeys: string[]) {
-    const columns = visibleStatuses().map((status) => issueKeys.filter((issueKey) => issueByKey(state, issueKey)?.statusId === status.id))
+  function rowsForGroup(groupIndex: number) {
+    const columns = visibleStatuses().map((status) => {
+      const statusIndex = configuredStatuses(state).findIndex((candidate) => candidate.id === status.id)
+      return boardCellItems(state, props.mode, groupIndex, statusIndex)
+    })
     const rowCount = Math.max(1, ...columns.map((column) => column.length))
     return Array.from({ length: rowCount }, (_, rowIndex) => columns.map((column) => column[rowIndex]))
   }
@@ -93,7 +99,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
         verticalScrollbarOptions={{ visible: true, trackOptions: { backgroundColor: theme.panel, foregroundColor: theme.border } }}
       >
         <For each={groups()} fallback={<text fg={theme.textSubtle}>No issues match the active filters.</text>}>
-          {(group) => (
+          {(group, groupIndex) => (
             <>
               <box flexDirection="row" justifyContent="space-between" flexShrink={0} marginTop={1} paddingRight={1}>
                 <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none">{group.label}</text>
@@ -104,13 +110,13 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
                   {(status) => <text fg={status.color} width={19} flexShrink={0} wrapMode="none">{status.name}</text>}
                 </For>
               </box>
-              <For each={rowsForGroup(group.issueKeys)}>
-                {(row) => (
+              <For each={rowsForGroup(groupIndex())}>
+                {(row, rowIndex) => (
                   <box flexDirection="row" gap={1} flexShrink={0} paddingRight={1}>
                     <For each={row}>
-                      {(issueKey) => {
-                        const issue = issueKey ? issueByKey(state, issueKey) : undefined
-                        return <IssueCell issue={issue} selected={issue?.key === state.selectedIssueKey} />
+                      {(item, statusWindowIndex) => {
+                        const location = { groupIndex: groupIndex(), statusIndex: configuredStatuses(state).findIndex((status) => status.id === visibleStatuses()[statusWindowIndex()]?.id), itemIndex: rowIndex() }
+                        return <IssueCell item={item} location={location} mode={props.mode} selected={sameBoardLocation(selectedBoardItemLocation(state, props.mode), location)} />
                       }}
                     </For>
                   </box>
@@ -124,12 +130,16 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   )
 }
 
-function IssueCell(props: { issue?: IssueSummary; selected: boolean }) {
-  if (!props.issue) return <box width={19} height={4} flexShrink={0} />
-  return <IssueCard issue={props.issue} selected={props.selected} />
+function IssueCell(props: { item?: BoardCellItem; location: BoardLocation; mode: "active-sprint" | "kanban"; selected: boolean }) {
+  const { state } = useAppState()
+  if (!props.item) return <box width={19} height={4} flexShrink={0} />
+  if (props.item.kind === "create") return <CreateIssueCard location={props.location} mode={props.mode} selected={props.selected} />
+  const issue = issueByKey(state, props.item.issueKey)
+  if (!issue) return <box width={19} height={4} flexShrink={0} />
+  return <IssueCard issue={issue} selected={props.selected} id={boardItemElementId(props.mode, props.location)} />
 }
 
-function IssueCard(props: { issue: IssueSummary; selected: boolean }) {
+function IssueCard(props: { issue: IssueSummary; selected: boolean; id: string }) {
   const { state } = useAppState()
   const theme = useTheme()
   const typeColor = () => issueTypeColor(state, props.issue)
@@ -137,7 +147,7 @@ function IssueCard(props: { issue: IssueSummary; selected: boolean }) {
   const signal = () => (props.issue.blocked ? " · blocked" : props.issue.staleDays >= 7 ? ` · stale ${props.issue.staleDays}d` : "")
 
   return (
-    <box id={`issue-${props.issue.key}`} width={19} height={4} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined} border={["left"]} borderColor={borderColor()} overflow="hidden">
+    <box id={props.id} width={19} height={4} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined} border={["left"]} borderColor={borderColor()} overflow="hidden">
       <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">
         <span style={{ fg: typeColor() }}>■ </span>
         <span>{props.issue.key}</span>
@@ -146,6 +156,20 @@ function IssueCard(props: { issue: IssueSummary; selected: boolean }) {
       <text fg={theme.textSubtle} wrapMode="none">
         {props.issue.type} · {props.issue.priority}{signal()}
       </text>
+    </box>
+  )
+}
+
+function CreateIssueCard(props: { location: BoardLocation; mode: "active-sprint" | "kanban"; selected: boolean }) {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const status = () => configuredStatuses(state)[props.location.statusIndex]
+
+  return (
+    <box id={boardItemElementId(props.mode, props.location)} width={19} height={4} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? theme.selected : undefined} border={["left"]} borderColor={props.selected ? theme.borderActive : theme.border} overflow="hidden">
+      <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">+ New issue</text>
+      <text fg={props.selected ? theme.selectedText : status()?.color ?? theme.textSubtle} wrapMode="none">{status()?.name ?? "Status"}</text>
+      <text fg={props.selected ? theme.selectedText : theme.textSubtle} wrapMode="none">enter/n create</text>
     </box>
   )
 }
@@ -174,4 +198,12 @@ function shortType(name: string) {
   if (name === "Feature") return "Feat"
   if (name === "Subtask") return "Sub"
   return name
+}
+
+function sameBoardLocation(left: BoardLocation | undefined, right: BoardLocation) {
+  return !!left && left.groupIndex === right.groupIndex && left.statusIndex === right.statusIndex && left.itemIndex === right.itemIndex
+}
+
+function boardItemElementId(mode: "active-sprint" | "kanban", location: BoardLocation) {
+  return `${mode}-board-item-${location.groupIndex}-${location.statusIndex}-${location.itemIndex}`
 }

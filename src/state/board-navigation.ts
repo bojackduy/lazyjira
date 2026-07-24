@@ -59,32 +59,10 @@ export function selectedBoardItemLocation(state: AppState, mode: BoardMode): Boa
 }
 
 export function nextKanbanHorizontalLocation(state: AppState, location: BoardLocation, delta: 1 | -1): BoardLocation | undefined {
-  const sameGroup = nextOccupiedStatusInGroup(state, location, delta)
-  if (sameGroup) return sameGroup
-
-  const occupied = occupiedBoardCells(state, "kanban")
-  const currentIndex = occupied.findIndex((cell) => cell.groupIndex === location.groupIndex && cell.statusIndex === location.statusIndex)
-  if (currentIndex === -1) return
-  return occupied[currentIndex + delta]
-}
-
-function nextOccupiedStatusInGroup(state: AppState, location: BoardLocation, delta: 1 | -1): BoardLocation | undefined {
   const statuses = configuredStatuses(state)
-  for (let statusIndex = location.statusIndex + delta; statusIndex >= 0 && statusIndex < statuses.length; statusIndex += delta) {
-    const issueKeys = boardCellIssueKeys(state, "kanban", location.groupIndex, statusIndex)
-    if (issueKeys.length) return { groupIndex: location.groupIndex, statusIndex, itemIndex: Math.min(location.itemIndex, issueKeys.length - 1) }
-  }
-  return
-}
-
-function occupiedBoardCells(state: AppState, mode: BoardMode) {
-  const cells: BoardLocation[] = []
-  const groups = boardGroupsForMode(state, mode)
-  const statuses = configuredStatuses(state)
-  for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
-    for (let statusIndex = 0; statusIndex < statuses.length; statusIndex++) {
-      if (boardCellIssueKeys(state, mode, groupIndex, statusIndex).length) cells.push({ groupIndex, statusIndex, itemIndex: 0 })
-    }
-  }
-  return cells
+  const targetStatusIndex = location.statusIndex + delta
+  if (targetStatusIndex < 0 || targetStatusIndex >= statuses.length) return
+  const items = boardCellItems(state, "kanban", location.groupIndex, targetStatusIndex)
+  if (!items.length) return
+  return { groupIndex: location.groupIndex, statusIndex: targetStatusIndex, itemIndex: Math.min(location.itemIndex, items.length - 1) }
 }

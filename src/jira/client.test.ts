@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { fetchAccessibleProjects, fetchBoardConfiguration, fetchBoardSprints, fetchJiraPages, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError } from "./client"
-import { normalizeBoardConfiguration, normalizeBoardSprints, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
+import { fetchAccessibleProjects, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardSprints, fetchJiraFields, fetchJiraPages, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError } from "./client"
+import { discoverJiraIssueFieldIds, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
 const auth: JiraAuthConfig = { baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }
@@ -69,11 +69,32 @@ describe("Jira discovery client", () => {
     const issues = await fetchSprintIssues(auth, "7", async (url) => {
       requests.push(url)
       return jsonResponse({ issues: [{ key: "PROJ-1", fields: { summary: "Load active sprint" } }] })
-    })
+    }, ["customfield_10020", "customfield_10036"])
 
     expect(requests[0]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/7/issue?fields=")).toBe(true)
+    expect(requests[0]).toContain("customfield_10020%2Ccustomfield_10036")
     expect(requests[0]).toContain("&startAt=0&maxResults=50")
     expect(issues).toEqual([{ key: "PROJ-1", fields: { summary: "Load active sprint" } }])
+  })
+
+  test("fetches Jira field metadata", async () => {
+    const fields = await fetchJiraFields(auth, async (url) => {
+      expect(url).toBe("https://team.atlassian.net/rest/api/3/field")
+      return jsonResponse([{ id: "customfield_10020", name: "Sprint", schema: { custom: "com.pyxis.greenhopper.jira:gh-sprint" } }])
+    })
+
+    expect(fields).toEqual([{ id: "customfield_10020", name: "Sprint", schema: { custom: "com.pyxis.greenhopper.jira:gh-sprint" } }])
+  })
+
+  test("fetches a bounded board backlog issue page", async () => {
+    const requests: string[] = []
+    const issues = await fetchBoardBacklogIssues(auth, "42", async (url) => {
+      requests.push(url)
+      return jsonResponse({ startAt: 0, maxResults: 25, total: 85, issues: [{ key: "PROJ-9", fields: { summary: "Backlog issue" } }] })
+    }, ["customfield_10020"], 25)
+
+    expect(requests).toEqual(["https://team.atlassian.net/rest/agile/1.0/board/42/backlog?fields=summary%2Cissuetype%2Cpriority%2Cstatus%2Cassignee%2Creporter%2Cparent%2Clabels%2Ccomponents%2CfixVersions%2Cversions%2Cdescription%2Cissuelinks%2Csubtasks%2Ccreated%2Cupdated%2Cduedate%2Cresolution%2Ccustomfield_10020&startAt=0&maxResults=25"])
+    expect(issues).toEqual([{ key: "PROJ-9", fields: { summary: "Backlog issue" } }])
   })
 
   test("normalizes board columns into app statuses with real workflow names", () => {
@@ -162,6 +183,44 @@ describe("Jira discovery client", () => {
       description: "Read Jira issues",
       links: ["PROJ-2", "PROJ-3"],
     })
+  })
+
+  test("discovers and normalizes Jira sprint, points, estimate, and rank fields", () => {
+    const fieldIds = discoverJiraIssueFieldIds([
+      { id: "customfield_10020", name: "Sprint", schema: { custom: "com.pyxis.greenhopper.jira:gh-sprint" } },
+      { id: "customfield_10036", name: "Story Points" },
+      { id: "customfield_10016", name: "Story point estimate" },
+      { id: "customfield_10019", name: "Rank" },
+    ])
+    const issues = normalizeSprintIssues([
+      {
+        key: "PROJ-2",
+        fields: {
+          summary: "Plan backlog issue",
+          status: { id: "10000", name: "To Do" },
+          customfield_10020: [{ id: 6, state: "closed", name: "Old Sprint" }, { id: 8, state: "future", name: "Next Sprint" }],
+          customfield_10036: 5,
+          customfield_10016: 13,
+          customfield_10019: "1|hyfa07:",
+        },
+      },
+    ], "7", [{ id: "10000", name: "To Do", category: "todo", color: "#94A3B8" }], fieldIds)
+
+    expect(fieldIds).toEqual({ sprint: "customfield_10020", storyPoints: "customfield_10036", storyPointEstimate: "customfield_10016", rank: "customfield_10019" })
+    expect(issues[0]).toMatchObject({
+      sprintId: "8",
+      storyPoints: 5,
+      estimate: 13,
+      rank: "1|hyfa07:",
+    })
+  })
+
+  test("normalizes backlog issues without assigning a fallback sprint", () => {
+    const issues = normalizeJiraIssues([
+      { key: "PROJ-3", fields: { summary: "True backlog issue", status: { id: "10000", name: "To Do" }, customfield_10020: [{ id: 4, state: "closed", name: "Old Sprint" }], customfield_10016: 3 } },
+    ], [{ id: "10000", name: "To Do", category: "todo", color: "#94A3B8" }], { fieldIds: { sprint: "customfield_10020", storyPointEstimate: "customfield_10016" } })
+
+    expect(issues[0]).toMatchObject({ key: "PROJ-3", sprintId: undefined, storyPoints: 3, estimate: 3 })
   })
 
   test("sends Jira auth and JSON headers", async () => {

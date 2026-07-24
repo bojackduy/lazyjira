@@ -50,6 +50,16 @@ export type JiraSprint = {
   goal?: string
 }
 
+export type JiraField = {
+  id?: string
+  name?: string
+  schema?: {
+    type?: string
+    custom?: string
+    customId?: number
+  }
+}
+
 export type JiraIssue = {
   id?: string
   key?: string
@@ -72,6 +82,7 @@ export type JiraIssue = {
     updated?: string
     duedate?: string
     resolution?: { name?: string } | null
+    [fieldId: string]: unknown
   }
 }
 
@@ -173,8 +184,22 @@ export async function fetchBoardSprints(auth: JiraAuthConfig, boardId: string, f
   return fetchJiraPages<JiraSprint>(auth, `/rest/agile/1.0/board/${encodeURIComponent(boardId)}/sprint?state=${encodeURIComponent("active,future")}`, { endpoint: "board sprints" }, fetchImpl)
 }
 
-export async function fetchSprintIssues(auth: JiraAuthConfig, sprintId: string, fetchImpl: FetchLike = fetch): Promise<JiraIssue[]> {
-  return fetchJiraPages<JiraIssue>(auth, `/rest/agile/1.0/sprint/${encodeURIComponent(sprintId)}/issue?fields=${encodeURIComponent(jiraIssueFields.join(","))}`, { endpoint: "active sprint issues", itemKey: "issues" }, fetchImpl)
+export async function fetchJiraFields(auth: JiraAuthConfig, fetchImpl: FetchLike = fetch): Promise<JiraField[]> {
+  return jiraRequest<JiraField[]>(auth, "/rest/api/3/field", { endpoint: "Jira fields" }, fetchImpl)
+}
+
+export async function fetchSprintIssues(auth: JiraAuthConfig, sprintId: string, fetchImpl: FetchLike = fetch, customFields: string[] = []): Promise<JiraIssue[]> {
+  return fetchJiraPages<JiraIssue>(auth, `/rest/agile/1.0/sprint/${encodeURIComponent(sprintId)}/issue?fields=${encodeURIComponent(issueFields(customFields).join(","))}`, { endpoint: `sprint ${sprintId} issues`, itemKey: "issues" }, fetchImpl)
+}
+
+export async function fetchBoardBacklogIssues(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch, customFields: string[] = [], maxResults = 100): Promise<JiraIssue[]> {
+  const response = await jiraRequest<JiraPaginatedResponse<JiraIssue>>(
+    auth,
+    `/rest/agile/1.0/board/${encodeURIComponent(boardId)}/backlog?fields=${encodeURIComponent(issueFields(customFields).join(","))}&startAt=0&maxResults=${encodeURIComponent(String(maxResults))}`,
+    { endpoint: "board backlog issues" },
+    fetchImpl,
+  )
+  return response.issues ?? []
 }
 
 export async function fetchJiraPages<T>(auth: JiraAuthConfig, path: string, options: JiraPaginationOptions = {}, fetchImpl: FetchLike = fetch): Promise<T[]> {
@@ -238,6 +263,10 @@ function jiraHeaders(auth: JiraAuthConfig, headers: HeadersInit | undefined) {
 function paginatedPath(path: string, startAt: number, maxResults: number) {
   const separator = path.includes("?") ? "&" : "?"
   return `${path}${separator}startAt=${encodeURIComponent(String(startAt))}&maxResults=${encodeURIComponent(String(maxResults))}`
+}
+
+function issueFields(customFields: string[]) {
+  return [...new Set([...jiraIssueFields, ...customFields.filter(Boolean)])]
 }
 
 function jiraUrl(auth: JiraAuthConfig, path: string) {

@@ -1,8 +1,22 @@
 import type { IssuePriority, IssueSummary, SprintSummary, StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
 import { statusColorForStatus } from "../state/metadata-colors"
-import type { JiraBoardConfiguration, JiraIssue, JiraProjectStatusesByIssueType, JiraSprint } from "./client"
+import type { JiraBoardConfiguration, JiraField, JiraIssue, JiraProjectStatusesByIssueType, JiraSprint } from "./client"
 
 type JiraIssueFields = NonNullable<JiraIssue["fields"]>
+
+export type JiraIssueFieldIds = {
+  sprint?: string
+  storyPoints?: string
+  storyPointEstimate?: string
+  rank?: string
+}
+
+export const fallbackJiraIssueFieldIds: Required<JiraIssueFieldIds> = {
+  sprint: "customfield_10020",
+  storyPoints: "customfield_10036",
+  storyPointEstimate: "customfield_10016",
+  rank: "customfield_10019",
+}
 
 export type BoardMetadata = {
   statuses: StatusDefinition[]
@@ -60,13 +74,33 @@ export function normalizeBoardSprints(sprints: JiraSprint[]): SprintSummary[] {
   })
 }
 
-export function normalizeSprintIssues(issues: JiraIssue[], sprintId: string, statuses: StatusDefinition[]): IssueSummary[] {
+export function discoverJiraIssueFieldIds(fields: JiraField[]): JiraIssueFieldIds {
+  return {
+    sprint: fieldId(fields, isSprintField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.sprint),
+    storyPoints: fieldId(fields, isStoryPointsField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.storyPoints),
+    storyPointEstimate: fieldId(fields, isStoryPointEstimateField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.storyPointEstimate),
+    rank: fieldId(fields, isRankField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.rank),
+  }
+}
+
+export function issueCustomFieldIds(fieldIds: JiraIssueFieldIds): string[] {
+  return [fieldIds.sprint, fieldIds.storyPoints, fieldIds.storyPointEstimate, fieldIds.rank].filter((fieldId): fieldId is string => !!fieldId)
+}
+
+export function normalizeSprintIssues(issues: JiraIssue[], sprintId: string, statuses: StatusDefinition[], fieldIds: JiraIssueFieldIds = {}): IssueSummary[] {
+  return normalizeJiraIssues(issues, statuses, { fallbackSprintId: sprintId, fieldIds })
+}
+
+export function normalizeJiraIssues(issues: JiraIssue[], statuses: StatusDefinition[], options: { fallbackSprintId?: string; fieldIds?: JiraIssueFieldIds } = {}): IssueSummary[] {
+  const fieldIds = options.fieldIds ?? {}
   return issues.flatMap((issue) => {
     if (!issue.key) return []
     const fields = issue.fields ?? {}
     const statusId = fields.status?.id ?? statuses[0]?.id ?? "unknown"
     const statusCategory = statuses.find((status) => status.id === statusId)?.category
     const labels = stringArray(fields.labels)
+    const storyPointValue = numberField(fields, fieldIds.storyPoints)
+    const estimateValue = numberField(fields, fieldIds.storyPointEstimate)
     return [{
       key: issue.key,
       title: fields.summary?.trim() || issue.key,
@@ -75,8 +109,10 @@ export function normalizeSprintIssues(issues: JiraIssue[], sprintId: string, sta
       statusId,
       assignee: fields.assignee?.displayName ?? "Unassigned",
       reporter: fields.reporter?.displayName ?? "Unknown",
-      sprintId,
+      sprintId: issueSprintId(fields, fieldIds.sprint) ?? options.fallbackSprintId,
       parentKey: fields.parent?.key,
+      storyPoints: storyPointValue ?? estimateValue,
+      estimate: estimateValue,
       dueDate: fields.duedate,
       createdAt: fields.created,
       updatedAt: fields.updated,
@@ -90,8 +126,81 @@ export function normalizeSprintIssues(issues: JiraIssue[], sprintId: string, sta
       description: jiraDescriptionText(fields.description),
       comments: [],
       links: linkedIssueKeys(fields.issuelinks, fields.subtasks),
+      rank: stringField(fields, fieldIds.rank),
     }]
   })
+}
+
+function fieldId(fields: JiraField[], matches: (field: JiraField) => boolean) {
+  return fields.find((field) => field.id && matches(field))?.id
+}
+
+function knownFieldId(fields: JiraField[], fieldId: string) {
+  return fields.some((field) => field.id === fieldId) ? fieldId : undefined
+}
+
+function isSprintField(field: JiraField) {
+  const normalized = normalizedFieldName(field)
+  return normalized === "sprint" || (field.schema?.custom?.toLowerCase().includes("sprint") ?? false)
+}
+
+function isStoryPointsField(field: JiraField) {
+  const normalized = normalizedFieldName(field)
+  return normalized === "story points" || normalized === "story point" || normalized === "storypoints"
+}
+
+function isStoryPointEstimateField(field: JiraField) {
+  const normalized = normalizedFieldName(field)
+  return normalized === "story point estimate" || normalized === "story points estimate" || normalized === "story estimate"
+}
+
+function isRankField(field: JiraField) {
+  const normalized = normalizedFieldName(field)
+  return normalized === "rank" || (field.schema?.custom?.toLowerCase().includes("rank") ?? false)
+}
+
+function normalizedFieldName(field: JiraField) {
+  return field.name?.trim().toLowerCase().replace(/\s+/g, " ") ?? ""
+}
+
+function issueSprintId(fields: JiraIssueFields, fieldId: string | undefined) {
+  const value = customField(fields, fieldId)
+  if (Array.isArray(value)) {
+    const sprints = value.flatMap(jiraSprintFieldValue)
+    return [...sprints].reverse().find((sprint) => sprint.state === "active" || sprint.state === "future")?.id
+  }
+  const sprint = jiraSprintFieldValue(value)[0]
+  return sprint?.state === "active" || sprint?.state === "future" ? sprint.id : undefined
+}
+
+function jiraSprintFieldValue(value: unknown): Array<{ id: string; state?: string }> {
+  if (isRecord(value) && (typeof value.id === "number" || typeof value.id === "string")) {
+    return [{ id: String(value.id), state: typeof value.state === "string" ? value.state : undefined }]
+  }
+  if (typeof value === "string") {
+    const id = value.match(/\bid=([^,\]]+)/)?.[1]
+    return id ? [{ id }] : []
+  }
+  return []
+}
+
+function numberField(fields: JiraIssueFields, fieldId: string | undefined) {
+  const value = customField(fields, fieldId)
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
+}
+
+function stringField(fields: JiraIssueFields, fieldId: string | undefined) {
+  const value = customField(fields, fieldId)
+  return typeof value === "string" && value.trim() ? value : undefined
+}
+
+function customField(fields: JiraIssueFields, fieldId: string | undefined) {
+  return fieldId ? fields[fieldId] : undefined
 }
 
 function statusNameForColumn(columnName: string, index: number, columnStatusCount: number) {
@@ -164,4 +273,8 @@ function adfText(value: unknown): string {
   const ownText = typeof record.text === "string" ? record.text : ""
   const childText = adfText(record.content)
   return [ownText, childText].filter(Boolean).join(" ")
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
 }

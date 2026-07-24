@@ -118,7 +118,7 @@ Jira list endpoints are paginated. Use one generic helper that accepts `startAt`
 Initial defaults:
 
 - Board/sprint discovery: fetch all pages.
-- Active sprint issues: fetch all pages for the active sprint.
+- Active sprint issues: fetch all pages for every active sprint.
 - Backlog: fetch the first bounded set, then add explicit `load more` behavior before attempting full backlog sync.
 - Remote search: always paginated and user-driven.
 
@@ -231,12 +231,12 @@ Verification:
 
 ### A3. Sprint And Backlog Issue Loading
 
-Status: in progress. Active/future sprint discovery and active sprint issue loading are wired; bounded backlog loading remains.
+Status: in progress. Active/future sprint discovery, all active sprint issue loading, and bounded backlog loading are wired; future sprint issue pagination/load-more remains.
 
 Implementation:
 
 - Load active/future sprints for the selected board.
-- Load active sprint issues.
+- Load all active sprint issues.
 - Load an initial bounded backlog page.
 - Normalize loaded issues into `Record<string, IssueSummary>` without touching staged drafts.
 

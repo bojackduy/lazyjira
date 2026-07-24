@@ -16,7 +16,7 @@ export function BacklogRoute() {
   let scrollbox: ScrollBoxRenderable | undefined
   const groups = () => groupBacklogIssues(state, state.backlogGroupBy)
   const compact = () => dimensions().width < 130
-  const bodyHeight = () => Math.max(5, dimensions().height - (compact() ? 17 : 15))
+  const mainWidth = () => Math.max(20, dimensions().width - (compact() ? 8 : 38))
 
   useBindings(() => ({
     commands: [
@@ -43,16 +43,27 @@ export function BacklogRoute() {
 
   return (
     <box flexDirection="row" gap={1} flexGrow={1} minHeight={0}>
-      <box flexDirection="column" gap={1} flexGrow={1} minHeight={0}>
+      <box flexDirection="column" gap={1} flexGrow={1} minHeight={0} overflow="hidden">
         <box height={3} flexShrink={0} flexDirection="column">
           <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">Backlog: {state.board.name}</text>
           <text fg={theme.textMuted} wrapMode="none">Grouped by {groupModeLabel(state.backlogGroupBy)} · g cycle group · h/l jump group</text>
         </box>
-        <BacklogLegend />
+        <BacklogLegend width={mainWidth()} />
         <Show when={state.workspaceNotice}>
-          {(notice) => <text fg={theme.warning}>{notice()}</text>}
+          {(notice) => <text fg={theme.warning} flexShrink={0} wrapMode="none">{notice()}</text>}
         </Show>
-        <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} viewportCulling={true}>
+        <scrollbox
+          ref={(element: ScrollBoxRenderable) => (scrollbox = element)}
+          width="100%"
+          flexBasis={0}
+          flexGrow={1}
+          flexShrink={1}
+          minHeight={0}
+          scrollY={true}
+          viewportCulling={true}
+          viewportOptions={{ paddingRight: 1 }}
+          verticalScrollbarOptions={{ visible: true, trackOptions: { backgroundColor: theme.panel, foregroundColor: theme.border } }}
+        >
           <For each={groups()}>
             {(group) => (
               <box borderStyle="rounded" borderColor={theme.border} padding={1} flexDirection="column" gap={1} marginBottom={1} width="100%">
@@ -82,24 +93,73 @@ export function BacklogRoute() {
   }
 }
 
-function BacklogLegend() {
+function BacklogLegend(props: { width: number }) {
   const { state } = useAppState()
+  const issueTypeRows = () => packLegendRows(configuredIssueTypes(state).map((issueType) => ({ label: `■ ${shortType(issueType.name)}`, color: issueType.color })), props.width, 1)
+  const statusRows = () => packLegendRows(configuredStatuses(state).map((status) => ({ label: `● ${status.name}`, color: status.color })), props.width, 2)
+
+  return (
+    <box flexDirection="column" gap={0} flexShrink={0}>
+      <For each={issueTypeRows().rows}>
+        {(row) => <LegendRow tokens={row} overflow={0} />}
+      </For>
+      <For each={statusRows().rows}>
+        {(row, index) => <LegendRow tokens={row} overflow={index() === statusRows().rows.length - 1 ? statusRows().overflow : 0} />}
+      </For>
+    </box>
+  )
+}
+
+function LegendRow(props: { tokens: PackedLegendToken[]; overflow: number }) {
   const theme = useTheme()
 
   return (
-    <box flexDirection="column" gap={1}>
-      <box flexDirection="row" gap={1}>
-        <For each={configuredIssueTypes(state)}>
-          {(issueType) => <text fg={theme.textSubtle} wrapMode="none"><span style={{ fg: issueType.color }}>■</span> {shortType(issueType.name)}</text>}
-        </For>
-      </box>
-      <box flexDirection="row" gap={1}>
-        <For each={configuredStatuses(state)}>
-          {(status) => <text fg={status.color} wrapMode="none">● {shortStatus(status.name)}</text>}
-        </For>
-      </box>
-    </box>
+    <text fg={theme.textSubtle} height={1} flexShrink={0} wrapMode="none">
+      <For each={props.tokens}>
+        {(token, index) => (
+          <>
+            <Show when={index() > 0}>{"  "}</Show>
+            <span style={{ fg: token.color }}>{token.marker}</span> {token.text}
+          </>
+        )}
+      </For>
+      <Show when={props.overflow}>{"  +"}{props.overflow} more</Show>
+    </text>
   )
+}
+
+export type LegendToken = {
+  label: string
+  color: string
+}
+
+type PackedLegendToken = LegendToken & { marker: string; text: string }
+
+export function packLegendRows(tokens: LegendToken[], width: number, maxRows: number): { rows: PackedLegendToken[][]; overflow: number } {
+  const normalized = tokens.map((token) => {
+    const marker = token.label.slice(0, 1)
+    const text = token.label.slice(1).trimStart()
+    return { ...token, marker, text }
+  })
+  const rows: PackedLegendToken[][] = []
+  const budget = Math.max(10, width)
+  let used = 0
+
+  for (const token of normalized) {
+    const nextLength = token.label.length
+    const separator = rows.at(-1)?.length ? 2 : 0
+    if (!rows.length || used + separator + nextLength > budget) {
+      if (rows.length >= maxRows) return { rows, overflow: normalized.length - rows.flat().length }
+      rows.push([token])
+      used = nextLength
+      continue
+    }
+
+    rows[rows.length - 1]!.push(token)
+    used += separator + nextLength
+  }
+
+  return { rows, overflow: 0 }
 }
 
 function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: boolean }) {
@@ -167,11 +227,5 @@ function SprintHealth() {
 function shortType(name: string) {
   if (name === "Feature") return "Feat"
   if (name === "Subtask") return "Sub"
-  return name
-}
-
-function shortStatus(name: string) {
-  if (name === "In Progress") return "Prog"
-  if (name === "Code Review") return "Review"
   return name
 }

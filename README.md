@@ -161,6 +161,8 @@ Should show:
 
 The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. Body editing lives in the detail route, not the inspector: in detail, `e` edits body, `j/k` scroll one line, and `d/u` scroll half a page. In text edit mode, printable keys go to the editor and `Ctrl-Enter` stages the current edit. `n` creates a draft issue with context-aware defaults, `x` asks to stage an issue delete, `X` opens a staged-discard popup, `w` applies staged edits/deletes locally, and `W` opens the Jira write review popup. Inside the Jira write popup, `W` is the final remote-apply key; until Jira API writes are wired, it shows a placeholder and keeps staged changes intact. `Enter` opens the full issue detail route for reading; `q`/Backspace returns to the previous overview.
 
+Board cells always include a trailing `+ New issue` placeholder, even when a column or grouped swimlane is otherwise empty. Selecting that placeholder makes empty columns reachable with `h/l`; pressing `Enter` or `n` creates a draft issue in that exact status and group context.
+
 ### 6. Metadata Config
 
 Purpose: inspect board/project metadata without turning the app into a Jira admin console.
@@ -263,7 +265,7 @@ Remote Jira discovery is explicit. From the workspace switcher, press `a` to bro
 
 For local smoke testing without Jira credentials, start with `lazyjira dev` or `bun run start:dev`. Press `P` for saved fixture workspaces or `a` to browse the bundled dev projects and boards. Dev runtime loads different fixture tickets for `PROJ`, `MOB`, and `OPS`.
 
-Prod selections are persisted under `prodWorkspace` and `prodRecentWorkspaces`; dev selections are persisted separately under `devWorkspace` and `devRecentWorkspaces`. Auth updates preserve workspace context, and workspace updates preserve the saved API token. Prod board metadata, sprints, and active sprint issues are loaded from Jira after selection. Backlog and issue detail loading are still being wired.
+Prod selections are persisted under `prodWorkspace` and `prodRecentWorkspaces`; dev selections are persisted separately under `devWorkspace` and `devRecentWorkspaces`. Auth updates preserve workspace context, and workspace updates preserve the saved API token. Prod board metadata, sprints, all active sprint issues, and a bounded backlog page are loaded from Jira after selection. Future sprint issue pagination and issue detail loading are still being wired.
 
 ### Phase 1: Dev Fixture Board Foundation
 

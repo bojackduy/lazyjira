@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { AppState, IssueSummary, StatusDefinition } from "./app-state"
-import { boardCellIssueKeys, boardIssueKeyAtLocation, nextKanbanHorizontalLocation, selectedBoardLocation } from "./board-navigation"
+import { boardCellIssueKeys, boardCellItems, boardIssueKeyAtLocation, boardItemAtLocation, firstBoardLocation, nextKanbanHorizontalLocation, selectedBoardLocation } from "./board-navigation"
 import { loadDevWorkspaceState } from "./dev"
 
 const statuses: StatusDefinition[] = [
@@ -10,22 +10,41 @@ const statuses: StatusDefinition[] = [
 ]
 
 describe("board navigation", () => {
-  test("moves horizontally through sparse Kanban cells in visual order", () => {
+  test("moves horizontally into empty Kanban cells using create placeholders", () => {
     const state = sparseKanbanState()
+    const location = selectedBoardLocation(state, "kanban", "A")!
 
-    expect(nextKanbanIssue(state, "A", 1)).toBe("B")
-    expect(nextKanbanIssue(state, "B", 1)).toBe("C")
-    expect(nextKanbanIssue(state, "C", 1)).toBe("D")
-    expect(nextKanbanIssue(state, "D", 1)).toBeUndefined()
+    const next = nextKanbanHorizontalLocation(state, location, 1)
+
+    expect(next).toEqual({ groupIndex: 0, statusIndex: 1, itemIndex: 0 })
+    expect(boardItemAtLocation(state, "kanban", next!)?.kind).toBe("create")
+    expect(boardIssueKeyAtLocation(state, "kanban", next!)).toBeUndefined()
   })
 
-  test("moves horizontally backward through sparse Kanban cells", () => {
+  test("moves horizontally to adjacent real issue when the cell has one", () => {
+    const state = sparseKanbanState()
+    const location = selectedBoardLocation(state, "kanban", "B")!
+
+    const next = nextKanbanHorizontalLocation(state, location, 1)
+
+    expect(next).toEqual({ groupIndex: 1, statusIndex: 2, itemIndex: 0 })
+    expect(boardIssueKeyAtLocation(state, "kanban", next!)).toBe("C")
+  })
+
+  test("adds a create placeholder to every valid board cell", () => {
     const state = sparseKanbanState()
 
-    expect(nextKanbanIssue(state, "D", -1)).toBe("C")
-    expect(nextKanbanIssue(state, "C", -1)).toBe("B")
-    expect(nextKanbanIssue(state, "B", -1)).toBe("A")
-    expect(nextKanbanIssue(state, "A", -1)).toBeUndefined()
+    expect(boardCellItems(state, "kanban", 0, 0).map((item) => item.kind)).toEqual(["issue", "create"])
+    expect(boardCellItems(state, "kanban", 0, 1)).toEqual([{ kind: "create" }])
+  })
+
+  test("can select a placeholder even when a board has no issues", () => {
+    const state = { ...loadDevWorkspaceState(), issues: {}, activeSprintGroupBy: "none" as const, selectedIssueKey: "" }
+
+    const location = firstBoardLocation(state, "active-sprint")
+
+    expect(location).toEqual({ groupIndex: 0, statusIndex: 0, itemIndex: 0 })
+    expect(boardItemAtLocation(state, "active-sprint", location!)?.kind).toBe("create")
   })
 
   test("locates staged status changes in the rendered board column", () => {
@@ -44,13 +63,6 @@ describe("board navigation", () => {
     expect(boardIssueKeyAtLocation(state, "active-sprint", { groupIndex: 0, statusIndex: 2, itemIndex: 0 })).toBe("PROJ-128")
   })
 })
-
-function nextKanbanIssue(state: AppState, issueKey: string, delta: 1 | -1) {
-  const location = selectedBoardLocation(state, "kanban", issueKey)
-  if (!location) return
-  const next = nextKanbanHorizontalLocation(state, location, delta)
-  return next ? boardIssueKeyAtLocation(state, "kanban", next) : undefined
-}
 
 function sparseKanbanState(): AppState {
   const issues = [
