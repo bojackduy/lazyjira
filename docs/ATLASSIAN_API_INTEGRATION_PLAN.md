@@ -241,7 +241,7 @@ Verification:
 
 ### R4. Write Preview And Operation Planning
 
-Status: partially implemented. `src/state/jira-write-plan.ts` converts current staged issue/config changes into planned field update previews or blocked rows for unsupported/high-risk writes, and the `W` popup renders those rows. Comment and rank planning are still waiting on staged comment/rank models.
+Status: implemented. `src/state/jira-write-plan.ts` converts staged field, comment, rank, create, delete, and config changes into planned or blocked Jira operation previews, and the `W` popup renders those rows. Remote execution remains disabled.
 
 Goal: make `W` show exact Jira operations before any mutation.
 
@@ -431,7 +431,7 @@ Verification:
 
 ### A7. Safe Write Review Preparation
 
-Status: implemented for current staged changes. The review is still execution-free.
+Status: implemented for staged field, comment, rank, create, delete, and config changes. The review is still execution-free.
 
 Implementation:
 

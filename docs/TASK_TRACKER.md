@@ -52,7 +52,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [x] A6 Remote search mode separate from `/` loaded filtering.
 - [x] A6.1 Remote search pagination append/dedupe.
 - [x] A7 Safe write review preparation from staged changes.
-- [~] A7.1 Jira operation planner for fields, comments, transitions, assignee, sprint move, rank, create, and blocked unsupported rows.
+- [x] A7.1 Jira operation planner for fields, comments, transitions, assignee, sprint move, rank, create, and blocked unsupported rows.
 - [ ] A7.5 Safe write execution rollout: comment, field update, transition, assignee, sprint move, rank, create, delete last.
 - [ ] A8 Documentation updates and real Jira smoke checklist.
 

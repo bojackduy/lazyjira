@@ -63,4 +63,28 @@ describe("Jira write plan", () => {
       blocker: "Create metadata and Jira issue type IDs are not loaded yet.",
     })
   })
+
+  test("plans staged comments and exact backlog rank operations", () => {
+    const state = loadDevWorkspaceState()
+    state.commentDrafts = [{ id: "comment-1", issueKey: "PROJ-128", body: "Ready for review" }]
+    state.rankDrafts = { "PROJ-128": { issueKey: "PROJ-128", targetIssueKey: "PROJ-121", position: "after" } }
+
+    const plan = planJiraWrites(state)
+
+    expect(writePlanCounts(plan)).toEqual({ planned: 2, blocked: 0 })
+    expect(plan).toEqual([
+      expect.objectContaining({
+        id: "comment:comment-1",
+        method: "POST",
+        endpoint: "/rest/api/3/issue/PROJ-128/comment",
+        payloadPreview: "body = Ready for review",
+      }),
+      expect.objectContaining({
+        id: "rank:PROJ-128",
+        method: "PUT",
+        endpoint: "/rest/agile/1.0/issue/rank",
+        payloadPreview: "issues = [PROJ-128], rankAfterIssue = PROJ-121",
+      }),
+    ])
+  })
 })

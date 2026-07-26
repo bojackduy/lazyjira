@@ -39,6 +39,10 @@ function planStagedChange(state: AppState, change: StagedChange): JiraWritePlanI
       return [planCreateIssue(state, change.issueKey)]
     case "edit":
       return [planIssueEdit(state, change)]
+    case "comment":
+      return [planComment(state, change)]
+    case "rank":
+      return [planRank(state, change)]
     case "delete":
       return [blockedPlan({
         id: change.id,
@@ -56,6 +60,40 @@ function planStagedChange(state: AppState, change: StagedChange): JiraWritePlanI
         detail: change.value,
         blocker: "Board/status/type config writes are local-only until Jira admin metadata writes are scoped.",
       })]
+  }
+}
+
+function planComment(state: AppState, change: Extract<StagedChange, { kind: "comment" }>): JiraWritePlanItem {
+  const issue = state.issues[change.issueKey]
+  if (!issue) return blockedPlan({ id: change.id, issueKey: change.issueKey, title: `${change.issueKey} comment`, detail: "Issue is missing from local state.", blocker: "Cannot post a comment for a missing issue." })
+  if (issue.isDraft) return blockedPlan({ id: change.id, issueKey: change.issueKey, title: `${change.issueKey} comment`, detail: commentPreview(change.value), method: "POST", endpoint: `/rest/api/3/issue/${change.issueKey}/comment`, blocker: "Create the draft issue before posting a comment." })
+  return {
+    id: change.id,
+    status: "planned",
+    issueKey: change.issueKey,
+    title: `${change.issueKey} comment`,
+    detail: commentPreview(change.value),
+    method: "POST",
+    endpoint: `/rest/api/3/issue/${change.issueKey}/comment`,
+    payloadPreview: `body = ${commentPreview(change.value)}`,
+  }
+}
+
+function planRank(state: AppState, change: Extract<StagedChange, { kind: "rank" }>): JiraWritePlanItem {
+  const issue = state.issues[change.issueKey]
+  const target = state.issues[change.targetIssueKey]
+  const detail = `${change.position === "before" ? "Before" : "After"} ${change.targetIssueKey}`
+  if (!issue || !target) return blockedPlan({ id: change.id, issueKey: change.issueKey, title: `${change.issueKey} rank`, detail, method: "PUT", endpoint: "/rest/agile/1.0/issue/rank", blocker: "Both ranked issues must still exist in the loaded workspace." })
+  if (issue.isDraft || target.isDraft) return blockedPlan({ id: change.id, issueKey: change.issueKey, title: `${change.issueKey} rank`, detail, method: "PUT", endpoint: "/rest/agile/1.0/issue/rank", blocker: "Create draft issues before ranking them." })
+  return {
+    id: change.id,
+    status: "planned",
+    issueKey: change.issueKey,
+    title: `${change.issueKey} rank`,
+    detail,
+    method: "PUT",
+    endpoint: "/rest/agile/1.0/issue/rank",
+    payloadPreview: `issues = [${change.issueKey}], rank${change.position === "before" ? "Before" : "After"}Issue = ${change.targetIssueKey}`,
   }
 }
 
@@ -223,4 +261,8 @@ function sprintLabel(state: AppState, sprintId: string | undefined) {
 
 function splitList(value: string) {
   return value.split(",").map((item) => item.trim()).filter(Boolean)
+}
+
+function commentPreview(value: string) {
+  return value.replace(/\s+/g, " ").trim().slice(0, 80)
 }

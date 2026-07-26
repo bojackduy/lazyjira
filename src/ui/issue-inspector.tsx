@@ -17,6 +17,8 @@ export function IssueInspector(props: { compact: boolean }) {
   const issue = () => issueByKey(state, state.selectedIssueKey)
   const focused = () => state.focusedPane === "inspector"
   const stagedCount = () => stagedChanges(state).length
+  const stagedComments = () => state.commentDrafts.filter((draft) => draft.issueKey === state.selectedIssueKey)
+  const stagedRank = () => state.rankDrafts[state.selectedIssueKey]
 
   useBindings(() => ({
     commands: [
@@ -60,6 +62,12 @@ export function IssueInspector(props: { compact: boolean }) {
               <text fg={issueTypeColor(state, selectedIssue())} wrapMode="none">■ {selectedIssue().type} <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span></text>
               <Show when={state.issueDeletes.includes(selectedIssue().key)}>
                 <text fg={theme.danger} wrapMode="none">Delete staged · w render · W write Jira</text>
+              </Show>
+              <Show when={stagedRank()}>
+                {(rank) => <text fg={theme.warning} wrapMode="none">Rank staged {rank().position} {rank().targetIssueKey} · W review</text>}
+              </Show>
+              <Show when={stagedComments().length}>
+                <text fg={theme.warning} wrapMode="none">{stagedComments().length} comment{stagedComments().length === 1 ? "" : "s"} staged · W review</text>
               </Show>
             </box>
             <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} flexGrow={1} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>

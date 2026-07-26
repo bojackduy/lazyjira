@@ -24,6 +24,15 @@ describe("staged changes", () => {
     expect(stagedChanges(state).find((change) => change.id === "create:DRAFT-1")).toMatchObject({ kind: "create", issueKey: "DRAFT-1", label: "Create issue" })
   })
 
+  test("lists staged comments and rank operations", () => {
+    const state = loadDevWorkspaceState()
+    state.commentDrafts = [{ id: "comment-1", issueKey: "PROJ-128", body: "Ready for review" }]
+    state.rankDrafts = { "PROJ-128": { issueKey: "PROJ-128", targetIssueKey: "PROJ-121", position: "after" } }
+
+    expect(stagedChanges(state).map((change) => change.id)).toEqual(["comment:comment-1", "rank:PROJ-128"])
+    expect(stagedChanges(state).map((change) => change.label)).toEqual(["Comment", "Rank issue"])
+  })
+
   test("defaults discard target to the highlighted staged change", () => {
     const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { title: "Updated summary", description: "Updated body" }

@@ -45,6 +45,18 @@ export type IssueComment = {
   age: string
 }
 
+export type IssueCommentDraft = {
+  id: string
+  issueKey: string
+  body: string
+}
+
+export type IssueRankDraft = {
+  issueKey: string
+  targetIssueKey: string
+  position: "before" | "after"
+}
+
 export type IssuePageState = {
   sourceId: string
   startAt: number
@@ -280,6 +292,11 @@ export type AppState = {
   inspectorEditingFieldId?: IssueEditableField
   inspectorEditValue: string
   issueDrafts: Record<string, IssueDraft>
+  commentDrafts: IssueCommentDraft[]
+  commentDraftCounter: number
+  commentEditing: boolean
+  commentEditValue: string
+  rankDrafts: Record<string, IssueRankDraft>
   issueDeletes: string[]
   issueDetailLoadingByKey: Record<string, boolean>
   issueDetailErrorByKey: Record<string, string | undefined>

@@ -61,6 +61,10 @@ export function App() {
             appState.closeSearch()
             return
           }
+          if (state.commentEditing) {
+            appState.cancelComment()
+            return
+          }
           if (isPlainTextEditing()) return false
           if (state.pendingDeleteIssueKey) {
             appState.cancelIssueDelete()
@@ -93,6 +97,7 @@ export function App() {
           else if (state.route === "workspace" && state.workspaceFocusedArea === "results") appState.closeWorkspaceResults()
           else if (state.configEditing) appState.cancelConfigEdit()
           else if (state.detailBodyEditing) appState.cancelDetailBodyEdit()
+          else if (state.commentEditing) appState.cancelComment()
           else appState.cancelInspectorEdit()
         },
       },
@@ -109,6 +114,9 @@ export function App() {
       { name: "issue.refresh-detail", run: () => refreshSelectedIssueDetail() },
       { name: "workspace.refresh", run: () => refreshWorkspace() },
       { name: "issue.load-more", run: () => loadMoreIssues() },
+      { name: "issue.comment", run: () => commentSelectedIssue() },
+      { name: "issue.rank-down", run: () => rankSelectedBacklogIssue("after") },
+      { name: "issue.rank-up", run: () => rankSelectedBacklogIssue("before") },
       { name: "focus.next", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(1)) },
       { name: "focus.previous", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(-1)) },
       { name: "pane.down", run: () => moveVertical(1) },
@@ -166,7 +174,9 @@ export function App() {
       { key: "e", cmd: "issue.edit", preventDefault: false },
       { key: "n", cmd: "issue.new", preventDefault: false },
       { key: "a", cmd: "config.add", preventDefault: false },
-      { key: "c", cmd: "config.color", preventDefault: false },
+      { key: "c", cmd: "issue.comment", preventDefault: false },
+      { key: { name: "j", shift: true }, cmd: "issue.rank-down", preventDefault: false },
+      { key: { name: "k", shift: true }, cmd: "issue.rank-up", preventDefault: false },
       { key: "w", cmd: "issue.apply", preventDefault: false },
       { key: { name: "w", shift: true }, cmd: "issue.remote-apply", preventDefault: false },
       { key: "x", cmd: "issue.delete", preventDefault: false },
@@ -385,6 +395,10 @@ export function App() {
       appState.commitDetailBodyEdit()
       return
     }
+    if (state.commentEditing) {
+      appState.commitComment()
+      return
+    }
     if (state.inspectorEditingFieldId) {
       appState.commitInspectorEdit()
       return
@@ -401,6 +415,24 @@ export function App() {
 
   function canRunGlobalShortcut() {
     return !isPlainTextEditing() && !isPopupOpen()
+  }
+
+  function commentSelectedIssue() {
+    if (isPlainTextEditing() || isPopupOpen()) return false
+    if (state.route === "config") {
+      appState.startConfigColor()
+      return
+    }
+    appState.startComment()
+  }
+
+  function rankSelectedBacklogIssue(position: "before" | "after") {
+    if (!canRunGlobalShortcut() || state.route !== "backlog" || state.focusedPane !== "main") return false
+    const issueKeys = groupBacklogIssues(state, state.backlogGroupBy).flatMap((group) => group.issueKeys)
+    const index = issueKeys.indexOf(state.selectedIssueKey)
+    const targetIssueKey = issueKeys[index + (position === "before" ? -1 : 1)]
+    if (!targetIssueKey) return false
+    appState.stageIssueRank(state.selectedIssueKey, targetIssueKey, position)
   }
 
   function remoteApplyAction() {
@@ -451,15 +483,15 @@ export function App() {
   }
 
   function isPopupOpen() {
-    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.projectPicker.open
+    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.projectPicker.open || state.commentEditing
   }
 
   function isPlainTextEditing() {
-    return state.authOnboarding.open || state.projectPicker.open || state.searchOpen || state.detailBodyEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
+    return state.authOnboarding.open || state.projectPicker.open || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
   }
 
   function isAnyEditing() {
-    return state.authOnboarding.open || state.projectPicker.open || state.detailBodyEditing || !!state.inspectorEditingFieldId || !!state.configEditing
+    return state.authOnboarding.open || state.projectPicker.open || state.detailBodyEditing || state.commentEditing || !!state.inspectorEditingFieldId || !!state.configEditing
   }
 
   function addConfigRow() {

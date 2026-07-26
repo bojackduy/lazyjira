@@ -1,4 +1,4 @@
-import { TextAttributes, type InputRenderable, type KeyEvent } from "@opentui/core"
+import { TextAttributes, type InputRenderable, type KeyEvent, type TextareaRenderable } from "@opentui/core"
 import { useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { createEffect, For, onCleanup, onMount, Show, type JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
@@ -36,6 +36,7 @@ export function AppShell() {
       <ProjectPickerPopup />
       <StagedDiscardPopup />
       <RemoteApplyPopup />
+      <CommentComposerPopup />
     </box>
   )
 }
@@ -308,6 +309,44 @@ function RemoteApplyPopup() {
         </Show>
         <text fg={theme.warning} wrapMode="none">Jira execution is not wired yet; confirming now keeps staged changes intact.</text>
       </ModalFrame>
+    </Show>
+  )
+}
+
+function CommentComposerPopup() {
+  const appState = useAppState()
+  const { state } = appState
+  const theme = useTheme()
+  let textarea: TextareaRenderable | undefined
+  const issue = () => issueByKey(state, state.selectedIssueKey)
+
+  createEffect(() => {
+    if (!state.commentEditing) return
+    setTimeout(() => textarea && !textarea.isDestroyed && textarea.focus(), 1)
+  })
+
+  return (
+    <Show when={state.commentEditing && issue()}>
+      {(selectedIssue) => (
+        <ModalFrame borderColor={theme.accent} width={82}>
+          <box flexDirection="row" justifyContent="space-between">
+            <text attributes={TextAttributes.BOLD} fg={theme.accent}>Stage Jira Comment</text>
+            <text fg={theme.textSubtle}>Ctrl-Enter stage · Esc cancel</text>
+          </box>
+          <text fg={theme.textMuted}>Comment for {selectedIssue().key}: {selectedIssue().title}</text>
+          <textarea
+            ref={(element: TextareaRenderable) => (textarea = element)}
+            height={8}
+            initialValue={state.commentEditValue}
+            onContentChange={() => appState.updateCommentValue(textarea?.plainText ?? "")}
+            textColor={theme.text}
+            focusedTextColor={theme.text}
+            cursorColor={theme.accent}
+            backgroundColor={theme.panel}
+            focusedBackgroundColor={theme.panel}
+          />
+        </ModalFrame>
+      )}
     </Show>
   )
 }
@@ -650,6 +689,7 @@ function stagedChangeText(change: StagedChange, issueTitle?: string) {
   if (change.kind === "config") return change.value
   if (change.kind === "create") return `${change.issueKey} create issue · ${issueTitle ?? "New issue"}`
   if (change.kind === "delete") return `${change.issueKey} delete issue · ${issueTitle ?? "Unknown issue"}`
+  if (change.kind === "rank") return `${change.issueKey} rank ${change.position} ${change.targetIssueKey}`
   const preview = change.value.replace(/\s+/g, " ").slice(0, 48)
   return `${change.issueKey} ${change.label} · ${preview}`
 }
@@ -668,7 +708,7 @@ function footerItems(focusedPane: string, route: string, stagedDiscardOpen: bool
   if (route === "config") return ["config", "j/k choose", "d/u page", "h/l pane", "a add", "e rename", "c color", "R refresh", "W Jira"]
   if (route === "active-sprint") return ["sprint", "j/k card", "h/l column", "enter open/new", "R refresh", "/ filter", "S Jira search", "W Jira"]
   if (route === "kanban") return ["kanban", "j/k row", "h/l column", "enter open/new", "R refresh", "L load more", "S Jira search", "W Jira"]
-  if (route === "backlog") return ["backlog", "j/k row", "h/l group", "R refresh", "L load more", "/ filter", "S Jira search", "W Jira"]
+  if (route === "backlog") return ["backlog", "j/k row", "h/l group", "J/K rank", "c comment", "R refresh", "L load more", "W Jira"]
   return ["1 workspace", "2 sprint", "3 backlog", "4 kanban", "P project", "R refresh", "/ filter loaded", "q quit"]
 }
 

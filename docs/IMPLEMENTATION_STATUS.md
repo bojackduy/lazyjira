@@ -30,7 +30,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 - [x] `W` operation review displays planned and blocked Jira operations without mutating Jira.
 - [x] Planner supports safe field-update previews for summary, priority, parent, due date, labels, components, and versions.
 - [x] Planner visibly blocks unsupported or high-risk rows: transitions, users, sprint moves, custom fields, type, description, links, create, delete, and config writes.
-- [~] Add staged comment and rank models plus their operation previews.
+- [x] Staged comment composer (`c`) and backlog rank staging (`J/K`) with exact Jira operation previews.
 - [ ] Execute remote writes safely (A7.5): comments first, simple field updates second, then transitions/assignee/moves/rank/create; delete last and only with explicit approval.
 
 ## Completed Milestone: A4 Refresh Safety
@@ -44,7 +44,6 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 
 ## Next Milestones
 
-- [ ] Finish A7.1 planner coverage for staged comments and rank operations.
 - [ ] Start A7.5 with comment-only Jira writes and partial-failure retention.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.

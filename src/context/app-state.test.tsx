@@ -252,6 +252,18 @@ describe("app state project picker", () => {
     expect(stagedChanges(appState.state).some((change) => change.id === "create:DRAFT-1")).toBe(false)
   })
 
+  test("stages comments and backlog rank operations", () => {
+    const appState = createTestAppState()
+
+    appState.startComment()
+    appState.updateCommentValue("Ready for review")
+    appState.commitComment()
+    appState.stageIssueRank("PROJ-128", "PROJ-121", "after")
+
+    expect(appState.state.commentDrafts).toEqual([{ id: "comment-1", issueKey: "PROJ-128", body: "Ready for review" }])
+    expect(appState.state.rankDrafts["PROJ-128"]).toEqual({ issueKey: "PROJ-128", targetIssueKey: "PROJ-121", position: "after" })
+  })
+
   test("loads a saved workspace after the provider mounts", async () => {
     const initialLoad = deferred<ReturnType<typeof loadDevWorkspaceFixture>>()
     let loadCalls = 0

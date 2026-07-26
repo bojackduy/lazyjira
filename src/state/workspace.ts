@@ -248,6 +248,7 @@ function stagedResultSubtitle(state: AppState, change: ReturnType<typeof stagedC
   if (change.kind === "config") return "Local metadata overlay"
   if (change.kind === "create") return state.issues[change.issueKey]?.title ?? "New issue"
   if (change.kind === "delete") return state.issues[change.issueKey]?.title ?? "Unknown issue"
+  if (change.kind === "rank") return `${change.position === "before" ? "Before" : "After"} ${change.targetIssueKey}`
   return change.value.replace(/\s+/g, " ").slice(0, 72)
 }
 

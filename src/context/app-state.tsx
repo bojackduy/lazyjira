@@ -95,6 +95,11 @@ export type AppStateContext = {
   updateDetailBodyEditValue: (value: string) => void
   commitDetailBodyEdit: () => void
   cancelDetailBodyEdit: () => void
+  startComment: () => void
+  updateCommentValue: (value: string) => void
+  commitComment: () => void
+  cancelComment: () => void
+  stageIssueRank: (issueKey: string, targetIssueKey: string, position: "before" | "after") => void
   openStagedDiscard: () => void
   closeStagedDiscard: () => void
   moveStagedDiscardSelection: (delta: number) => void
@@ -222,6 +227,10 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("remoteSearchPageState", defaultIssuePageState(remoteSearchIssuePageSourceId, 50))
     setState("remoteSearchRequestId", 0)
     setState("issueDrafts", reconcile({}))
+    setState("commentDrafts", [])
+    setState("commentEditing", false)
+    setState("commentEditValue", "")
+    setState("rankDrafts", reconcile({}))
     setState("issueDeletes", [])
     setState("issueDetailLoadingByKey", reconcile({}))
     setState("issueDetailErrorByKey", reconcile({}))
@@ -864,6 +873,34 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("detailBodyEditing", false)
       setState("detailBodyEditValue", "")
     },
+    startComment() {
+      const issue = issueByKey(state, state.selectedIssueKey)
+      if (!issue || state.route === "workspace" || state.route === "config") return
+      setState("commentEditValue", "")
+      setState("commentEditing", true)
+    },
+    updateCommentValue(value) {
+      setState("commentEditValue", value)
+    },
+    commitComment() {
+      const issue = issueByKey(state, state.selectedIssueKey)
+      const body = state.commentEditValue.trim()
+      if (!issue || !body) return
+      setState("commentDrafts", (drafts) => [...drafts, { id: `comment-${state.commentDraftCounter}`, issueKey: issue.key, body }])
+      setState("commentDraftCounter", state.commentDraftCounter + 1)
+      setState("commentEditing", false)
+      setState("commentEditValue", "")
+      toast.show(`Comment on ${issue.key} staged`)
+    },
+    cancelComment() {
+      setState("commentEditing", false)
+      setState("commentEditValue", "")
+    },
+    stageIssueRank(issueKey, targetIssueKey, position) {
+      if (!state.issues[issueKey] || !state.issues[targetIssueKey] || issueKey === targetIssueKey) return
+      setState("rankDrafts", issueKey, { issueKey, targetIssueKey, position })
+      toast.show(`${issueKey} rank staged ${position} ${targetIssueKey}`)
+    },
     openStagedDiscard() {
       setState("stagedDiscardOpen", true)
       setState("remoteApplyOpen", false)
@@ -900,6 +937,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const issueDrafts = { ...state.issueDrafts }
       let issueDeletes = [...state.issueDeletes]
       let configDrafts = [...state.configDrafts]
+      let commentDrafts = [...state.commentDrafts]
+      const rankDrafts = { ...state.rankDrafts }
       const issues = { ...state.issues }
       for (const change of changes) {
         if (!selectedIds.has(change.id)) continue
@@ -908,10 +947,20 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           delete issues[change.issueKey]
           delete issueDrafts[change.issueKey]
           issueDeletes = issueDeletes.filter((issueKey) => issueKey !== change.issueKey)
+          commentDrafts = commentDrafts.filter((draft) => draft.issueKey !== change.issueKey)
+          delete rankDrafts[change.issueKey]
           continue
         }
         if (change.kind === "config") {
           configDrafts = configDrafts.filter((draft) => draft.id !== change.draftId)
+          continue
+        }
+        if (change.kind === "comment") {
+          commentDrafts = commentDrafts.filter((draft) => draft.id !== change.commentId)
+          continue
+        }
+        if (change.kind === "rank") {
+          delete rankDrafts[change.issueKey]
           continue
         }
         if (change.kind === "delete") {
@@ -929,6 +978,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("issueDrafts", reconcile(issueDrafts))
       setState("issueDeletes", issueDeletes)
       setState("configDrafts", reconcile(configDrafts))
+      setState("commentDrafts", reconcile(commentDrafts))
+      setState("rankDrafts", reconcile(rankDrafts))
       if (editorsToClear.inspector) {
         setState("inspectorEditingFieldId", undefined)
         setState("inspectorEditValue", "")
@@ -955,6 +1006,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("inspectorEditValue", "")
       setState("detailBodyEditing", false)
       setState("detailBodyEditValue", "")
+      setState("commentEditing", false)
+      setState("commentEditValue", "")
       setState("configEditing", undefined)
       setState("configEditValue", "")
       toast.show(`${changeCount} staged change${changeCount === 1 ? "" : "s"} rendered; X can discard, W writes Jira`)
