@@ -1,5 +1,5 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, postJiraIssueComment, rankJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
+import { fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectRoleMembers, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
 import { discoverJiraIssueFieldIds, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
 import type { IssuePageState, SprintSummary } from "../../state/app-state"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
@@ -19,10 +19,19 @@ const prodPlaceholderIssueTypes = [
 
 export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConfig | undefined> = loadJiraAuthConfig, fetchImpl: FetchLike = fetch): WorkspaceSource {
   let cachedFieldIds: JiraIssueFieldIds | undefined
+  const projectMemberCache = new Map<string, Awaited<ReturnType<typeof fetchProjectRoleMembers>>>()
 
   async function issueFieldIds(auth: JiraAuthConfig) {
     cachedFieldIds ??= discoverJiraIssueFieldIds(await fetchJiraFields(auth, fetchImpl))
     return cachedFieldIds
+  }
+
+  async function projectMembers(auth: JiraAuthConfig, projectKey: string) {
+    const cached = projectMemberCache.get(projectKey)
+    if (cached) return cached
+    const members = await fetchProjectRoleMembers(auth, projectKey, fetchImpl)
+    projectMemberCache.set(projectKey, members)
+    return members
   }
 
   return {
@@ -100,8 +109,28 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     async updateIssue(issueKey, fields) {
       await updateJiraIssue(await requireJiraAuth(authLoader), issueKey, fields, fetchImpl)
     },
+    async transitionIssue(issueKey, targetStatusId) {
+      const auth = await requireJiraAuth(authLoader)
+      const transition = (await fetchJiraIssueTransitions(auth, issueKey, fetchImpl)).find((candidate) => candidate.id && candidate.to?.id === targetStatusId)
+      if (!transition?.id) throw new Error(`Jira does not offer a transition from ${issueKey} to the selected status.`)
+      await transitionJiraIssue(auth, issueKey, transition.id, fetchImpl)
+    },
+    async moveIssueToSprint(issueKey, sprintId) {
+      await moveJiraIssueToSprint(await requireJiraAuth(authLoader), issueKey, sprintId, fetchImpl)
+    },
     async rankIssue(issueKey, targetIssueKey, position) {
       await rankJiraIssue(await requireJiraAuth(authLoader), issueKey, targetIssueKey, position, fetchImpl)
+    },
+    async loadUserPicker(fieldId, issueKey, projectKey, query) {
+      const auth = await requireJiraAuth(authLoader)
+      const users = fieldId === "assignee"
+        ? await fetchAssignableUsers(auth, projectKey, issueKey, query, fetchImpl)
+        : await projectMembers(auth, projectKey)
+      const normalizedQuery = query.trim().toLowerCase()
+      return users
+        .filter((user) => user.accountId && user.displayName && (!normalizedQuery || user.displayName.toLowerCase().includes(normalizedQuery)))
+        .map((user) => ({ accountId: user.accountId!, displayName: user.displayName! }))
+        .slice(0, 50)
     },
   }
 }

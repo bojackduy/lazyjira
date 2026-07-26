@@ -25,7 +25,7 @@ export function IssueInspector(props: { compact: boolean }) {
       { name: "inspector.scroll.down", run: () => scrollPage(1) },
       { name: "inspector.scroll.up", run: () => scrollPage(-1) },
     ],
-    bindings: state.searchOpen ? [] : [
+    bindings: state.searchOpen || state.inspectorEditingFieldId ? [] : [
       { key: "d", cmd: "inspector.scroll.down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "inspector.scroll.down" },
       { key: "u", cmd: "inspector.scroll.up", preventDefault: false },
@@ -39,12 +39,8 @@ export function IssueInspector(props: { compact: boolean }) {
   })
 
   function scrollPage(delta: 1 | -1) {
-    if (!focused() || state.remoteApplyOpen || state.stagedDiscardOpen || isPlainTextInspectorEditing()) return false
+    if (!focused() || state.remoteApplyOpen || state.stagedDiscardOpen || state.inspectorEditingFieldId) return false
     scrollbox?.scrollBy(delta, "viewport")
-  }
-
-  function isPlainTextInspectorEditing() {
-    return !!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type"
   }
 
   return (
@@ -139,6 +135,7 @@ function FieldEditor(props: { field: IssueFieldDefinition }) {
   const { state } = appState
   const theme = useTheme()
   if (props.field.id === "statusId" || props.field.id === "type") return <ChoiceEditor field={props.field} />
+  if (props.field.id === "assignee" || props.field.id === "reporter") return <UserPickerEditor fieldId={props.field.id} />
   if (props.field.multiline) {
     let textarea: TextareaRenderable | undefined
     return (
@@ -175,6 +172,44 @@ function FieldEditor(props: { field: IssueFieldDefinition }) {
       backgroundColor={theme.panel}
       focusedBackgroundColor={theme.panel}
     />
+  )
+}
+
+function UserPickerEditor(props: { fieldId: "assignee" | "reporter" }) {
+  const appState = useAppState()
+  const { state } = appState
+  const theme = useTheme()
+  const picker = () => state.inspectorUserPicker
+  let input: InputRenderable | undefined
+
+  return (
+    <box flexDirection="column" gap={1}>
+      <input
+        value={state.inspectorEditValue}
+        onInput={(value) => appState.updateInspectorEditValue(value)}
+        onSubmit={() => appState.commitInspectorEdit()}
+        ref={(element: InputRenderable) => {
+          input = element
+          setTimeout(() => !element.isDestroyed && element.focus(), 1)
+        }}
+        placeholder={`Filter ${props.fieldId === "assignee" ? "assignable users" : "project members"}`}
+        placeholderColor={theme.textSubtle}
+        textColor={theme.text}
+        focusedTextColor={theme.text}
+        cursorColor={theme.accent}
+        backgroundColor={theme.panel}
+        focusedBackgroundColor={theme.panel}
+      />
+      <Show when={picker()?.loading}><text fg={theme.warning}>Loading Jira users...</text></Show>
+      <Show when={picker()?.error}>{(message) => <text fg={theme.danger}>{message()}</text>}</Show>
+      <For each={picker()?.options ?? []} fallback={<Show when={!picker()?.loading}><text fg={theme.textMuted}>No matching Jira users</text></Show>}>
+        {(user, index) => {
+          const selected = () => picker()?.selectedIndex === index()
+          return <text fg={selected() ? theme.selectedText : theme.text} bg={selected() ? theme.selected : undefined} wrapMode="none">{selected() ? ">" : " "} {user.displayName}</text>
+        }}
+      </For>
+      <text fg={theme.textSubtle}>Up/Down choose · Enter stage selected user · Esc cancel</text>
+    </box>
   )
 }
 

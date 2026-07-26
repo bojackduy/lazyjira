@@ -24,7 +24,7 @@ describe("Jira write plan", () => {
     expect(plan.every((item) => item.method === "PUT" && item.endpoint === "/rest/api/3/issue/PROJ-128")).toBe(true)
   })
 
-  test("blocks changes that need unresolved Jira metadata or stronger confirmation", () => {
+  test("plans status transitions and blocks changes that need unresolved metadata or stronger confirmation", () => {
     const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = {
       statusId: "done",
@@ -37,10 +37,11 @@ describe("Jira write plan", () => {
 
     const plan = planJiraWrites(state)
 
-    expect(writePlanCounts(plan)).toEqual({ planned: 0, blocked: 6 })
+    expect(writePlanCounts(plan)).toEqual({ planned: 1, blocked: 5 })
+    expect(plan[0]).toMatchObject({ operation: "transition", transitionStatusId: "done", endpoint: "/rest/api/3/issue/PROJ-128/transitions" })
     expect(plan.map((item) => item.blocker)).toEqual([
-      "Status writes require transition ID discovery for this issue.",
-      "User writes require Jira account ID resolution.",
+      undefined,
+      "Select a Jira project member from the user picker.",
       "Sprint moves need exact target confirmation and Agile move endpoint wiring.",
       "This field needs Jira custom field mapping before it can be written safely.",
       "Remote delete is not approved yet.",

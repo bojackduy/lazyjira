@@ -3,7 +3,7 @@ import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
 import { normalizeBaseUrl, saveJiraAuthConfig, type JiraWorkspaceConfig } from "../auth/config"
 import { workspaceStats, type WorkspaceSelection, type WorkspaceSource, type LoadedWorkspace } from "../workspace/types"
-import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueEditableField, IssueSummary, ProjectOption, QuickFilterId, StatusCategory, WorkspaceOption } from "../state/app-state"
+import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueEditableField, IssueSummary, JiraUserOption, ProjectOption, QuickFilterId, StatusCategory, WorkspaceOption } from "../state/app-state"
 import {
   colorableConfigSection,
   configuredColumns,
@@ -122,6 +122,8 @@ export { useAppState }
 export function AppStateProvider(props: ProviderProps<{ initialState: AppState; initialWorkspaceSelection?: WorkspaceSelection; source: WorkspaceSource; saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> }>) {
   const [state, setState] = createStore<AppState>(props.initialState)
   const toast = useToast()
+  let userPickerTimer: ReturnType<typeof setTimeout> | undefined
+  let userPickerRequestId = 0
 
   async function loadWorkspace(selection: WorkspaceSelection, applyOnSuccess: boolean) {
     const requestId = state.workspaceRequestId + 1
@@ -242,6 +244,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("inspectorSelectedFieldIndex", 1)
     setState("inspectorEditingFieldId", undefined)
     setState("inspectorEditValue", "")
+    setState("inspectorUserPicker", undefined)
+    setState("userDraftAccountIds", reconcile({}))
     setState("detailBodyEditing", false)
     setState("detailBodyEditValue", "")
     setState("remoteApplyOpen", false)
@@ -300,6 +304,27 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("remoteSearchPageState", { ...pageState, loading: false, error: message })
       setState("searchOpen", false)
       toast.show(message)
+    }
+  }
+
+  function scheduleInspectorUserPicker(fieldId: "assignee" | "reporter", issueKey: string, query: string, delay = 0) {
+    if (userPickerTimer) clearTimeout(userPickerTimer)
+    const requestId = ++userPickerRequestId
+    userPickerTimer = setTimeout(() => void loadInspectorUserPicker(fieldId, issueKey, query, requestId), delay)
+  }
+
+  async function loadInspectorUserPicker(fieldId: "assignee" | "reporter", issueKey: string, query: string, requestId: number) {
+    try {
+      const options = await props.source.loadUserPicker(fieldId, issueKey, state.project.key, query)
+      const picker = state.inspectorUserPicker
+      if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || (fieldId === "assignee" && (picker.query !== query || requestId !== userPickerRequestId))) return
+      const filtered = filterJiraUsers(options, picker.query)
+      const currentIndex = Math.max(0, filtered.findIndex((user) => user.displayName === state.inspectorEditValue))
+      setState("inspectorUserPicker", { ...picker, allOptions: options, options: filtered, selectedIndex: currentIndex, loading: false, error: undefined })
+    } catch (error) {
+      const picker = state.inspectorUserPicker
+      if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || (fieldId === "assignee" && (picker.query !== query || requestId !== userPickerRequestId))) return
+      setState("inspectorUserPicker", { ...picker, options: [], selectedIndex: 0, loading: false, error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -772,6 +797,12 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     moveInspectorChoice(delta) {
       const fieldId = state.inspectorEditingFieldId
+      if (fieldId === "assignee" || fieldId === "reporter") {
+        const picker = state.inspectorUserPicker
+        if (!picker || !picker.options.length) return
+        setState("inspectorUserPicker", "selectedIndex", (picker.selectedIndex + delta + picker.options.length) % picker.options.length)
+        return
+      }
       if (fieldId !== "statusId" && fieldId !== "type") return
       const choices = fieldId === "statusId" ? configuredStatuses(state).map((status) => status.id) : configuredIssueTypes(state).map((type) => type.id)
       if (!choices.length) return
@@ -784,17 +815,46 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       if (!issue || !field || !field.editable || !isEditableField(field.id)) return
       setState("inspectorEditingFieldId", field.id)
       setState("inspectorEditValue", field.id === "statusId" ? issue.statusId : field.id === "type" ? issue.type : issueFieldDisplayValue(state, issue, field))
+      if (field.id === "assignee" || field.id === "reporter") {
+        setState("inspectorUserPicker", { fieldId: field.id, issueKey: issue.key, query: "", allOptions: [], options: [], selectedIndex: 0, loading: true })
+        scheduleInspectorUserPicker(field.id, issue.key, "")
+      }
     },
     updateInspectorEditValue(value) {
       setState("inspectorEditValue", value)
+      const picker = state.inspectorUserPicker
+      if (picker) {
+        setState("inspectorUserPicker", "query", value)
+        if (picker.fieldId === "reporter" && picker.allOptions.length) {
+          setState("inspectorUserPicker", { ...picker, query: value, options: filterJiraUsers(picker.allOptions, value), selectedIndex: 0, loading: false, error: undefined })
+          return
+        }
+        setState("inspectorUserPicker", "loading", true)
+        scheduleInspectorUserPicker(picker.fieldId, picker.issueKey, value, picker.fieldId === "assignee" ? 250 : 0)
+      }
     },
     commitInspectorEdit() {
       const issueKey = state.selectedIssueKey
       const fieldId = state.inspectorEditingFieldId
       if (!fieldId) return
+      if (fieldId === "assignee" || fieldId === "reporter") {
+        const picker = state.inspectorUserPicker
+        const user = picker?.options[picker.selectedIndex]
+        if (!picker || !user) {
+          toast.show("Select a Jira user from the project member list")
+          return
+        }
+        setState("issueDrafts", { ...state.issueDrafts, [issueKey]: { ...(state.issueDrafts[issueKey] ?? {}), [fieldId]: user.displayName } })
+        setState("userDraftAccountIds", { ...state.userDraftAccountIds, [issueKey]: { ...(state.userDraftAccountIds[issueKey] ?? {}), [fieldId]: user.accountId } })
+        setState("inspectorUserPicker", undefined)
+        setState("inspectorEditingFieldId", undefined)
+        setState("inspectorEditValue", "")
+        return
+      }
       setState("issueDrafts", { ...state.issueDrafts, [issueKey]: { ...(state.issueDrafts[issueKey] ?? {}), [fieldId]: state.inspectorEditValue } })
       setState("inspectorEditingFieldId", undefined)
       setState("inspectorEditValue", "")
+      setState("inspectorUserPicker", undefined)
     },
     cancelInspectorEdit() {
       setState("inspectorEditingFieldId", undefined)
@@ -810,6 +870,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       if (Object.keys(draft).length) drafts[issueKey] = draft
       else delete drafts[issueKey]
       setState("issueDrafts", reconcile(drafts))
+      if (field.id === "assignee" || field.id === "reporter") {
+        const userDrafts = { ...state.userDraftAccountIds }
+        const users = { ...(userDrafts[issueKey] ?? {}) }
+        delete users[field.id]
+        if (Object.keys(users).length) userDrafts[issueKey] = users
+        else delete userDrafts[issueKey]
+        setState("userDraftAccountIds", reconcile(userDrafts))
+      }
       if (state.inspectorEditingFieldId === field.id) context.cancelInspectorEdit()
     },
     requestIssueDelete() {
@@ -864,9 +932,27 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
             const fieldId = item.fieldId
             const fieldValue = item.fieldValue
             if (!fieldId || fieldValue === undefined) continue
-            await props.source.updateIssue(issueKey, jiraIssueFields(fieldId, fieldValue))
+            await props.source.updateIssue(issueKey, jiraIssueFields(fieldId, fieldValue, item.fieldAccountId))
             const draft = { ...(state.issueDrafts[issueKey] ?? {}) }
             delete draft[fieldId]
+            const drafts = { ...state.issueDrafts }
+            if (Object.keys(draft).length) drafts[issueKey] = draft
+            else delete drafts[issueKey]
+            setState("issueDrafts", reconcile(drafts))
+            if (fieldId === "assignee" || fieldId === "reporter") {
+              const userDrafts = { ...state.userDraftAccountIds }
+              const users = { ...(userDrafts[issueKey] ?? {}) }
+              delete users[fieldId]
+              if (Object.keys(users).length) userDrafts[issueKey] = users
+              else delete userDrafts[issueKey]
+              setState("userDraftAccountIds", reconcile(userDrafts))
+            }
+          }
+          if (item.operation === "transition") {
+            if (!item.transitionStatusId) continue
+            await props.source.transitionIssue(issueKey, item.transitionStatusId)
+            const draft = { ...(state.issueDrafts[issueKey] ?? {}) }
+            delete draft.statusId
             const drafts = { ...state.issueDrafts }
             if (Object.keys(draft).length) drafts[issueKey] = draft
             else delete drafts[issueKey]
@@ -983,6 +1069,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       let discardedCount = 0
       const editorsToClear = discardedActiveEditors(changes, selectedIds, state.selectedIssueKey, state.inspectorEditingFieldId, state.detailBodyEditing)
       const issueDrafts = { ...state.issueDrafts }
+      const userDraftAccountIds = { ...state.userDraftAccountIds }
       let issueDeletes = [...state.issueDeletes]
       let configDrafts = [...state.configDrafts]
       let commentDrafts = [...state.commentDrafts]
@@ -994,6 +1081,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         if (change.kind === "create") {
           delete issues[change.issueKey]
           delete issueDrafts[change.issueKey]
+          delete userDraftAccountIds[change.issueKey]
           issueDeletes = issueDeletes.filter((issueKey) => issueKey !== change.issueKey)
           commentDrafts = commentDrafts.filter((draft) => draft.issueKey !== change.issueKey)
           delete rankDrafts[change.issueKey]
@@ -1019,11 +1107,18 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         delete draft[change.fieldId]
         if (Object.keys(draft).length) issueDrafts[change.issueKey] = draft
         else delete issueDrafts[change.issueKey]
+        if (change.fieldId === "assignee" || change.fieldId === "reporter") {
+          const users = { ...(userDraftAccountIds[change.issueKey] ?? {}) }
+          delete users[change.fieldId]
+          if (Object.keys(users).length) userDraftAccountIds[change.issueKey] = users
+          else delete userDraftAccountIds[change.issueKey]
+        }
       }
       setState("issues", reconcile(issues))
       if (!issues[state.selectedIssueKey]) setState("selectedIssueKey", Object.keys(issues)[0] ?? "")
       setState("stats", workspaceStats(state.statuses, Object.values(issues)))
       setState("issueDrafts", reconcile(issueDrafts))
+      setState("userDraftAccountIds", reconcile(userDraftAccountIds))
       setState("issueDeletes", issueDeletes)
       setState("configDrafts", reconcile(configDrafts))
       setState("commentDrafts", reconcile(commentDrafts))
@@ -1214,7 +1309,7 @@ function activeRecentWorkspaceIndex(state: AppState) {
   return Math.max(0, index)
 }
 
-function jiraIssueFields(fieldId: IssueEditableField, value: string): Record<string, unknown> {
+function jiraIssueFields(fieldId: IssueEditableField, value: string, accountId?: string): Record<string, unknown> {
   switch (fieldId) {
     case "title":
       return { summary: value }
@@ -1234,6 +1329,10 @@ function jiraIssueFields(fieldId: IssueEditableField, value: string): Record<str
       return { versions: splitJiraList(value).map((name) => ({ name })) }
     case "description":
       return { description: jiraDocument(value) }
+    case "assignee":
+    case "reporter":
+      if (!accountId) throw new Error(`Missing Jira account ID for ${fieldId}`)
+      return { [fieldId]: { accountId } }
     default:
       throw new Error(`Unsupported Jira field update: ${fieldId}`)
   }
@@ -1241,6 +1340,11 @@ function jiraIssueFields(fieldId: IssueEditableField, value: string): Record<str
 
 function splitJiraList(value: string) {
   return value.split(",").map((item) => item.trim()).filter(Boolean)
+}
+
+function filterJiraUsers(users: JiraUserOption[], query: string) {
+  const normalizedQuery = query.trim().toLowerCase()
+  return normalizedQuery ? users.filter((user) => user.displayName.toLowerCase().includes(normalizedQuery)) : users
 }
 
 function jiraDocument(text: string) {

@@ -51,9 +51,20 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [x] A5.5 Pagination/load-more API for backlog, future sprints, and board issues.
 - [x] A6 Remote search mode separate from `/` loaded filtering.
 - [x] A6.1 Remote search pagination append/dedupe.
-- [x] A7 Safe write review preparation from staged changes.
-- [x] A7.1 Jira operation planner for fields, comments, transitions, assignee, sprint move, rank, create, and blocked unsupported rows.
-- [~] A7.5 Safe write execution rollout: comments, mapped standard field updates, and rank moves are wired; transitions, users, sprint moves, custom fields, create, and delete remain blocked.
+- [x] A7.0 Staged write review, discard safety, and blocked-row visibility.
+- [x] A7.1 Jira operation planner for field, comment, rank, create, delete, and config changes.
+- [x] A7.2 Comment execution with ADF payloads and partial-success retention.
+- [x] A7.3 Standard issue-field execution: summary, priority, parent, due date, labels, components, versions, and description.
+- [~] A7.4 Assignee/reporter picker and account-ID execution. Reporter remains strict: project-role/group membership requires Jira admin permissions.
+- [x] A7.5 Backlog rank execution.
+- [~] A7.6 Per-issue transition execution. Apply-time transition-ID discovery is wired; the status picker still needs per-issue valid options.
+- [ ] A7.7 Sprint/backlog move execution.
+- [ ] A7.8 Metadata-driven custom-field execution.
+- [ ] A7.9 Issue-type execution.
+- [ ] A7.10 Issue-link execution.
+- [ ] A7.11 Issue creation.
+- [ ] A7.12 Remote delete with a second destructive confirmation.
+- [ ] A7.13 Apply lock, outcome reporting, and non-production Jira smoke checks.
 - [ ] A8 Documentation updates and real Jira smoke checklist.
 
 ## Wave 3

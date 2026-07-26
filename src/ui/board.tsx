@@ -46,7 +46,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
       { name: `${props.mode}.scroll.down`, run: () => scrollPage(1) },
       { name: `${props.mode}.scroll.up`, run: () => scrollPage(-1) },
     ],
-    bindings: state.searchOpen ? [] : [
+    bindings: state.searchOpen || state.inspectorEditingFieldId ? [] : [
       { key: "d", cmd: `${props.mode}.scroll.down` },
       { key: { name: "d", ctrl: true }, cmd: `${props.mode}.scroll.down` },
       { key: "u", cmd: `${props.mode}.scroll.up` },

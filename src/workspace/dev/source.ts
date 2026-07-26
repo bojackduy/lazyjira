@@ -51,8 +51,19 @@ export function createDevWorkspaceSource(): WorkspaceSource {
     async updateIssue() {
       throw new Error("Remote Jira writes are unavailable in dev runtime")
     },
+    async transitionIssue() {
+      throw new Error("Remote Jira writes are unavailable in dev runtime")
+    },
+    async moveIssueToSprint() {
+      throw new Error("Remote Jira writes are unavailable in dev runtime")
+    },
     async rankIssue() {
       throw new Error("Remote Jira writes are unavailable in dev runtime")
+    },
+    async loadUserPicker(fieldId, issueKey, projectKey, query) {
+      const members = [...new Set(Object.values(loadDevWorkspaceFixture(projectKey).issues).flatMap((issue) => [issue.assignee, issue.reporter]).filter((name) => name && name !== "Unassigned"))]
+      const normalizedQuery = query.trim().toLowerCase()
+      return members.filter((displayName) => !normalizedQuery || displayName.toLowerCase().includes(normalizedQuery)).map((displayName) => ({ accountId: displayName, displayName }))
     },
   }
 }

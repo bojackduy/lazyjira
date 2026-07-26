@@ -44,7 +44,7 @@ export function WorkspaceRoute() {
       { name: "workspace.page.down", run: () => pageWorkspace(1) },
       { name: "workspace.page.up", run: () => pageWorkspace(-1) },
     ],
-    bindings: state.searchOpen ? [] : [
+    bindings: state.searchOpen || state.inspectorEditingFieldId ? [] : [
       { key: "d", cmd: "workspace.page.down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "workspace.page.down" },
       { key: "u", cmd: "workspace.page.up", preventDefault: false },

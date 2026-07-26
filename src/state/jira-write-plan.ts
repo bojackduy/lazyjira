@@ -4,7 +4,7 @@ import { issueWithDraft } from "./issue-drafts"
 import { stagedChanges, type StagedChange } from "./staged-changes"
 
 export type JiraWritePlanStatus = "planned" | "blocked"
-export type JiraWriteOperation = "comment" | "field-update" | "rank"
+export type JiraWriteOperation = "comment" | "field-update" | "transition" | "rank"
 
 export type JiraWritePlanItem = {
   id: string
@@ -20,6 +20,8 @@ export type JiraWritePlanItem = {
   operation?: JiraWriteOperation
   fieldId?: IssueEditableField
   fieldValue?: string
+  fieldAccountId?: string
+  transitionStatusId?: string
   rankTargetIssueKey?: string
   rankPosition?: "before" | "after"
 }
@@ -139,10 +141,36 @@ function planIssueEdit(state: AppState, change: Extract<StagedChange, { kind: "e
   const detail = `${before || "empty"} -> ${after || "empty"}`
 
   if (change.fieldId === "statusId") {
-    return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "POST", endpoint: `/rest/api/3/issue/${change.issueKey}/transitions`, blocker: "Status writes require transition ID discovery for this issue." })
+    return {
+      id: change.id,
+      status: "planned",
+      issueKey: change.issueKey,
+      title,
+      detail,
+      method: "POST",
+      endpoint: `/rest/api/3/issue/${change.issueKey}/transitions`,
+      payloadPreview: `transition target status = ${change.value}`,
+      operation: "transition",
+      transitionStatusId: change.value,
+    }
   }
   if (change.fieldId === "assignee" || change.fieldId === "reporter") {
-    return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "PUT", endpoint: `/rest/api/3/issue/${change.issueKey}/${change.fieldId}`, blocker: "User writes require Jira account ID resolution." })
+    const accountId = state.userDraftAccountIds[change.issueKey]?.[change.fieldId]
+    if (!accountId) return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "PUT", endpoint: `/rest/api/3/issue/${change.issueKey}`, blocker: "Select a Jira project member from the user picker." })
+    return {
+      id: change.id,
+      status: "planned",
+      issueKey: change.issueKey,
+      title,
+      detail,
+      method: "PUT",
+      endpoint: `/rest/api/3/issue/${change.issueKey}`,
+      payloadPreview: `fields.${change.fieldId}.accountId = ${accountId}`,
+      operation: "field-update",
+      fieldId: change.fieldId,
+      fieldValue: change.value,
+      fieldAccountId: accountId,
+    }
   }
   if (change.fieldId === "sprintId") {
     return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "POST", endpoint: "/rest/agile/1.0/sprint/{sprintId}/issue", blocker: "Sprint moves need exact target confirmation and Agile move endpoint wiring." })

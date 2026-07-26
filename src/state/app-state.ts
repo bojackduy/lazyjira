@@ -57,6 +57,22 @@ export type IssueRankDraft = {
   position: "before" | "after"
 }
 
+export type JiraUserOption = {
+  accountId: string
+  displayName: string
+}
+
+export type InspectorUserPicker = {
+  fieldId: "assignee" | "reporter"
+  issueKey: string
+  query: string
+  allOptions: JiraUserOption[]
+  options: JiraUserOption[]
+  selectedIndex: number
+  loading: boolean
+  error?: string
+}
+
 export type IssuePageState = {
   sourceId: string
   startAt: number
@@ -291,6 +307,8 @@ export type AppState = {
   inspectorSelectedFieldIndex: number
   inspectorEditingFieldId?: IssueEditableField
   inspectorEditValue: string
+  inspectorUserPicker?: InspectorUserPicker
+  userDraftAccountIds: Record<string, Partial<Record<"assignee" | "reporter", string>>>
   issueDrafts: Record<string, IssueDraft>
   commentDrafts: IssueCommentDraft[]
   commentDraftCounter: number

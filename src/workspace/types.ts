@@ -1,5 +1,5 @@
 import type { RuntimeEnv } from "../runtime/env"
-import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, WorkspaceStats } from "../state/app-state"
+import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, JiraUserOption, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, WorkspaceStats } from "../state/app-state"
 import { statusColorForCategory } from "../state/metadata-colors"
 
 export type WorkspaceSelection = {
@@ -50,7 +50,10 @@ export type WorkspaceSource = {
   searchIssues: (query: string, context: RemoteSearchContext) => Promise<LoadedRemoteSearch>
   postIssueComment: (issueKey: string, body: string) => Promise<void>
   updateIssue: (issueKey: string, fields: Record<string, unknown>) => Promise<void>
+  transitionIssue: (issueKey: string, targetStatusId: string) => Promise<void>
+  moveIssueToSprint: (issueKey: string, sprintId: string | undefined) => Promise<void>
   rankIssue: (issueKey: string, targetIssueKey: string, position: "before" | "after") => Promise<void>
+  loadUserPicker: (fieldId: "assignee" | "reporter", issueKey: string, projectKey: string, query: string) => Promise<JiraUserOption[]>
 }
 
 export type WorkspaceFixtureInput = WorkspaceSelection & {

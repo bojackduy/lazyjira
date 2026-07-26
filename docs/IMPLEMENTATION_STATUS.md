@@ -29,7 +29,9 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 - [x] Local staged drafts for field edits, delete requests, config edits, and draft issue creation.
 - [x] `W` operation review executes planned comments, mapped standard field updates, and backlog rank operations.
 - [x] Planner supports safe field-update previews for summary, priority, parent, due date, labels, components, versions, and ADF descriptions.
-- [x] Planner visibly blocks unsupported or high-risk rows: transitions, users, sprint moves, custom fields, type, description, links, create, delete, and config writes.
+- [x] Assignee uses Jira's issue-aware assignable-user picker; Reporter uses direct and group-inherited project-role members. Both stage Jira account IDs, never free text.
+- [x] User pickers use Up/Down selection, preserve all filter text keys, debounce Assignee lookups, and filter cached Reporter members locally.
+- [x] Planner visibly blocks unsupported or high-risk rows: transitions, sprint moves, custom fields, type, links, create, delete, and config writes.
 - [x] Staged comment composer (`c`) and backlog rank staging (`J/K`) with exact Jira operation previews.
 - [~] A7.5 executes comments, standard field updates, and rank moves sequentially; it clears only successful staged rows, retains failures, and refreshes affected issues.
 
@@ -44,7 +46,12 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 
 ## Next Milestones
 
-- [ ] Extend A7.5 with transition, assignee, sprint move, custom-field, and create metadata resolution; delete last with an additional explicit confirmation.
+- [~] A7.6 Transition execution resolves the valid Jira transition at apply time; per-issue status-picker options remain pending.
+- [ ] A7.7 Sprint/backlog move execution.
+- [ ] A7.8 Custom-field and issue-type metadata resolution.
+- [ ] A7.10 Issue links and A7.11 issue creation.
+- [ ] A7.12 Remote delete with an additional explicit confirmation.
+- [ ] A7.13 Apply lock and non-production Jira smoke checklist.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.
 

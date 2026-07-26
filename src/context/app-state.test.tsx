@@ -313,6 +313,68 @@ describe("app state project picker", () => {
     expect(appState.state.rankDrafts["PROJ-128"]).toBeUndefined()
   })
 
+  test("stages a reporter selected from project members with its Jira account ID", async () => {
+    const appState = createTestAppState({
+      async loadUserPicker() {
+        return [{ accountId: "reporter-account", displayName: "Project reporter" }]
+      },
+    })
+
+    appState.moveInspectorSelection(5)
+    appState.startInspectorEdit()
+    await flushPromises()
+    appState.commitInspectorEdit()
+
+    expect(appState.state.issueDrafts["PROJ-128"]?.reporter).toBe("Project reporter")
+    expect(appState.state.userDraftAccountIds["PROJ-128"]?.reporter).toBe("reporter-account")
+  })
+
+  test("filters loaded reporter members locally without another source request", async () => {
+    let requests = 0
+    const appState = createTestAppState({
+      async loadUserPicker() {
+        requests += 1
+        return [
+          { accountId: "reporter-1", displayName: "Duy" },
+          { accountId: "reporter-2", displayName: "Mina" },
+        ]
+      },
+    })
+
+    appState.moveInspectorSelection(5)
+    appState.startInspectorEdit()
+    await flushPromises()
+    appState.updateInspectorEditValue("Mina")
+
+    expect(requests).toBe(1)
+    expect(appState.state.inspectorUserPicker?.options).toEqual([{ accountId: "reporter-2", displayName: "Mina" }])
+  })
+
+  test("debounces assignable-user lookups and moves the picker selection", async () => {
+    const queries: string[] = []
+    const appState = createTestAppState({
+      async loadUserPicker(fieldId, issueKey, projectKey, query) {
+        queries.push(query)
+        return [
+          { accountId: "assignee-1", displayName: "Duy" },
+          { accountId: "assignee-2", displayName: "Mina" },
+        ]
+      },
+    })
+
+    appState.moveInspectorSelection(4)
+    appState.startInspectorEdit()
+    await flushPromises()
+    appState.updateInspectorEditValue("D")
+    appState.updateInspectorEditValue("Du")
+    appState.updateInspectorEditValue("Duy")
+    await Bun.sleep(300)
+    appState.moveInspectorChoice(1)
+
+    expect(queries).toEqual(["", "Duy"])
+    expect(appState.state.inspectorUserPicker?.selectedIndex).toBe(0)
+  })
+
   test("loads a saved workspace after the provider mounts", async () => {
     const initialLoad = deferred<ReturnType<typeof loadDevWorkspaceFixture>>()
     let loadCalls = 0
@@ -535,8 +597,14 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
       async updateIssue() {
         throw new Error("Remote Jira writes are unavailable in dev runtime")
       },
+      async transitionIssue() {
+        throw new Error("Remote Jira writes are unavailable in dev runtime")
+      },
       async rankIssue() {
         throw new Error("Remote Jira writes are unavailable in dev runtime")
+      },
+      async loadUserPicker(fieldId, issueKey, projectKey, query) {
+        return [{ accountId: "duy-account", displayName: "Duy" }].filter((user) => !query || user.displayName.toLowerCase().includes(query.toLowerCase()))
       },
       ...overrides,
     }
