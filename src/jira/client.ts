@@ -275,6 +275,10 @@ export async function updateJiraIssue(auth: JiraAuthConfig, issueKey: string, fi
   )
 }
 
+export async function deleteJiraIssue(auth: JiraAuthConfig, issueKey: string, fetchImpl: FetchLike = fetch): Promise<void> {
+  await jiraRequest<void>(auth, `/rest/api/3/issue/${encodeURIComponent(issueKey)}`, { endpoint: `issue ${issueKey} delete`, method: "DELETE", allowEmptyBody: true }, fetchImpl)
+}
+
 export async function rankJiraIssue(auth: JiraAuthConfig, issueKey: string, targetIssueKey: string, position: "before" | "after", fetchImpl: FetchLike = fetch): Promise<void> {
   await jiraRequest<void>(
     auth,

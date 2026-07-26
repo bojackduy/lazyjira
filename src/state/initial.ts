@@ -90,6 +90,8 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     issuePageRequestIdBySource: {},
     pendingDeleteIssueKey: undefined,
     remoteApplyOpen: false,
+    remoteApplyApplying: false,
+    remoteDeleteConfirmationArmed: false,
     stagedDiscardOpen: false,
     stagedDiscardSelectedIndex: 0,
     stagedDiscardSelections: [],

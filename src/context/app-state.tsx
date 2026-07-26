@@ -250,6 +250,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("detailBodyEditing", false)
     setState("detailBodyEditValue", "")
     setState("remoteApplyOpen", false)
+    setState("remoteApplyApplying", false)
+    setState("remoteDeleteConfirmationArmed", false)
     setState("stagedDiscardOpen", false)
     setState("stagedDiscardSelectedIndex", 0)
     setState("stagedDiscardSelections", [])
@@ -901,20 +903,31 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     openRemoteIssueApply() {
       setState("remoteApplyOpen", true)
+      setState("remoteDeleteConfirmationArmed", false)
       setState("stagedDiscardOpen", false)
       setState("stagedDiscardSelectedIndex", 0)
       setState("stagedDiscardSelections", [])
     },
     closeRemoteIssueApply() {
       setState("remoteApplyOpen", false)
+      setState("remoteDeleteConfirmationArmed", false)
     },
     async confirmRemoteIssueApply() {
+      if (state.remoteApplyApplying) return
       const operations = planJiraWrites(state).filter((item) => item.status === "planned" && item.operation && item.issueKey)
-      setState("remoteApplyOpen", false)
       if (!operations.length) {
+        setState("remoteApplyOpen", false)
         toast.show("No staged Jira operations are ready to apply")
         return
       }
+      if (operations.some((item) => item.operation === "delete") && !state.remoteDeleteConfirmationArmed) {
+        setState("remoteDeleteConfirmationArmed", true)
+        toast.show("Remote delete is armed. Press W again to permanently delete the staged issue.")
+        return
+      }
+      setState("remoteApplyOpen", false)
+      setState("remoteDeleteConfirmationArmed", false)
+      setState("remoteApplyApplying", true)
 
       let applied = 0
       const failures: string[] = []
@@ -988,6 +1001,15 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
             else delete drafts[issueKey]
             setState("issueDrafts", reconcile(drafts))
           }
+          if (item.operation === "delete") {
+            await props.source.deleteIssue(issueKey)
+            const issues = { ...state.issues }
+            delete issues[issueKey]
+            setState("issues", reconcile(issues))
+            setState("stats", workspaceStats(state.statuses, Object.values(issues)))
+            setState("issueDeletes", (deletes) => deletes.filter((key) => key !== issueKey))
+            if (state.selectedIssueKey === issueKey) setState("selectedIssueKey", Object.keys(issues)[0] ?? "")
+          }
           if (item.operation === "rank") {
             if (!item.rankTargetIssueKey || !item.rankPosition) continue
             await props.source.rankIssue(issueKey, item.rankTargetIssueKey, item.rankPosition)
@@ -995,7 +1017,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
             delete drafts[issueKey]
             setState("rankDrafts", reconcile(drafts))
           }
-          refreshedIssueKeys.add(issueKey)
+          if (item.operation !== "delete") refreshedIssueKeys.add(issueKey)
           applied += 1
         } catch (error) {
           failures.push(error instanceof Error ? error.message : String(error))
@@ -1003,9 +1025,11 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       }
       await Promise.all([...refreshedIssueKeys].map((issueKey) => context.loadIssueDetail(issueKey)))
       if (failures.length) {
+        setState("remoteApplyApplying", false)
         toast.show(`${applied} Jira operation${applied === 1 ? "" : "s"} applied; ${failures.length} failed: ${failures.join("; ")}`)
         return
       }
+      setState("remoteApplyApplying", false)
       toast.show(`${applied} Jira operation${applied === 1 ? "" : "s"} applied`)
     },
     refreshWorkspace() {

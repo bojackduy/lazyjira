@@ -313,6 +313,26 @@ describe("app state project picker", () => {
     expect(appState.state.rankDrafts["PROJ-128"]).toBeUndefined()
   })
 
+  test("requires a second remote confirmation before deleting an issue", async () => {
+    const deleted: string[] = []
+    const appState = createTestAppState({
+      async deleteIssue(issueKey) {
+        deleted.push(issueKey)
+      },
+    })
+
+    appState.requestIssueDelete()
+    appState.confirmIssueDelete()
+    appState.openRemoteIssueApply()
+    await appState.confirmRemoteIssueApply()
+    expect(deleted).toEqual([])
+    expect(appState.state.remoteDeleteConfirmationArmed).toBe(true)
+
+    await appState.confirmRemoteIssueApply()
+    expect(deleted).toEqual(["PROJ-128"])
+    expect(appState.state.issues["PROJ-128"]).toBeUndefined()
+  })
+
   test("stages a reporter selected from assignable Jira users with its account ID", async () => {
     const appState = createTestAppState({
       async loadUserPicker() {
@@ -620,6 +640,9 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
         throw new Error("Remote Jira writes are unavailable in dev runtime")
       },
       async updateIssueType() {
+        throw new Error("Remote Jira writes are unavailable in dev runtime")
+      },
+      async deleteIssue() {
         throw new Error("Remote Jira writes are unavailable in dev runtime")
       },
       async rankIssue() {

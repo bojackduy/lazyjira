@@ -1,5 +1,5 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
+import { deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
 import { discoverJiraIssueFieldIds, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
 import type { IssuePageState, SprintSummary } from "../../state/app-state"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
@@ -124,6 +124,9 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
       const match = types.find((candidate) => candidate.id === type || candidate.name === type)
       if (!match?.id) throw new Error(`Jira does not allow changing ${issueKey} to issue type ${type}.`)
       await updateJiraIssue(auth, issueKey, { issuetype: { id: match.id } }, fetchImpl)
+    },
+    async deleteIssue(issueKey) {
+      await deleteJiraIssue(await requireJiraAuth(authLoader), issueKey, fetchImpl)
     },
     async rankIssue(issueKey, targetIssueKey, position) {
       await rankJiraIssue(await requireJiraAuth(authLoader), issueKey, targetIssueKey, position, fetchImpl)

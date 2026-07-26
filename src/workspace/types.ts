@@ -54,6 +54,7 @@ export type WorkspaceSource = {
   moveIssueToSprint: (issueKey: string, sprintId: string | undefined) => Promise<void>
   updateDiscoveredField: (issueKey: string, field: "storyPoints" | "estimate", value: string) => Promise<void>
   updateIssueType: (issueKey: string, type: string) => Promise<void>
+  deleteIssue: (issueKey: string) => Promise<void>
   rankIssue: (issueKey: string, targetIssueKey: string, position: "before" | "after") => Promise<void>
   loadUserPicker: (fieldId: "assignee" | "reporter", issueKey: string, projectKey: string, query: string) => Promise<JiraUserOption[]>
 }

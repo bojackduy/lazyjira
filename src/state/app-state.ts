@@ -325,6 +325,8 @@ export type AppState = {
   issuePageRequestIdBySource: Record<string, number>
   pendingDeleteIssueKey?: string
   remoteApplyOpen: boolean
+  remoteApplyApplying: boolean
+  remoteDeleteConfirmationArmed: boolean
   stagedDiscardOpen: boolean
   stagedDiscardSelectedIndex: number
   stagedDiscardSelections: string[]

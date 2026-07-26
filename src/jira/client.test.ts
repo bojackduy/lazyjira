@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
+import { deleteJiraIssue, fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
 import { discoverJiraIssueFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
@@ -227,6 +227,14 @@ describe("Jira discovery client", () => {
     })
 
     expect(metadata.fields?.issuetype?.allowedValues).toEqual([{ id: "10001", name: "Bug" }])
+  })
+
+  test("deletes an issue", async () => {
+    await deleteJiraIssue(auth, "PROJ-1", async (url, init) => {
+      expect(url).toBe("https://team.atlassian.net/rest/api/3/issue/PROJ-1")
+      expect(init?.method).toBe("DELETE")
+      return new Response(null, { status: 204 })
+    })
   })
 
   test("normalizes board columns into app statuses with real workflow names", () => {

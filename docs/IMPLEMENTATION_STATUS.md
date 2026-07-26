@@ -53,8 +53,8 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 - [~] A7.8 Discovered numeric story-point and estimate fields execute through Jira field IDs; remaining custom fields and issue type still need metadata resolution.
 - [~] A7.9 Issue type resolves a permitted Jira type ID through per-issue edit metadata at apply time; valid-type picker filtering remains pending.
 - [ ] A7.10 Issue links and A7.11 issue creation.
-- [ ] A7.12 Remote delete with an additional explicit confirmation.
-- [ ] A7.13 Apply lock and non-production Jira smoke checklist.
+- [x] A7.12 Remote delete requires staging confirmation plus a second `W` confirmation in remote review.
+- [~] A7.13 Remote apply is locked while requests are running; non-production Jira smoke checks remain.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.
 

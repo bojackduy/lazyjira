@@ -37,7 +37,7 @@ describe("Jira write plan", () => {
 
     const plan = planJiraWrites(state)
 
-    expect(writePlanCounts(plan)).toEqual({ planned: 3, blocked: 3 })
+    expect(writePlanCounts(plan)).toEqual({ planned: 4, blocked: 2 })
     expect(plan[0]).toMatchObject({ operation: "transition", transitionStatusId: "done", endpoint: "/rest/api/3/issue/PROJ-128/transitions" })
     expect(plan[2]).toMatchObject({ operation: "sprint-move", sprintId: "sprint-25" })
     expect(plan[3]).toMatchObject({ operation: "discovered-field", discoveredField: "storyPoints", fieldValue: "8" })
@@ -46,7 +46,7 @@ describe("Jira write plan", () => {
       "Select a Jira project member from the user picker.",
       undefined,
       undefined,
-      "Remote delete is not approved yet.",
+      undefined,
       "Board/status/type config writes are local-only until Jira admin metadata writes are scoped.",
     ])
   })

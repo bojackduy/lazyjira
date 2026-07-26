@@ -298,7 +298,7 @@ function RemoteApplyPopup() {
       <ModalFrame borderColor={theme.danger} width={86}>
         <box flexDirection="row" justifyContent="space-between">
           <text attributes={TextAttributes.BOLD} fg={theme.danger}>Apply To Jira</text>
-          <text fg={theme.textSubtle}>W posts planned comments · esc/q cancel</text>
+          <text fg={theme.textSubtle}>{state.remoteApplyApplying ? "Applying Jira operations..." : state.remoteDeleteConfirmationArmed ? "W permanently deletes staged issues · esc/q cancel" : "W applies planned operations · esc/q cancel"}</text>
         </box>
         <text fg={theme.textMuted}>Review planned Jira operations before any remote mutation is enabled.</text>
         <Show when={plan().length} fallback={<text fg={theme.textMuted}>No staged writes. Edit a field and stage it before using W.</text>}>
@@ -307,7 +307,7 @@ function RemoteApplyPopup() {
             {(item) => <WritePlanRow item={item} />}
           </For>
         </Show>
-        <text fg={theme.warning} wrapMode="none">Only planned comments are posted. Other Jira operations remain staged for review.</text>
+        <text fg={state.remoteDeleteConfirmationArmed ? theme.danger : theme.warning} wrapMode="none">{state.remoteDeleteConfirmationArmed ? "Remote delete armed: press W again to confirm permanent deletion." : "Delete operations require a second W confirmation."}</text>
       </ModalFrame>
     </Show>
   )
@@ -537,8 +537,13 @@ function useStagedDiscardKeyboard(appState: ReturnType<typeof useAppState>) {
 function useRemoteApplyKeyboard(appState: ReturnType<typeof useAppState>) {
   const renderer = useRenderer()
   onMount(() => {
-    const handler = (event: KeyEvent) => {
-      if (!appState.state.remoteApplyOpen) return
+      const handler = (event: KeyEvent) => {
+        if (!appState.state.remoteApplyOpen) return
+        if (appState.state.remoteApplyApplying) {
+          event.preventDefault()
+          event.stopPropagation()
+          return
+        }
       if (event.name === "w" && event.shift) {
         event.preventDefault()
         event.stopPropagation()

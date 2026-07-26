@@ -4,7 +4,7 @@ import { issueWithDraft } from "./issue-drafts"
 import { stagedChanges, type StagedChange } from "./staged-changes"
 
 export type JiraWritePlanStatus = "planned" | "blocked"
-export type JiraWriteOperation = "comment" | "field-update" | "transition" | "sprint-move" | "discovered-field" | "issue-type" | "rank"
+export type JiraWriteOperation = "comment" | "field-update" | "transition" | "sprint-move" | "discovered-field" | "issue-type" | "delete" | "rank"
 
 export type JiraWritePlanItem = {
   id: string
@@ -56,15 +56,16 @@ function planStagedChange(state: AppState, change: StagedChange): JiraWritePlanI
     case "rank":
       return [planRank(state, change)]
     case "delete":
-      return [blockedPlan({
+      return [{
         id: change.id,
+        status: "planned",
         issueKey: change.issueKey,
         title: `${change.issueKey} delete issue`,
-        detail: "Delete is intentionally disabled until destructive writes have stronger confirmation.",
+        detail: "Permanently delete this Jira issue after the second remote confirmation.",
         method: "DELETE",
         endpoint: `/rest/api/3/issue/${change.issueKey}`,
-        blocker: "Remote delete is not approved yet.",
-      })]
+        operation: "delete",
+      }]
     case "config":
       return [blockedPlan({
         id: change.id,
