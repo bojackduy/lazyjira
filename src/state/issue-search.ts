@@ -26,7 +26,7 @@ const knownFields = new Set([
 ])
 
 export function effectiveIssueSearchQuery(state: AppState) {
-  return state.searchOpen && state.searchMode === "loaded" ? state.searchDraft : state.searchQuery
+  return state.searchQuery
 }
 
 export function matchesIssueSearch(state: AppState, issue: IssueSummary) {

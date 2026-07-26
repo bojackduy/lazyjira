@@ -21,6 +21,18 @@ describe("issue search", () => {
     expect(issueList(state).every((issue) => issue.assignee === "Duy" && issue.priority === "High")).toBe(true)
   })
 
+  test("keeps the loaded filter unchanged while typing until Enter commits", () => {
+    const state = loadDevWorkspaceState()
+    state.searchQuery = "auth"
+    state.searchOpen = true
+    state.searchMode = "loaded"
+    const committedKeys = issueList(state).map((issue) => issue.key)
+
+    state.searchDraft = "no-match-while-typing"
+
+    expect(issueList(state).map((issue) => issue.key)).toEqual(committedKeys)
+  })
+
   test("uses staged issue draft values while filtering", () => {
     const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { statusId: "code-review" }

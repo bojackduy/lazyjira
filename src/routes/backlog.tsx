@@ -220,18 +220,18 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: bo
     <box
       id={`issue-${props.issue.key}`}
       flexDirection="row"
-      justifyContent="space-between"
+      gap={2}
       paddingLeft={1}
       paddingRight={1}
       backgroundColor={props.selected ? "#172554" : undefined}
     >
-      <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" width="60%">
+      <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexGrow={1} flexShrink={1} minWidth={0}>
         <span style={{ fg: issueTypeColor(state, props.issue) }}>■ </span>
         <span>{props.issue.key}</span>
         <span style={{ fg: theme.textSubtle }}> {props.issue.type}</span>
         <span> {props.issue.title}</span>
       </text>
-      <text fg={statusColor(state, props.issue)} wrapMode="none" width="38%">
+      <text fg={statusColor(state, props.issue)} wrapMode="none" width="38%" flexShrink={0}>
         {statusName(state, props.issue)} · {props.issue.priority} · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
       </text>
     </box>

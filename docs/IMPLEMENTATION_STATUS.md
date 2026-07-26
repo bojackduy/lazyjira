@@ -19,7 +19,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 - [x] Active sprint issue loading and bounded backlog loading.
 - [x] Explicit load-more for backlog, future sprint, Kanban board, and remote search pages.
 - [x] Issue detail and comments loading with stale-response protection.
-- [x] Explicit `S` remote Jira search with pagination; `/` remains loaded-data filtering only.
+- [x] Explicit `S` remote Jira search with pagination; `/` remains loaded-data filtering only and applies on Enter.
 - [x] Saved prod workspace renders the shell before its Jira request starts.
 - [x] Initial workspace loading/failure panel with `r` retry and stale-startup-response protection.
 - [x] Current-workspace refresh and switch-failure safety (A4.1/A4.2).
