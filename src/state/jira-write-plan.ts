@@ -4,6 +4,7 @@ import { issueWithDraft } from "./issue-drafts"
 import { stagedChanges, type StagedChange } from "./staged-changes"
 
 export type JiraWritePlanStatus = "planned" | "blocked"
+export type JiraWriteOperation = "comment" | "field-update" | "rank"
 
 export type JiraWritePlanItem = {
   id: string
@@ -16,6 +17,11 @@ export type JiraWritePlanItem = {
   payloadPreview?: string
   blocker?: string
   commentDraftId?: string
+  operation?: JiraWriteOperation
+  fieldId?: IssueEditableField
+  fieldValue?: string
+  rankTargetIssueKey?: string
+  rankPosition?: "before" | "after"
 }
 
 export function planJiraWrites(state: AppState): JiraWritePlanItem[] {
@@ -78,6 +84,7 @@ function planComment(state: AppState, change: Extract<StagedChange, { kind: "com
     endpoint: `/rest/api/3/issue/${change.issueKey}/comment`,
     payloadPreview: `body = ${commentPreview(change.value)}`,
     commentDraftId: change.commentId,
+    operation: "comment",
   }
 }
 
@@ -96,6 +103,9 @@ function planRank(state: AppState, change: Extract<StagedChange, { kind: "rank" 
     method: "PUT",
     endpoint: "/rest/agile/1.0/issue/rank",
     payloadPreview: `issues = [${change.issueKey}], rank${change.position === "before" ? "Before" : "After"}Issue = ${change.targetIssueKey}`,
+    operation: "rank",
+    rankTargetIssueKey: change.targetIssueKey,
+    rankPosition: change.position,
   }
 }
 
@@ -143,9 +153,6 @@ function planIssueEdit(state: AppState, change: Extract<StagedChange, { kind: "e
   if (change.fieldId === "type") {
     return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "PUT", endpoint: `/rest/api/3/issue/${change.issueKey}`, blocker: "Issue type writes need create/edit metadata and Jira issue type IDs." })
   }
-  if (change.fieldId === "description") {
-    return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "PUT", endpoint: `/rest/api/3/issue/${change.issueKey}`, blocker: "Description writes need Jira ADF body generation." })
-  }
   if (change.fieldId === "links") {
     return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "POST", endpoint: "/rest/api/3/issueLink", blocker: "Issue link writes need link type and direction modeling." })
   }
@@ -164,6 +171,9 @@ function planIssueEdit(state: AppState, change: Extract<StagedChange, { kind: "e
     method: "PUT",
     endpoint: `/rest/api/3/issue/${change.issueKey}`,
     payloadPreview: `fields.${jiraField} = ${payloadValuePreview(change.fieldId, change.value)}`,
+    operation: "field-update",
+    fieldId: change.fieldId,
+    fieldValue: change.value,
   }
 }
 
@@ -189,6 +199,8 @@ function jiraFieldForEditable(fieldId: IssueEditableField) {
       return "fixVersions[].name"
     case "affectsVersions":
       return "versions[].name"
+    case "description":
+      return "description"
     default:
       return undefined
   }

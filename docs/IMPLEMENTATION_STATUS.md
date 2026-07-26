@@ -27,11 +27,11 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 ## Jira Write Safety
 
 - [x] Local staged drafts for field edits, delete requests, config edits, and draft issue creation.
-- [x] `W` operation review displays planned and blocked Jira operations; final confirmation executes planned comments only.
-- [x] Planner supports safe field-update previews for summary, priority, parent, due date, labels, components, and versions.
+- [x] `W` operation review executes planned comments, mapped standard field updates, and backlog rank operations.
+- [x] Planner supports safe field-update previews for summary, priority, parent, due date, labels, components, versions, and ADF descriptions.
 - [x] Planner visibly blocks unsupported or high-risk rows: transitions, users, sprint moves, custom fields, type, description, links, create, delete, and config writes.
 - [x] Staged comment composer (`c`) and backlog rank staging (`J/K`) with exact Jira operation previews.
-- [~] A7.5 comment execution posts sequentially, clears only successful staged comments, retains failures, and refreshes affected issues.
+- [~] A7.5 executes comments, standard field updates, and rank moves sequentially; it clears only successful staged rows, retains failures, and refreshes affected issues.
 
 ## Completed Milestone: A4 Refresh Safety
 
@@ -44,7 +44,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 
 ## Next Milestones
 
-- [ ] Extend A7.5 beyond comments: simple field updates, then transitions/assignee/moves/rank/create; delete last and only with explicit approval.
+- [ ] Extend A7.5 with transition, assignee, sprint move, custom-field, and create metadata resolution; delete last with an additional explicit confirmation.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.
 
@@ -56,6 +56,6 @@ Every completed milestone must include targeted state/UI tests, `bun run typeche
 
 - Jira API access stays in source/loader/state code, never route or widget rendering.
 - Prod does not fall back to fixture tickets.
-- Only staged comments execute remotely; every other Jira write remains review-only.
+- Only staged comments, mapped standard field updates, and rank moves execute remotely; all other Jira writes remain review-only.
 - Future sprints with large issue counts are not eagerly loaded.
 - Workspace changes with staged edits are blocked until the user discards or finishes that work.

@@ -447,7 +447,7 @@ Verification:
 
 ### A7.5. Safe Write Execution
 
-Status: in progress. Staged comments post through `POST /rest/api/3/issue/{issueKey}/comment`; successful drafts are cleared, failures stay staged with Jira's error, and successful issues refresh. All non-comment operations remain review-only.
+Status: in progress. Staged comments post through `POST /rest/api/3/issue/{issueKey}/comment`, mapped standard fields update through `PUT /rest/api/3/issue/{issueKey}`, and rank moves use `PUT /rest/agile/1.0/issue/rank`. Successful staged rows are cleared, failures stay staged with Jira's error, and affected issues refresh. Transitions, users, sprint moves, custom fields, create, delete, and config writes remain review-only.
 
 Implementation:
 
@@ -458,7 +458,7 @@ Implementation:
 
 Verification:
 
-- Tests for comment ADF request bodies, partial success/failure, and staged-comment clearing. Field, transition, assignee, move, rank, create, and delete execution tests remain pending.
+- Tests for comment ADF request bodies, field-update and rank request payloads, partial success/failure, and staged-row clearing. Transition, assignee, move, custom-field, create, and delete execution tests remain pending.
 
 ### A8. Documentation And Smoke Checks
 

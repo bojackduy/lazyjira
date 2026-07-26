@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, postJiraIssueComment } from "./client"
+import { fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, postJiraIssueComment, rankJiraIssue, updateJiraIssue } from "./client"
 import { discoverJiraIssueFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
@@ -175,6 +175,21 @@ describe("Jira discovery client", () => {
     })
 
     expect(comment.id).toBe("10001")
+  })
+
+  test("updates standard fields and ranks an issue", async () => {
+    await updateJiraIssue(auth, "PROJ-1", { summary: "Updated summary", labels: ["frontend"] }, async (url, init) => {
+      expect(url).toBe("https://team.atlassian.net/rest/api/3/issue/PROJ-1")
+      expect(init?.method).toBe("PUT")
+      expect(JSON.parse(String(init?.body))).toEqual({ fields: { summary: "Updated summary", labels: ["frontend"] } })
+      return new Response(null, { status: 204 })
+    })
+    await rankJiraIssue(auth, "PROJ-1", "PROJ-2", "after", async (url, init) => {
+      expect(url).toBe("https://team.atlassian.net/rest/agile/1.0/issue/rank")
+      expect(init?.method).toBe("PUT")
+      expect(JSON.parse(String(init?.body))).toEqual({ issues: ["PROJ-1"], rankAfterIssue: "PROJ-2" })
+      return new Response(null, { status: 204 })
+    })
   })
 
   test("normalizes board columns into app statuses with real workflow names", () => {

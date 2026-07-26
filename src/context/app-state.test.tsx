@@ -289,6 +289,30 @@ describe("app state project picker", () => {
     expect(appState.state.issueDrafts["PROJ-128"]?.title).toBe("Field update stays staged")
   })
 
+  test("applies mapped field edits and rank operations independently", async () => {
+    const updates: Array<{ issueKey: string; fields: Record<string, unknown> }> = []
+    const ranks: string[] = []
+    const appState = createTestAppState({
+      async updateIssue(issueKey, fields) {
+        updates.push({ issueKey, fields })
+      },
+      async rankIssue(issueKey, targetIssueKey, position) {
+        ranks.push(`${issueKey}:${position}:${targetIssueKey}`)
+      },
+    })
+
+    appState.startInspectorEdit()
+    appState.updateInspectorEditValue("Remote summary")
+    appState.commitInspectorEdit()
+    appState.stageIssueRank("PROJ-128", "PROJ-121", "after")
+    await appState.confirmRemoteIssueApply()
+
+    expect(updates).toEqual([{ issueKey: "PROJ-128", fields: { summary: "Remote summary" } }])
+    expect(ranks).toEqual(["PROJ-128:after:PROJ-121"])
+    expect(appState.state.issueDrafts["PROJ-128"]).toBeUndefined()
+    expect(appState.state.rankDrafts["PROJ-128"]).toBeUndefined()
+  })
+
   test("loads a saved workspace after the provider mounts", async () => {
     const initialLoad = deferred<ReturnType<typeof loadDevWorkspaceFixture>>()
     let loadCalls = 0
@@ -506,6 +530,12 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
         return { query, issues: items, pageState: { sourceId: remoteSearchIssuePageSourceId, startAt: nextStartAt, maxResults, total: issues.length, isLast: nextStartAt >= issues.length, loading: false } }
       },
       async postIssueComment() {
+        throw new Error("Remote Jira writes are unavailable in dev runtime")
+      },
+      async updateIssue() {
+        throw new Error("Remote Jira writes are unavailable in dev runtime")
+      },
+      async rankIssue() {
         throw new Error("Remote Jira writes are unavailable in dev runtime")
       },
       ...overrides,

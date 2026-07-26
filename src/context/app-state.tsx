@@ -3,7 +3,7 @@ import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
 import { normalizeBaseUrl, saveJiraAuthConfig, type JiraWorkspaceConfig } from "../auth/config"
 import { workspaceStats, type WorkspaceSelection, type WorkspaceSource, type LoadedWorkspace } from "../workspace/types"
-import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, ProjectOption, QuickFilterId, StatusCategory, WorkspaceOption } from "../state/app-state"
+import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueEditableField, IssueSummary, ProjectOption, QuickFilterId, StatusCategory, WorkspaceOption } from "../state/app-state"
 import {
   colorableConfigSection,
   configuredColumns,
@@ -840,34 +840,57 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("remoteApplyOpen", false)
     },
     async confirmRemoteIssueApply() {
-      const comments = planJiraWrites(state).filter((item) => item.status === "planned" && item.commentDraftId && item.issueKey)
+      const operations = planJiraWrites(state).filter((item) => item.status === "planned" && item.operation && item.issueKey)
       setState("remoteApplyOpen", false)
-      if (!comments.length) {
-        toast.show("No staged comments are ready to post; other Jira operations remain review-only")
+      if (!operations.length) {
+        toast.show("No staged Jira operations are ready to apply")
         return
       }
 
-      let posted = 0
+      let applied = 0
       const failures: string[] = []
       const refreshedIssueKeys = new Set<string>()
-      for (const item of comments) {
-        const draft = state.commentDrafts.find((candidate) => candidate.id === item.commentDraftId)
-        if (!draft || !item.issueKey) continue
+      for (const item of operations) {
+        const issueKey = item.issueKey
+        if (!issueKey) continue
         try {
-          await props.source.postIssueComment(item.issueKey, draft.body)
-          setState("commentDrafts", (drafts) => drafts.filter((candidate) => candidate.id !== draft.id))
-          refreshedIssueKeys.add(item.issueKey)
-          posted += 1
+          if (item.operation === "comment") {
+            const draft = state.commentDrafts.find((candidate) => candidate.id === item.commentDraftId)
+            if (!draft) continue
+            await props.source.postIssueComment(issueKey, draft.body)
+            setState("commentDrafts", (drafts) => drafts.filter((candidate) => candidate.id !== draft.id))
+          }
+          if (item.operation === "field-update") {
+            const fieldId = item.fieldId
+            const fieldValue = item.fieldValue
+            if (!fieldId || fieldValue === undefined) continue
+            await props.source.updateIssue(issueKey, jiraIssueFields(fieldId, fieldValue))
+            const draft = { ...(state.issueDrafts[issueKey] ?? {}) }
+            delete draft[fieldId]
+            const drafts = { ...state.issueDrafts }
+            if (Object.keys(draft).length) drafts[issueKey] = draft
+            else delete drafts[issueKey]
+            setState("issueDrafts", reconcile(drafts))
+          }
+          if (item.operation === "rank") {
+            if (!item.rankTargetIssueKey || !item.rankPosition) continue
+            await props.source.rankIssue(issueKey, item.rankTargetIssueKey, item.rankPosition)
+            const drafts = { ...state.rankDrafts }
+            delete drafts[issueKey]
+            setState("rankDrafts", reconcile(drafts))
+          }
+          refreshedIssueKeys.add(issueKey)
+          applied += 1
         } catch (error) {
           failures.push(error instanceof Error ? error.message : String(error))
         }
       }
       await Promise.all([...refreshedIssueKeys].map((issueKey) => context.loadIssueDetail(issueKey)))
       if (failures.length) {
-        toast.show(`${posted} comment${posted === 1 ? "" : "s"} posted; ${failures.length} failed: ${failures.join("; ")}`)
+        toast.show(`${applied} Jira operation${applied === 1 ? "" : "s"} applied; ${failures.length} failed: ${failures.join("; ")}`)
         return
       }
-      toast.show(`${posted} Jira comment${posted === 1 ? "" : "s"} posted`)
+      toast.show(`${applied} Jira operation${applied === 1 ? "" : "s"} applied`)
     },
     refreshWorkspace() {
       if (state.workspaceLoading || !state.jiraProjectReady) return
@@ -1189,4 +1212,44 @@ function hasRecentWorkspace(state: AppState, workspace: WorkspaceOption) {
 function activeRecentWorkspaceIndex(state: AppState) {
   const index = state.recentWorkspaces.findIndex((workspace) => workspace.projectKey === state.project.key && workspace.boardId === state.board.id)
   return Math.max(0, index)
+}
+
+function jiraIssueFields(fieldId: IssueEditableField, value: string): Record<string, unknown> {
+  switch (fieldId) {
+    case "title":
+      return { summary: value }
+    case "priority":
+      return { priority: { name: value } }
+    case "parentKey":
+      return { parent: value ? { key: value } : null }
+    case "dueDate":
+      return { duedate: value || null }
+    case "labels":
+      return { labels: splitJiraList(value) }
+    case "components":
+      return { components: splitJiraList(value).map((name) => ({ name })) }
+    case "fixVersions":
+      return { fixVersions: splitJiraList(value).map((name) => ({ name })) }
+    case "affectsVersions":
+      return { versions: splitJiraList(value).map((name) => ({ name })) }
+    case "description":
+      return { description: jiraDocument(value) }
+    default:
+      throw new Error(`Unsupported Jira field update: ${fieldId}`)
+  }
+}
+
+function splitJiraList(value: string) {
+  return value.split(",").map((item) => item.trim()).filter(Boolean)
+}
+
+function jiraDocument(text: string) {
+  return {
+    type: "doc",
+    version: 1,
+    content: text.replace(/\r\n/g, "\n").split("\n").map((line) => ({
+      type: "paragraph",
+      content: line ? [{ type: "text", text: line }] : [],
+    })),
+  }
 }

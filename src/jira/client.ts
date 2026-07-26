@@ -244,6 +244,36 @@ export async function postJiraIssueComment(auth: JiraAuthConfig, issueKey: strin
   )
 }
 
+export async function updateJiraIssue(auth: JiraAuthConfig, issueKey: string, fields: Record<string, unknown>, fetchImpl: FetchLike = fetch): Promise<void> {
+  await jiraRequest<void>(
+    auth,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}`,
+    {
+      endpoint: `issue ${issueKey} update`,
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ fields }),
+      allowEmptyBody: true,
+    },
+    fetchImpl,
+  )
+}
+
+export async function rankJiraIssue(auth: JiraAuthConfig, issueKey: string, targetIssueKey: string, position: "before" | "after", fetchImpl: FetchLike = fetch): Promise<void> {
+  await jiraRequest<void>(
+    auth,
+    "/rest/agile/1.0/issue/rank",
+    {
+      endpoint: `issue ${issueKey} rank`,
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ issues: [issueKey], [position === "before" ? "rankBeforeIssue" : "rankAfterIssue"]: targetIssueKey }),
+      allowEmptyBody: true,
+    },
+    fetchImpl,
+  )
+}
+
 export async function fetchBoardBacklogIssues(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch, customFields: string[] = [], maxResults = 100): Promise<JiraIssue[]> {
   return (await fetchBoardBacklogIssuePage(auth, boardId, fetchImpl, customFields, 0, maxResults)).items
 }

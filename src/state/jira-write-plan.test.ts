@@ -9,15 +9,17 @@ describe("Jira write plan", () => {
       title: "Updated summary",
       priority: "Critical",
       labels: "auth, release",
+      description: "Updated\ndescription",
     }
 
     const plan = planJiraWrites(state)
 
-    expect(writePlanCounts(plan)).toEqual({ planned: 3, blocked: 0 })
+    expect(writePlanCounts(plan)).toEqual({ planned: 4, blocked: 0 })
     expect(plan.map((item) => item.payloadPreview)).toEqual([
       "fields.summary = Updated summary",
       "fields.priority.name = Critical",
       "fields.labels = [auth, release]",
+      "fields.description = Updated\ndescription",
     ])
     expect(plan.every((item) => item.method === "PUT" && item.endpoint === "/rest/api/3/issue/PROJ-128")).toBe(true)
   })

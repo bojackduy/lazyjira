@@ -48,6 +48,12 @@ export function createDevWorkspaceSource(): WorkspaceSource {
     async postIssueComment() {
       throw new Error("Remote Jira writes are unavailable in dev runtime")
     },
+    async updateIssue() {
+      throw new Error("Remote Jira writes are unavailable in dev runtime")
+    },
+    async rankIssue() {
+      throw new Error("Remote Jira writes are unavailable in dev runtime")
+    },
   }
 }
 
