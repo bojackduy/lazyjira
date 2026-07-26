@@ -88,7 +88,7 @@ export type AppStateContext = {
   cancelIssueDelete: () => void
   openRemoteIssueApply: () => void
   closeRemoteIssueApply: () => void
-  confirmRemoteIssueApply: () => void
+  confirmRemoteIssueApply: () => Promise<void>
   refreshWorkspace: () => void
   retryWorkspaceLoad: () => void
   startDetailBodyEdit: () => void
@@ -839,10 +839,35 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     closeRemoteIssueApply() {
       setState("remoteApplyOpen", false)
     },
-    confirmRemoteIssueApply() {
-      const counts = writePlanCounts(planJiraWrites(state))
+    async confirmRemoteIssueApply() {
+      const comments = planJiraWrites(state).filter((item) => item.status === "planned" && item.commentDraftId && item.issueKey)
       setState("remoteApplyOpen", false)
-      toast.show(counts.planned || counts.blocked ? `Jira execution is not wired yet; ${counts.planned} planned, ${counts.blocked} blocked rows kept` : "No staged changes to write")
+      if (!comments.length) {
+        toast.show("No staged comments are ready to post; other Jira operations remain review-only")
+        return
+      }
+
+      let posted = 0
+      const failures: string[] = []
+      const refreshedIssueKeys = new Set<string>()
+      for (const item of comments) {
+        const draft = state.commentDrafts.find((candidate) => candidate.id === item.commentDraftId)
+        if (!draft || !item.issueKey) continue
+        try {
+          await props.source.postIssueComment(item.issueKey, draft.body)
+          setState("commentDrafts", (drafts) => drafts.filter((candidate) => candidate.id !== draft.id))
+          refreshedIssueKeys.add(item.issueKey)
+          posted += 1
+        } catch (error) {
+          failures.push(error instanceof Error ? error.message : String(error))
+        }
+      }
+      await Promise.all([...refreshedIssueKeys].map((issueKey) => context.loadIssueDetail(issueKey)))
+      if (failures.length) {
+        toast.show(`${posted} comment${posted === 1 ? "" : "s"} posted; ${failures.length} failed: ${failures.join("; ")}`)
+        return
+      }
+      toast.show(`${posted} Jira comment${posted === 1 ? "" : "s"} posted`)
     },
     refreshWorkspace() {
       if (state.workspaceLoading || !state.jiraProjectReady) return

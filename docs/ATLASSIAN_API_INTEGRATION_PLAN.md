@@ -17,7 +17,7 @@ Success means a configured user can choose a Jira-backed project/board in `prod`
 - Rendering already reads from shared state/selectors; Jira calls should stay out of route/component render code.
 - Prod startup with a saved workspace renders a local placeholder shell first, then loads board metadata, active/future sprint metadata, all active sprint issues, Jira field IDs for sprint/points/rank, and one bounded backlog page after mount.
 - Opening or refreshing an issue detail view now loads full Jira issue detail and comments with stale-response protection.
-- Future sprint, backlog, and board issue load-more pages are wired. Explicit remote Jira search is wired through `S`; `W` previews planned and blocked Jira write operations, but write execution is still not wired.
+- Future sprint, backlog, and board issue load-more pages are wired. Explicit remote Jira search is wired through `S`; `W` previews planned and blocked Jira write operations, and its final confirmation posts planned comments only.
 
 ## Non-Negotiables
 
@@ -447,6 +447,8 @@ Verification:
 
 ### A7.5. Safe Write Execution
 
+Status: in progress. Staged comments post through `POST /rest/api/3/issue/{issueKey}/comment`; successful drafts are cleared, failures stay staged with Jira's error, and successful issues refresh. All non-comment operations remain review-only.
+
 Implementation:
 
 - Apply writes in low-risk order: comment, field update, transition, assignee, sprint/backlog move, rank, create, delete last.
@@ -456,7 +458,7 @@ Implementation:
 
 Verification:
 
-- Tests for request bodies, partial success, partial failure, retry, and staged-row clearing.
+- Tests for comment ADF request bodies, partial success/failure, and staged-comment clearing. Field, transition, assignee, move, rank, create, and delete execution tests remain pending.
 
 ### A8. Documentation And Smoke Checks
 

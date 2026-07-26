@@ -48,6 +48,7 @@ export type WorkspaceSource = {
   loadIssueDetail: (issueKey: string, context: IssueDetailContext) => Promise<LoadedIssueDetail>
   loadIssuePage: (sourceId: string, context: IssuePageContext) => Promise<LoadedIssuePage>
   searchIssues: (query: string, context: RemoteSearchContext) => Promise<LoadedRemoteSearch>
+  postIssueComment: (issueKey: string, body: string) => Promise<void>
 }
 
 export type WorkspaceFixtureInput = WorkspaceSelection & {

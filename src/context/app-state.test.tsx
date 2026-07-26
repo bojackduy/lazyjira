@@ -264,6 +264,31 @@ describe("app state project picker", () => {
     expect(appState.state.rankDrafts["PROJ-128"]).toEqual({ issueKey: "PROJ-128", targetIssueKey: "PROJ-121", position: "after" })
   })
 
+  test("posts successful comments and keeps failed comments staged", async () => {
+    const posted: string[] = []
+    const appState = createTestAppState({
+      async postIssueComment(issueKey, body) {
+        posted.push(`${issueKey}:${body}`)
+        if (body === "Second comment") throw new Error("Jira 403: Comment permission denied")
+      },
+    })
+
+    appState.startInspectorEdit()
+    appState.updateInspectorEditValue("Field update stays staged")
+    appState.commitInspectorEdit()
+    appState.startComment()
+    appState.updateCommentValue("First comment")
+    appState.commitComment()
+    appState.startComment()
+    appState.updateCommentValue("Second comment")
+    appState.commitComment()
+    await appState.confirmRemoteIssueApply()
+
+    expect(posted).toEqual(["PROJ-128:First comment", "PROJ-128:Second comment"])
+    expect(appState.state.commentDrafts).toEqual([{ id: "comment-2", issueKey: "PROJ-128", body: "Second comment" }])
+    expect(appState.state.issueDrafts["PROJ-128"]?.title).toBe("Field update stays staged")
+  })
+
   test("loads a saved workspace after the provider mounts", async () => {
     const initialLoad = deferred<ReturnType<typeof loadDevWorkspaceFixture>>()
     let loadCalls = 0
@@ -479,6 +504,9 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
         const items = issues.slice(startAt, startAt + maxResults)
         const nextStartAt = startAt + items.length
         return { query, issues: items, pageState: { sourceId: remoteSearchIssuePageSourceId, startAt: nextStartAt, maxResults, total: issues.length, isLast: nextStartAt >= issues.length, loading: false } }
+      },
+      async postIssueComment() {
+        throw new Error("Remote Jira writes are unavailable in dev runtime")
       },
       ...overrides,
     }

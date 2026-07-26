@@ -230,6 +230,20 @@ export async function fetchIssueComments(auth: JiraAuthConfig, issueKey: string,
   return fetchJiraPages<JiraComment>(auth, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`, { endpoint: `issue ${issueKey} comments`, itemKey: "comments", maxResults }, fetchImpl)
 }
 
+export async function postJiraIssueComment(auth: JiraAuthConfig, issueKey: string, body: string, fetchImpl: FetchLike = fetch): Promise<JiraComment> {
+  return jiraRequest<JiraComment>(
+    auth,
+    `/rest/api/3/issue/${encodeURIComponent(issueKey)}/comment`,
+    {
+      endpoint: `issue ${issueKey} comment`,
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ body: jiraDocument(body) }),
+    },
+    fetchImpl,
+  )
+}
+
 export async function fetchBoardBacklogIssues(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch, customFields: string[] = [], maxResults = 100): Promise<JiraIssue[]> {
   return (await fetchBoardBacklogIssuePage(auth, boardId, fetchImpl, customFields, 0, maxResults)).items
 }
@@ -321,6 +335,17 @@ function jiraHeaders(auth: JiraAuthConfig, headers: HeadersInit | undefined) {
   if (!merged.has("accept")) merged.set("accept", "application/json")
   merged.set("authorization", jiraBasicAuthHeader(auth))
   return merged
+}
+
+function jiraDocument(text: string) {
+  return {
+    type: "doc",
+    version: 1,
+    content: text.replace(/\r\n/g, "\n").split("\n").map((line) => ({
+      type: "paragraph",
+      content: line ? [{ type: "text", text: line }] : [],
+    })),
+  }
 }
 
 function paginatedPath(path: string, startAt: number, maxResults: number) {

@@ -15,6 +15,7 @@ export type JiraWritePlanItem = {
   endpoint?: string
   payloadPreview?: string
   blocker?: string
+  commentDraftId?: string
 }
 
 export function planJiraWrites(state: AppState): JiraWritePlanItem[] {
@@ -76,6 +77,7 @@ function planComment(state: AppState, change: Extract<StagedChange, { kind: "com
     method: "POST",
     endpoint: `/rest/api/3/issue/${change.issueKey}/comment`,
     payloadPreview: `body = ${commentPreview(change.value)}`,
+    commentDraftId: change.commentId,
   }
 }
 

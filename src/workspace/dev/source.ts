@@ -45,6 +45,9 @@ export function createDevWorkspaceSource(): WorkspaceSource {
         pageState: { sourceId: remoteSearchIssuePageSourceId, startAt: nextStartAt, maxResults, total: issues.length, isLast: nextStartAt >= issues.length, loading: false },
       }
     },
+    async postIssueComment() {
+      throw new Error("Remote Jira writes are unavailable in dev runtime")
+    },
   }
 }
 

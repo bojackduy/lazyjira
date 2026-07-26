@@ -438,7 +438,7 @@ export function App() {
   function remoteApplyAction() {
     if (isPlainTextEditing() || state.stagedDiscardOpen) return false
     if (state.remoteApplyOpen) {
-      appState.confirmRemoteIssueApply()
+      void appState.confirmRemoteIssueApply()
       return
     }
     appState.openRemoteIssueApply()

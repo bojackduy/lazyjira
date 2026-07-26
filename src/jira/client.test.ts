@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError } from "./client"
+import { fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, postJiraIssueComment } from "./client"
 import { discoverJiraIssueFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
@@ -154,6 +154,27 @@ describe("Jira discovery client", () => {
       "https://team.atlassian.net/rest/api/3/issue/PROJ-1/comment?startAt=1&maxResults=1",
     ])
     expect(comments.map((comment) => comment.id)).toEqual(["1", "2"])
+  })
+
+  test("posts an ADF Jira issue comment", async () => {
+    const comment = await postJiraIssueComment(auth, "PROJ-1", "Ready\nfor review", async (url, init) => {
+      expect(url).toBe("https://team.atlassian.net/rest/api/3/issue/PROJ-1/comment")
+      expect(init?.method).toBe("POST")
+      expect(new Headers(init?.headers).get("content-type")).toBe("application/json")
+      expect(JSON.parse(String(init?.body))).toEqual({
+        body: {
+          type: "doc",
+          version: 1,
+          content: [
+            { type: "paragraph", content: [{ type: "text", text: "Ready" }] },
+            { type: "paragraph", content: [{ type: "text", text: "for review" }] },
+          ],
+        },
+      })
+      return jsonResponse({ id: "10001" }, 201)
+    })
+
+    expect(comment.id).toBe("10001")
   })
 
   test("normalizes board columns into app statuses with real workflow names", () => {

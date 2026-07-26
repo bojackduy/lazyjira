@@ -27,11 +27,11 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 ## Jira Write Safety
 
 - [x] Local staged drafts for field edits, delete requests, config edits, and draft issue creation.
-- [x] `W` operation review displays planned and blocked Jira operations without mutating Jira.
+- [x] `W` operation review displays planned and blocked Jira operations; final confirmation executes planned comments only.
 - [x] Planner supports safe field-update previews for summary, priority, parent, due date, labels, components, and versions.
 - [x] Planner visibly blocks unsupported or high-risk rows: transitions, users, sprint moves, custom fields, type, description, links, create, delete, and config writes.
 - [x] Staged comment composer (`c`) and backlog rank staging (`J/K`) with exact Jira operation previews.
-- [ ] Execute remote writes safely (A7.5): comments first, simple field updates second, then transitions/assignee/moves/rank/create; delete last and only with explicit approval.
+- [~] A7.5 comment execution posts sequentially, clears only successful staged comments, retains failures, and refreshes affected issues.
 
 ## Completed Milestone: A4 Refresh Safety
 
@@ -44,7 +44,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 
 ## Next Milestones
 
-- [ ] Start A7.5 with comment-only Jira writes and partial-failure retention.
+- [ ] Extend A7.5 beyond comments: simple field updates, then transitions/assignee/moves/rank/create; delete last and only with explicit approval.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.
 
@@ -56,6 +56,6 @@ Every completed milestone must include targeted state/UI tests, `bun run typeche
 
 - Jira API access stays in source/loader/state code, never route or widget rendering.
 - Prod does not fall back to fixture tickets.
-- Remote writes remain review-only until explicitly enabled by A7.5.
+- Only staged comments execute remotely; every other Jira write remains review-only.
 - Future sprints with large issue counts are not eagerly loaded.
 - Workspace changes with staged edits are blocked until the user discards or finishes that work.

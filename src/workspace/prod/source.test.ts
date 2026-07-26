@@ -112,6 +112,19 @@ describe("prod workspace source", () => {
     expect(detail.issue.comments).toEqual([{ id: "c1", author: "Mina", body: "Ready to test", age: "2026-07-24" }])
   })
 
+  test("posts a comment through the prod source", async () => {
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url, init) => {
+        expect(url).toBe("https://team.atlassian.net/rest/api/3/issue/REAL-1/comment")
+        expect(init?.method).toBe("POST")
+        return jsonResponse({ id: "10001" }, 201)
+      },
+    )
+
+    await source.postIssueComment("REAL-1", "Ready for review")
+  })
+
   test("loads bounded issue pages for a source", async () => {
     const requests: string[] = []
     const source = createProdWorkspaceSource(

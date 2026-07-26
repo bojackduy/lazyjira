@@ -298,7 +298,7 @@ function RemoteApplyPopup() {
       <ModalFrame borderColor={theme.danger} width={86}>
         <box flexDirection="row" justifyContent="space-between">
           <text attributes={TextAttributes.BOLD} fg={theme.danger}>Apply To Jira</text>
-          <text fg={theme.textSubtle}>W final apply · esc/q cancel</text>
+          <text fg={theme.textSubtle}>W posts planned comments · esc/q cancel</text>
         </box>
         <text fg={theme.textMuted}>Review planned Jira operations before any remote mutation is enabled.</text>
         <Show when={plan().length} fallback={<text fg={theme.textMuted}>No staged writes. Edit a field and stage it before using W.</text>}>
@@ -307,7 +307,7 @@ function RemoteApplyPopup() {
             {(item) => <WritePlanRow item={item} />}
           </For>
         </Show>
-        <text fg={theme.warning} wrapMode="none">Jira execution is not wired yet; confirming now keeps staged changes intact.</text>
+        <text fg={theme.warning} wrapMode="none">Only planned comments are posted. Other Jira operations remain staged for review.</text>
       </ModalFrame>
     </Show>
   )
@@ -542,7 +542,7 @@ function useRemoteApplyKeyboard(appState: ReturnType<typeof useAppState>) {
       if (event.name === "w" && event.shift) {
         event.preventDefault()
         event.stopPropagation()
-        appState.confirmRemoteIssueApply()
+        void appState.confirmRemoteIssueApply()
         return
       }
       if (event.name === "escape" || event.name === "q") {
