@@ -97,6 +97,10 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
   }
 }
 
+export function createProdWorkspacePlaceholder(selection: WorkspaceSelection) {
+  return createProdWorkspace(selection)
+}
+
 function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnType<typeof normalizeBoardConfiguration>, sprints: ReturnType<typeof normalizeBoardSprints> = [], issues: ReturnType<typeof normalizeSprintIssues> = [], issuePageStateBySource: Record<string, IssuePageState> = {}) {
   const notice = selection.project.key === "JIRA"
     ? "Prod runtime is waiting for a Jira project selection. Tickets stay empty until a project is selected."

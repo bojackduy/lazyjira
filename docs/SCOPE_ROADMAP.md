@@ -771,13 +771,13 @@ Current Behavior:
 - `issueWithDraft()` renders issue draft overlays.
 - `stagedChanges()` lists issue edits, issue deletes, and config drafts.
 - `X` opens staged discard.
-- `W` opens remote write review placeholder.
+- `W` opens a remote write review with planned and blocked Jira operation previews.
 
 Next Work:
 
 - Add workspace-switch confirmation for staged changes.
-- Add write-preview translation from staged changes before remote writes.
-- Mark unsupported writes clearly in the review popup.
+- Add staged comment/rank models before planning those write types.
+- Wire low-risk write execution only after the review supports exact supported operations and failure retention.
 
 Verification:
 

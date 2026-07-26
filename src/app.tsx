@@ -411,6 +411,11 @@ export function App() {
   }
 
   function refreshSelectedIssueDetail() {
+    if (state.workspaceLoadError) {
+      appState.retryWorkspaceLoad()
+      return
+    }
+    if (state.workspaceLoading) return false
     if (!canRunGlobalShortcut() || state.route !== "issue-detail") return false
     void appState.loadIssueDetail()
   }

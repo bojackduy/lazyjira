@@ -56,7 +56,7 @@ Can start after issue demo data exists. It can proceed independently from real J
 - [ ] In inspector, `e` or `Enter` edits the selected inspector field.
 - [ ] Status and type inspector edits use colored multiple-choice pickers.
 - [ ] `w` applies staged changes locally before Jira write integration exists.
-- [ ] `W` opens the Jira write review popup and `W` inside that popup is the final remote-apply key.
+- [ ] `W` opens the Jira write review popup with planned/blocked operation rows and `W` inside that popup is the final remote-apply key.
 - [ ] `x` asks for confirmation, then stages selected issue deletion for batch apply.
 - [ ] `X` opens a staged-discard popup with `j/k`, `space`, `Enter`, and `Esc` controls, including an empty state when nothing is staged.
 - [ ] Plain text edit mode lets printable shortcut keys reach the editor and uses `Ctrl-Enter` to stage.

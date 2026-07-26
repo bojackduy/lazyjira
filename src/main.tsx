@@ -11,7 +11,7 @@ import { parseRuntimeEnv } from "./runtime/env"
 import { createInitialAppState } from "./state/initial"
 import { loadDevWorkspaceFixture } from "./workspace/dev/fixtures"
 import { createDevWorkspaceSource } from "./workspace/dev/source"
-import { createProdWorkspaceSource } from "./workspace/prod/source"
+import { createProdWorkspacePlaceholder, createProdWorkspaceSource } from "./workspace/prod/source"
 import type { WorkspaceSelection } from "./workspace/types"
 
 const argv = process.argv.slice(2)
@@ -31,15 +31,17 @@ const authConfig = runtimeEnv === "prod" ? await loadJiraAuthConfig().catch((err
 const workspaceConfig = runtimeEnv === "dev" ? savedConfig?.devWorkspace : savedConfig?.prodWorkspace
 const recentWorkspaceConfigs = runtimeEnv === "dev" ? savedConfig?.devRecentWorkspaces : savedConfig?.prodRecentWorkspaces
 const source = runtimeEnv === "dev" ? createDevWorkspaceSource() : createProdWorkspaceSource()
-const initialWorkspace = workspaceConfig
-  ? await source.loadWorkspace(selectionFromConfig(workspaceConfig))
-  : runtimeEnv === "dev"
-    ? loadDevWorkspaceFixture("PROJ")
-    : await source.loadWorkspace({ project: { key: "JIRA", name: "No project selected" }, board: { id: "", name: "Choose a project", type: "kanban" } })
+const savedWorkspaceSelection = workspaceConfig ? selectionFromConfig(workspaceConfig) : undefined
+const initialWorkspaceSelection = runtimeEnv === "prod" && authConfig ? savedWorkspaceSelection : undefined
+const initialWorkspace = runtimeEnv === "dev"
+  ? loadDevWorkspaceFixture("PROJ")
+  : createProdWorkspacePlaceholder(savedWorkspaceSelection ?? { project: { key: "JIRA", name: "No project selected" }, board: { id: "", name: "Choose a project", type: "kanban" } })
 const initialState = createInitialAppState(initialWorkspace, runtimeEnv)
 const shouldOpenProjectPicker = !workspaceConfig && (runtimeEnv === "dev" || !!authConfig)
 initialState.jiraAuthReady = !!authConfig
 initialState.jiraProjectReady = !!workspaceConfig
+initialState.workspaceLoading = !!initialWorkspaceSelection
+if (initialWorkspaceSelection) initialState.workspaceNotice = "Loading Jira workspace..."
 initialState.recentWorkspaces = (recentWorkspaceConfigs ?? []).map(workspaceOptionFromConfig)
 initialState.authOnboarding = {
   open: runtimeEnv === "prod" && !authConfig,
@@ -90,6 +92,7 @@ try {
         <AppProviders
           config={appConfig}
           initialState={initialState}
+          initialWorkspaceSelection={initialWorkspaceSelection}
           source={source}
           saveWorkspaceConfig={saveWorkspaceConfig}
           onExit={() => {

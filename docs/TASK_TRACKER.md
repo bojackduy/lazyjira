@@ -43,7 +43,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [x] A3.2 Active sprint issue loading wired.
 - [x] A3.3 Bounded backlog issue loading.
 - [x] A3.4 Future sprint issue load-more.
-- [ ] A4 Loader/state foundation for refresh/loading/error/stale-response handling.
+- [~] A4 Loader/state foundation for refresh/loading/error/stale-response handling.
 - [ ] A4.1 Same-workspace refresh keeps previous successful data visible on failure.
 - [ ] A4.2 Cross-workspace load failure cannot relabel old issues as the new workspace.
 - [x] A5 Issue detail and comments loading with stale-response protection.
@@ -51,8 +51,8 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [x] A5.5 Pagination/load-more API for backlog, future sprints, and board issues.
 - [x] A6 Remote search mode separate from `/` loaded filtering.
 - [x] A6.1 Remote search pagination append/dedupe.
-- [ ] A7 Safe write review preparation from staged changes.
-- [ ] A7.1 Jira operation planner for fields, comments, transitions, assignee, sprint move, rank, create, and blocked unsupported rows.
+- [x] A7 Safe write review preparation from staged changes.
+- [~] A7.1 Jira operation planner for fields, comments, transitions, assignee, sprint move, rank, create, and blocked unsupported rows.
 - [ ] A7.5 Safe write execution rollout: comment, field update, transition, assignee, sprint move, rank, create, delete last.
 - [ ] A8 Documentation updates and real Jira smoke checklist.
 

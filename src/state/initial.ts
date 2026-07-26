@@ -11,6 +11,9 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     focusedPane: "main",
     jiraAuthReady: false,
     jiraProjectReady: false,
+    workspaceLoading: false,
+    workspaceLoadError: undefined,
+    workspaceRequestId: 0,
     workspaceNotice: workspace.notice,
     authOnboarding: {
       open: false,

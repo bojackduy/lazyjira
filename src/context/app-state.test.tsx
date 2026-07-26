@@ -6,7 +6,7 @@ import { createInitialAppState } from "../state/initial"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
 import { stagedChanges } from "../state/staged-changes"
 import { devBoardsByProjectKey, devProjects, loadDevWorkspaceFixture } from "../workspace/dev/fixtures"
-import type { LoadedIssueDetail, WorkspaceSource } from "../workspace/types"
+import type { LoadedIssueDetail, WorkspaceSelection, WorkspaceSource } from "../workspace/types"
 import type { JiraWorkspaceConfig } from "../auth/config"
 
 const disposers: Array<() => void> = []
@@ -252,6 +252,72 @@ describe("app state project picker", () => {
     expect(stagedChanges(appState.state).some((change) => change.id === "create:DRAFT-1")).toBe(false)
   })
 
+  test("loads a saved workspace after the provider mounts", async () => {
+    const initialLoad = deferred<ReturnType<typeof loadDevWorkspaceFixture>>()
+    let loadCalls = 0
+    const appState = createTestAppState({
+      async loadWorkspace() {
+        loadCalls += 1
+        return initialLoad.promise
+      },
+    }, async () => undefined, savedWorkspaceSelection())
+
+    expect(loadCalls).toBe(1)
+    expect(appState.state.workspaceLoading).toBe(true)
+
+    initialLoad.resolve(loadDevWorkspaceFixture("MOB"))
+    await flushPromises()
+
+    expect(appState.state.workspaceLoading).toBe(false)
+    expect(appState.state.workspaceLoadError).toBeUndefined()
+    expect(appState.state.project.key).toBe("MOB")
+  })
+
+  test("keeps the shell state available after initial workspace load failure and retries", async () => {
+    let loadCalls = 0
+    const appState = createTestAppState({
+      async loadWorkspace() {
+        loadCalls += 1
+        if (loadCalls === 1) throw new Error("Jira is unavailable")
+        return loadDevWorkspaceFixture("MOB")
+      },
+    }, async () => undefined, savedWorkspaceSelection())
+
+    await flushPromises()
+    expect(appState.state.workspaceLoading).toBe(false)
+    expect(appState.state.workspaceLoadError).toBe("Jira is unavailable")
+
+    appState.retryWorkspaceLoad()
+    await flushPromises()
+
+    expect(loadCalls).toBe(2)
+    expect(appState.state.workspaceLoadError).toBeUndefined()
+    expect(appState.state.project.key).toBe("MOB")
+  })
+
+  test("ignores a stale startup workspace response after switching workspaces", async () => {
+    const startupLoad = deferred<ReturnType<typeof loadDevWorkspaceFixture>>()
+    const switchedLoad = deferred<ReturnType<typeof loadDevWorkspaceFixture>>()
+    const appState = createTestAppState({
+      async loadWorkspace(selection) {
+        return selection.project.key === "PROJ" ? startupLoad.promise : switchedLoad.promise
+      },
+    }, async () => undefined, savedWorkspaceSelection())
+
+    await appState.browseRemoteProjects()
+    appState.moveProjectPickerSelection(1)
+    await appState.selectProjectPickerItem()
+    const switchPromise = appState.selectProjectPickerItem()
+    switchedLoad.resolve(loadDevWorkspaceFixture("MOB"))
+    await switchPromise
+
+    startupLoad.resolve(loadDevWorkspaceFixture("PROJ"))
+    await flushPromises()
+
+    expect(appState.state.project.key).toBe("MOB")
+    expect(appState.state.workspaceLoading).toBe(false)
+  })
+
   test("keeps slash filtering local and runs remote search separately", async () => {
     let searchCalls = 0
     const first = loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!
@@ -291,7 +357,7 @@ describe("app state project picker", () => {
   })
 })
 
-function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> = async () => undefined) {
+function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> = async () => undefined, initialWorkspaceSelection?: WorkspaceSelection) {
   let appState: AppStateContext | undefined
   let dispose: (() => void) | undefined
   createRoot((disposeRoot) => {
@@ -341,6 +407,7 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
       get children() {
         return createComponent(AppStateProvider, {
           initialState: createInitialAppState(loadDevWorkspaceFixture("PROJ"), "dev"),
+          initialWorkspaceSelection,
           source,
           saveWorkspaceConfig,
           get children() {
@@ -355,6 +422,13 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
     throw new Error("App state test context was not initialized")
   }
   return appState
+}
+
+function savedWorkspaceSelection(): WorkspaceSelection {
+  return {
+    project: { key: "PROJ", name: "Product Platform" },
+    board: { id: "dev-board-proj", name: "Product Kanban", type: "kanban" },
+  }
 }
 
 function issueInSource(sprintId: string | undefined, sourceId: string) {

@@ -7,6 +7,7 @@ import { useTheme } from "../context/theme"
 import { useToast } from "../context/toast"
 import { RouteSurface } from "../routes"
 import { issueByKey } from "../state/issue-drafts"
+import { planJiraWrites, writePlanCounts, type JiraWritePlanItem } from "../state/jira-write-plan"
 import type { AppState } from "../state/app-state"
 import { filteredProjectPickerBoards, filteredProjectPickerProjects, filteredProjectPickerWorkspaces } from "../state/project-picker"
 import { routeLabel, sidebarRoutes } from "../state/routes"
@@ -111,9 +112,29 @@ function MainSurface() {
       <box paddingTop={1} flexDirection="column" flexGrow={1} minHeight={0}>
         <SearchBar />
         <box paddingTop={state.route !== "config" && (state.searchOpen || state.searchQuery) ? 1 : 0} flexGrow={1} minHeight={0}>
-          <RouteSurface />
+          <Show when={(state.workspaceLoading || state.workspaceLoadError) && !Object.keys(state.issues).length} fallback={<RouteSurface />}>
+            <WorkspaceLoadSurface />
+          </Show>
         </box>
       </box>
+    </box>
+  )
+}
+
+function WorkspaceLoadSurface() {
+  const { state } = useAppState()
+  const theme = useTheme()
+
+  return (
+    <box flexGrow={1} minHeight={0} flexDirection="column" alignItems="center" justifyContent="center" gap={1}>
+      <text attributes={TextAttributes.BOLD} fg={state.workspaceLoadError ? theme.danger : theme.accent}>
+        {state.workspaceLoadError ? "Jira workspace load failed" : "[loading] Loading Jira workspace"}
+      </text>
+      <text fg={theme.text}>{state.project.key} {state.project.name} · {state.board.name}</text>
+      <Show when={state.workspaceLoadError} fallback={<text fg={theme.textMuted}>Loading board metadata, sprints, and the first issue pages...</text>}>
+        {(error) => <text fg={theme.danger}>{error()}</text>}
+      </Show>
+      <text fg={theme.textSubtle}>{state.workspaceLoadError ? "r retry · P switch workspace · q quit" : "P switch workspace · q quit"}</text>
     </box>
   )
 }
@@ -253,7 +274,8 @@ function RemoteApplyPopup() {
   const appState = useAppState()
   const { state } = appState
   const theme = useTheme()
-  const changes = () => stagedChanges(state)
+  const plan = () => planJiraWrites(state)
+  const counts = () => writePlanCounts(plan())
   useRemoteApplyKeyboard(appState)
 
   return (
@@ -263,19 +285,39 @@ function RemoteApplyPopup() {
           <text attributes={TextAttributes.BOLD} fg={theme.danger}>Apply To Jira</text>
           <text fg={theme.textSubtle}>W final apply · esc/q cancel</text>
         </box>
-        <text fg={theme.textMuted}>Review staged writes before the future Jira API call.</text>
-        <Show when={changes().length} fallback={<text fg={theme.textMuted}>No staged writes. Edit a field and stage it before using W.</text>}>
-          <For each={changes()}>
-            {(change) => (
-              <text fg={change.kind === "delete" ? theme.danger : change.kind === "create" ? theme.accent : change.kind === "config" ? theme.warning : theme.text} wrapMode="none">
-                {change.kind === "delete" ? "-" : change.kind === "create" ? "+" : "~"} {stagedChangeText(change, change.kind === "config" ? undefined : issueByKey(state, change.issueKey)?.title)}
-              </text>
-            )}
+        <text fg={theme.textMuted}>Review planned Jira operations before any remote mutation is enabled.</text>
+        <Show when={plan().length} fallback={<text fg={theme.textMuted}>No staged writes. Edit a field and stage it before using W.</text>}>
+          <text fg={theme.textSubtle}>{counts().planned} planned · {counts().blocked} blocked</text>
+          <For each={plan()}>
+            {(item) => <WritePlanRow item={item} />}
           </For>
         </Show>
-        <text fg={theme.warning} wrapMode="none">Jira writes are not wired yet; confirming now keeps staged changes intact.</text>
+        <text fg={theme.warning} wrapMode="none">Jira execution is not wired yet; confirming now keeps staged changes intact.</text>
       </ModalFrame>
     </Show>
+  )
+}
+
+function WritePlanRow(props: { item: JiraWritePlanItem }) {
+  const theme = useTheme()
+  const color = () => props.item.status === "blocked" ? theme.danger : theme.accent
+
+  return (
+    <box flexDirection="column" gap={0}>
+      <text fg={color()} wrapMode="none">
+        {props.item.status === "blocked" ? "!" : ">"} {props.item.title}
+      </text>
+      <text fg={theme.textSubtle} wrapMode="none">{props.item.detail}</text>
+      <Show when={props.item.method && props.item.endpoint}>
+        <text fg={theme.textMuted} wrapMode="none">{props.item.method} {props.item.endpoint}</text>
+      </Show>
+      <Show when={props.item.payloadPreview}>
+        {(preview) => <text fg={theme.textMuted} wrapMode="none">{preview()}</text>}
+      </Show>
+      <Show when={props.item.blocker}>
+        {(blocker) => <text fg={theme.warning} wrapMode="none">Blocked: {blocker()}</text>}
+      </Show>
+    </box>
   )
 }
 

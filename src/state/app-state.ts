@@ -232,6 +232,9 @@ export type AppState = {
   focusedPane: FocusPane
   jiraAuthReady: boolean
   jiraProjectReady: boolean
+  workspaceLoading: boolean
+  workspaceLoadError?: string
+  workspaceRequestId: number
   workspaceNotice?: string
   authOnboarding: AuthOnboardingState
   projectPicker: ProjectPickerState

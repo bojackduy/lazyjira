@@ -15,9 +15,9 @@ Success means a configured user can choose a Jira-backed project/board in `prod`
 - Project selection already calls `source.loadWorkspace()`, persists the selected workspace, and applies the loaded workspace into shared app state.
 - UI state already has project, board, sprint, status, issue, issue draft, delete draft, config draft, loaded filtering, remote search, and remote-write review fields.
 - Rendering already reads from shared state/selectors; Jira calls should stay out of route/component render code.
-- Prod board selection now loads board metadata, active/future sprint metadata, all active sprint issues, Jira field IDs for sprint/points/rank, and one bounded backlog page.
+- Prod startup with a saved workspace renders a local placeholder shell first, then loads board metadata, active/future sprint metadata, all active sprint issues, Jira field IDs for sprint/points/rank, and one bounded backlog page after mount.
 - Opening or refreshing an issue detail view now loads full Jira issue detail and comments with stale-response protection.
-- Future sprint, backlog, and board issue load-more pages are wired. Explicit remote Jira search is wired through `S`; Jira writes are still not wired.
+- Future sprint, backlog, and board issue load-more pages are wired. Explicit remote Jira search is wired through `S`; `W` previews planned and blocked Jira write operations, but write execution is still not wired.
 
 ## Non-Negotiables
 
@@ -165,7 +165,7 @@ The `W` path should eventually convert `stagedChanges(state)` into Jira operatio
 - delete: keep disabled or highly confirmed until product explicitly allows remote deletes
 - config drafts: keep local/demo-only until real Jira admin metadata writes are intentionally scoped
 
-Before remote writes are implemented, `W` should continue to show a review and keep staged changes intact. When writes are implemented, failures must leave failed staged changes in place and report the exact Jira reason.
+Before remote writes are implemented, `W` continues to show a planned/blocked operation review and keep staged changes intact. When writes are implemented, failures must leave failed staged changes in place and report the exact Jira reason.
 
 ## Remaining API Roadmap
 
@@ -240,6 +240,8 @@ Verification:
 - Tests for search pagination append/dedupe and failure preserving previous results.
 
 ### R4. Write Preview And Operation Planning
+
+Status: partially implemented. `src/state/jira-write-plan.ts` converts current staged issue/config changes into planned field update previews or blocked rows for unsupported/high-risk writes, and the `W` popup renders those rows. Comment and rank planning are still waiting on staged comment/rank models.
 
 Goal: make `W` show exact Jira operations before any mutation.
 
@@ -366,6 +368,8 @@ Verification:
 
 ### A4. Project Selection And Workspace Loading Integration
 
+Status: in progress. Saved prod workspaces now load after the shell renders, with visible loading/failure state, retry, and request-ID protection against stale startup responses. Same-workspace refresh behavior is still pending.
+
 Implementation:
 
 - Add loading/error state for project switch, workspace refresh, pagination, remote search, and issue detail refresh.
@@ -375,6 +379,8 @@ Implementation:
 - Prevent stale previous-workspace issues from rendering under a newly selected project/board.
 - Preserve selected issue when possible and fall back safely when it disappears.
 - Block or confirm workspace switching when staged issue/config changes exist.
+- Render a local placeholder workspace first on prod startup; do not await Jira before rendering the shell.
+- Show an explicit loading panel while the selected workspace has no loaded issues, and retain it as an actionable retry panel on failure.
 
 Verification:
 
@@ -424,17 +430,19 @@ Verification:
 
 ### A7. Safe Write Review Preparation
 
+Status: implemented for current staged changes. The review is still execution-free.
+
 Implementation:
 
 - Keep `W` as review-only until write endpoints are explicitly added.
-- Add translation tests from `StagedChange` to future Jira operation previews.
+- Convert current `StagedChange` rows into future Jira operation previews.
 - Mark unsupported operations as blocked in the review instead of silently dropping them.
-- Resolve status edits to transition previews and assignee edits to account-id previews.
-- Keep delete and config writes blocked until separately approved.
+- Show status edits as blocked transition previews and assignee edits as blocked account-id previews.
+- Keep create, delete, and config writes blocked until separately approved or backed by Jira metadata.
 
 Verification:
 
-- Tests for edit, transition, delete-disabled, and config-unsupported preview rows.
+- Tests for safe field edits, transition/assignee/sprint/custom-field blockers, delete-disabled rows, config-unsupported rows, and draft create folding.
 
 ### A7.5. Safe Write Execution
 

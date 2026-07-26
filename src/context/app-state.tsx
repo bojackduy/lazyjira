@@ -1,7 +1,8 @@
+import { onMount } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
 import { normalizeBaseUrl, saveJiraAuthConfig, type JiraWorkspaceConfig } from "../auth/config"
-import { workspaceStats, type WorkspaceSource, type LoadedWorkspace } from "../workspace/types"
+import { workspaceStats, type WorkspaceSelection, type WorkspaceSource, type LoadedWorkspace } from "../workspace/types"
 import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueSummary, ProjectOption, QuickFilterId, StatusCategory, WorkspaceOption } from "../state/app-state"
 import {
   colorableConfigSection,
@@ -24,6 +25,7 @@ import { filteredProjectPickerBoards, filteredProjectPickerOptions, filteredProj
 import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from "../state/staged-changes"
 import { workspaceCurrentResults, workspaceItems, workspaceSelectedItem } from "../state/workspace"
 import { defaultIssuePageState, remoteSearchIssuePageSourceId } from "../state/issue-pages"
+import { planJiraWrites, writePlanCounts } from "../state/jira-write-plan"
 import { useToast } from "./toast"
 
 export type AppStateContext = {
@@ -87,6 +89,7 @@ export type AppStateContext = {
   openRemoteIssueApply: () => void
   closeRemoteIssueApply: () => void
   confirmRemoteIssueApply: () => void
+  retryWorkspaceLoad: () => void
   startDetailBodyEdit: () => void
   updateDetailBodyEditValue: (value: string) => void
   commitDetailBodyEdit: () => void
@@ -110,9 +113,34 @@ const [AppStateContextProvider, useAppState] = createRequiredContext<AppStateCon
 
 export { useAppState }
 
-export function AppStateProvider(props: ProviderProps<{ initialState: AppState; source: WorkspaceSource; saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> }>) {
+export function AppStateProvider(props: ProviderProps<{ initialState: AppState; initialWorkspaceSelection?: WorkspaceSelection; source: WorkspaceSource; saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> }>) {
   const [state, setState] = createStore<AppState>(props.initialState)
   const toast = useToast()
+
+  async function loadWorkspace(selection: WorkspaceSelection, applyOnSuccess: boolean) {
+    const requestId = state.workspaceRequestId + 1
+    setState("workspaceRequestId", requestId)
+    setState("workspaceLoading", true)
+    setState("workspaceLoadError", undefined)
+    try {
+      const workspace = await props.source.loadWorkspace(selection)
+      if (state.workspaceRequestId !== requestId) return undefined
+      if (applyOnSuccess) applyLoadedWorkspace(workspace)
+      return workspace
+    } catch (error) {
+      if (state.workspaceRequestId !== requestId) return undefined
+      const message = error instanceof Error ? error.message : String(error)
+      setState("workspaceLoadError", message)
+      toast.show(message)
+      return undefined
+    } finally {
+      if (state.workspaceRequestId === requestId) setState("workspaceLoading", false)
+    }
+  }
+
+  onMount(() => {
+    if (props.initialWorkspaceSelection) void loadWorkspace(props.initialWorkspaceSelection, true)
+  })
 
   async function saveSelectedWorkspaceContext(workspace: WorkspaceOption) {
     await saveSelectedProjectContext(
@@ -124,7 +152,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
   async function saveSelectedProjectContext(project: ProjectOption, board: BoardOption) {
     const selectedWorkspace = workspaceOptionFromContext(project, board)
     const active = isActiveWorkspace(state, project, board)
-    if (active && state.jiraProjectReady && hasRecentWorkspace(state, selectedWorkspace)) {
+    if (active && state.jiraProjectReady && !state.workspaceLoadError && hasRecentWorkspace(state, selectedWorkspace)) {
       setState("projectPicker", "open", false)
       toast.show(`${project.key} · ${board.name} is already active.`)
       return
@@ -135,10 +163,15 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     }
     setState("projectPicker", "saving", true)
     try {
-      const workspace = active ? undefined : await props.source.loadWorkspace({
+      const shouldLoad = !active || !!state.workspaceLoadError
+      const workspace = shouldLoad ? await loadWorkspace({
         project: { key: project.key, name: project.name },
         board: { id: board.id, name: board.name, type: board.type },
-      })
+      }, false) : undefined
+      if (shouldLoad && !workspace) {
+        setState("projectPicker", "error", state.workspaceLoadError ?? "Jira workspace load did not complete")
+        return
+      }
       await props.saveWorkspaceConfig({
         projectKey: project.key,
         projectName: project.name,
@@ -149,6 +182,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       if (workspace) applyLoadedWorkspace(workspace)
       setState("recentWorkspaces", reconcile(recentWorkspacesWith(selectedWorkspace, state.recentWorkspaces)))
       setState("jiraProjectReady", true)
+      setState("workspaceLoadError", undefined)
       setState("projectPicker", "open", false)
       setState("projectPicker", "error", undefined)
       toast.show(active ? `${project.key} · ${board.name} saved to recent workspaces.` : props.source.env === "dev" ? `Dev project ${project.key} loaded from fixtures.` : `Prod project ${project.key} loaded from Jira.`)
@@ -161,6 +195,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
   function applyLoadedWorkspace(workspace: LoadedWorkspace) {
     setState("project", workspace.project)
     setState("board", workspace.board)
+    setState("workspaceLoadError", undefined)
     setState("workspaceNotice", workspace.notice)
     setState("currentUser", workspace.currentUser)
     setState("quickFilters", reconcile(workspace.quickFilters))
@@ -795,9 +830,13 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("remoteApplyOpen", false)
     },
     confirmRemoteIssueApply() {
-      const changeCount = stagedChanges(state).length
+      const counts = writePlanCounts(planJiraWrites(state))
       setState("remoteApplyOpen", false)
-      toast.show(changeCount ? "Jira write path is not wired yet; staged changes kept" : "No staged changes to write")
+      toast.show(counts.planned || counts.blocked ? `Jira execution is not wired yet; ${counts.planned} planned, ${counts.blocked} blocked rows kept` : "No staged changes to write")
+    },
+    retryWorkspaceLoad() {
+      if (state.workspaceLoading || !state.workspaceLoadError) return
+      void loadWorkspace({ project: state.project, board: state.board }, true)
     },
     startDetailBodyEdit() {
       const issue = issueByKey(state, state.selectedIssueKey)
