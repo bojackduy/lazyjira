@@ -109,6 +109,9 @@ function MainSurface() {
         <text attributes={TextAttributes.BOLD} fg={theme.text}>{routeLabel(state.route)}</text>
         <text fg={theme.textSubtle}>{state.board.name}</text>
       </box>
+      <Show when={(state.workspaceLoading || state.workspaceLoadError) && !!Object.keys(state.issues).length}>
+        <WorkspaceRefreshStatus />
+      </Show>
       <box paddingTop={1} flexDirection="column" flexGrow={1} minHeight={0}>
         <SearchBar />
         <box paddingTop={state.route !== "config" && (state.searchOpen || state.searchQuery) ? 1 : 0} flexGrow={1} minHeight={0}>
@@ -136,6 +139,17 @@ function WorkspaceLoadSurface() {
       </Show>
       <text fg={theme.textSubtle}>{state.workspaceLoadError ? "r retry · P switch workspace · q quit" : "P switch workspace · q quit"}</text>
     </box>
+  )
+}
+
+function WorkspaceRefreshStatus() {
+  const { state } = useAppState()
+  const theme = useTheme()
+
+  return (
+    <text fg={state.workspaceLoadError ? theme.danger : theme.warning} wrapMode="none">
+      {state.workspaceLoadError ? `Workspace refresh failed: ${state.workspaceLoadError} · r retry` : "[refreshing] Updating Jira workspace..."}
+    </text>
   )
 }
 
@@ -647,15 +661,15 @@ function footerItems(focusedPane: string, route: string, stagedDiscardOpen: bool
   if (projectPickerMode === "remote-boards") return ["remote boards", "/ filter", "j/k choose", "enter switch", "r refresh boards", "h projects"]
   if (remoteApplyOpen) return ["remote write", "W final apply placeholder", "esc/q close"]
   if (stagedDiscardOpen) return ["discard staged", "j/k choose", "space mark", "enter discard", "esc/q close"]
-  if (focusedPane === "sidebar") return ["sidebar", "j/k choose", "enter/l open/toggle", "space filter", "P project", "q quit"]
+  if (focusedPane === "sidebar") return ["sidebar", "j/k choose", "enter/l open/toggle", "space filter", "P project", "R refresh", "q quit"]
   if (focusedPane === "inspector") return ["inspector", "j/k field", "e/enter edit", "ctrl-enter stage", "x delete", "X discard", "w render", "W Jira"]
   if (route === "issue-detail") return ["detail", "j/k line", "d/u half-page", "e edit body", "r refresh", "ctrl-enter stage", "W Jira"]
-  if (route === "workspace") return ["workspace", "j/k choose", "d/u page", "enter open", "/ filter", "S Jira search", "W Jira"]
-  if (route === "config") return ["config", "j/k choose", "d/u page", "h/l pane", "a add", "e rename", "c color", "W Jira"]
-  if (route === "active-sprint") return ["sprint", "j/k card", "h/l column", "enter open/new", "/ filter", "S Jira search", "W Jira"]
-  if (route === "kanban") return ["kanban", "j/k row", "h/l column", "enter open/new", "L load more", "S Jira search", "W Jira"]
-  if (route === "backlog") return ["backlog", "j/k row", "h/l group", "L load more", "/ filter", "S Jira search", "W Jira"]
-  return ["1 workspace", "2 sprint", "3 backlog", "4 kanban", "P project", "/ filter loaded", "q quit"]
+  if (route === "workspace") return ["workspace", "j/k choose", "d/u page", "enter open", "R refresh", "/ filter", "S Jira search", "W Jira"]
+  if (route === "config") return ["config", "j/k choose", "d/u page", "h/l pane", "a add", "e rename", "c color", "R refresh", "W Jira"]
+  if (route === "active-sprint") return ["sprint", "j/k card", "h/l column", "enter open/new", "R refresh", "/ filter", "S Jira search", "W Jira"]
+  if (route === "kanban") return ["kanban", "j/k row", "h/l column", "enter open/new", "R refresh", "L load more", "S Jira search", "W Jira"]
+  if (route === "backlog") return ["backlog", "j/k row", "h/l group", "R refresh", "L load more", "/ filter", "S Jira search", "W Jira"]
+  return ["1 workspace", "2 sprint", "3 backlog", "4 kanban", "P project", "R refresh", "/ filter loaded", "q quit"]
 }
 
 function runtimeEnvText(config: ReturnType<typeof useConfig>, jiraAuthReady = false, jiraProjectReady = false) {

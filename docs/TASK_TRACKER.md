@@ -43,9 +43,9 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [x] A3.2 Active sprint issue loading wired.
 - [x] A3.3 Bounded backlog issue loading.
 - [x] A3.4 Future sprint issue load-more.
-- [~] A4 Loader/state foundation for refresh/loading/error/stale-response handling.
-- [ ] A4.1 Same-workspace refresh keeps previous successful data visible on failure.
-- [ ] A4.2 Cross-workspace load failure cannot relabel old issues as the new workspace.
+- [x] A4 Loader/state foundation for refresh/loading/error/stale-response handling.
+- [x] A4.1 Same-workspace refresh keeps previous successful data visible on failure.
+- [x] A4.2 Cross-workspace load failure cannot relabel old issues as the new workspace.
 - [x] A5 Issue detail and comments loading with stale-response protection.
 - [x] A5.1 Current-route `r` refresh for selected issue detail.
 - [x] A5.5 Pagination/load-more API for backlog, future sprints, and board issues.

@@ -107,6 +107,7 @@ export function App() {
       { name: "search.open", run: () => (canRunGlobalShortcut() && state.route !== "config" ? appState.openSearch() : false) },
       { name: "search.remote-open", run: () => (canRunGlobalShortcut() && state.route !== "config" ? appState.openRemoteSearch() : false) },
       { name: "issue.refresh-detail", run: () => refreshSelectedIssueDetail() },
+      { name: "workspace.refresh", run: () => refreshWorkspace() },
       { name: "issue.load-more", run: () => loadMoreIssues() },
       { name: "focus.next", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(1)) },
       { name: "focus.previous", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(-1)) },
@@ -149,6 +150,7 @@ export function App() {
       { key: "/", cmd: "search.open", preventDefault: false },
       { key: { name: "s", shift: true }, cmd: "search.remote-open", preventDefault: false },
       { key: "r", cmd: "issue.refresh-detail", preventDefault: false },
+      { key: { name: "r", shift: true }, cmd: "workspace.refresh", preventDefault: false },
       { key: { name: "l", shift: true }, cmd: "issue.load-more", preventDefault: false },
       { key: "j", cmd: "staged-discard.down", preventDefault: false },
       { key: "down", cmd: "staged-discard.down", preventDefault: false },
@@ -418,6 +420,11 @@ export function App() {
     if (state.workspaceLoading) return false
     if (!canRunGlobalShortcut() || state.route !== "issue-detail") return false
     void appState.loadIssueDetail()
+  }
+
+  function refreshWorkspace() {
+    if (!canRunGlobalShortcut()) return false
+    appState.refreshWorkspace()
   }
 
   function loadMoreIssues() {

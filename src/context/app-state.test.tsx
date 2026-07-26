@@ -318,6 +318,73 @@ describe("app state project picker", () => {
     expect(appState.state.workspaceLoading).toBe(false)
   })
 
+  test("keeps loaded workspace data visible while refreshing and after refresh failure", async () => {
+    const refresh = deferred<ReturnType<typeof loadDevWorkspaceFixture>>()
+    const appState = createTestAppState({
+      async loadWorkspace() {
+        return refresh.promise
+      },
+    }, async () => undefined, undefined, true)
+    const originalTitle = appState.state.issues["PROJ-128"]?.title
+
+    appState.refreshWorkspace()
+    expect(appState.state.workspaceLoading).toBe(true)
+    expect(appState.state.issues["PROJ-128"]?.title).toBe(originalTitle)
+
+    refresh.reject(new Error("Jira timed out"))
+    await flushPromises()
+
+    expect(appState.state.workspaceLoading).toBe(false)
+    expect(appState.state.workspaceLoadError).toBe("Jira timed out")
+    expect(appState.state.issues["PROJ-128"]?.title).toBe(originalTitle)
+  })
+
+  test("replaces loaded workspace data only after a successful refresh", async () => {
+    const refresh = deferred<ReturnType<typeof loadDevWorkspaceFixture>>()
+    const appState = createTestAppState({
+      async loadWorkspace() {
+        return refresh.promise
+      },
+    }, async () => undefined, undefined, true)
+
+    appState.refreshWorkspace()
+    refresh.resolve({
+      ...loadDevWorkspaceFixture("PROJ"),
+      issues: {
+        ...loadDevWorkspaceFixture("PROJ").issues,
+        "PROJ-128": { ...loadDevWorkspaceFixture("PROJ").issues["PROJ-128"]!, title: "Fresh Jira summary" },
+      },
+    })
+    await flushPromises()
+
+    expect(appState.state.workspaceLoading).toBe(false)
+    expect(appState.state.workspaceLoadError).toBeUndefined()
+    expect(appState.state.issues["PROJ-128"]?.title).toBe("Fresh Jira summary")
+  })
+
+  test("keeps the active workspace when a project switch fails", async () => {
+    let loadCalls = 0
+    const appState = createTestAppState({
+      async loadWorkspace() {
+        loadCalls += 1
+        throw new Error("Selected board is unavailable")
+      },
+    })
+    const originalTitle = appState.state.issues["PROJ-128"]?.title
+
+    await appState.browseRemoteProjects()
+    appState.moveProjectPickerSelection(1)
+    await appState.selectProjectPickerItem()
+    await appState.selectProjectPickerItem()
+
+    expect(loadCalls).toBe(1)
+    expect(appState.state.project.key).toBe("PROJ")
+    expect(appState.state.board.id).toBe("dev-board-proj")
+    expect(appState.state.issues["PROJ-128"]?.title).toBe(originalTitle)
+    expect(appState.state.workspaceLoadError).toBe("Selected board is unavailable")
+    expect(appState.state.projectPicker.error).toBe("Selected board is unavailable")
+  })
+
   test("keeps slash filtering local and runs remote search separately", async () => {
     let searchCalls = 0
     const first = loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!
@@ -357,7 +424,7 @@ describe("app state project picker", () => {
   })
 })
 
-function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> = async () => undefined, initialWorkspaceSelection?: WorkspaceSelection) {
+function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> = async () => undefined, initialWorkspaceSelection?: WorkspaceSelection, initialWorkspaceReady = false) {
   let appState: AppStateContext | undefined
   let dispose: (() => void) | undefined
   createRoot((disposeRoot) => {
@@ -403,10 +470,12 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
       },
       ...overrides,
     }
+    const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    initialState.jiraProjectReady = initialWorkspaceReady
     createComponent(ToastProvider, {
       get children() {
         return createComponent(AppStateProvider, {
-          initialState: createInitialAppState(loadDevWorkspaceFixture("PROJ"), "dev"),
+          initialState,
           initialWorkspaceSelection,
           source,
           saveWorkspaceConfig,

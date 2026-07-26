@@ -368,7 +368,7 @@ Verification:
 
 ### A4. Project Selection And Workspace Loading Integration
 
-Status: in progress. Saved prod workspaces now load after the shell renders, with visible loading/failure state, retry, and request-ID protection against stale startup responses. Same-workspace refresh behavior is still pending.
+Status: implemented. Saved prod workspaces load after the shell renders, with visible loading/failure state, retry, request-ID protection against stale startup responses, and a non-blocking `R` current-workspace refresh.
 
 Implementation:
 
@@ -381,10 +381,11 @@ Implementation:
 - Block or confirm workspace switching when staged issue/config changes exist.
 - Render a local placeholder workspace first on prod startup; do not await Jira before rendering the shell.
 - Show an explicit loading panel while the selected workspace has no loaded issues, and retain it as an actionable retry panel on failure.
+- Keep the previously loaded workspace visible during `R` refresh; replace it only after a successful response and retain it with an inline actionable error on failure.
 
 Verification:
 
-- State tests for project switch success, project switch failure, same-workspace refresh preserving old data, cross-workspace stale data prevention, selected issue fallback, and staged-change switch confirmation.
+- State tests for startup/switch stale responses, project switch failure, same-workspace refresh success/failure, and staged-change switch confirmation.
 
 ### A5. Issue Detail Loading
 

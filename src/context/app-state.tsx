@@ -89,6 +89,7 @@ export type AppStateContext = {
   openRemoteIssueApply: () => void
   closeRemoteIssueApply: () => void
   confirmRemoteIssueApply: () => void
+  refreshWorkspace: () => void
   retryWorkspaceLoad: () => void
   startDetailBodyEdit: () => void
   updateDetailBodyEditValue: (value: string) => void
@@ -833,6 +834,10 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const counts = writePlanCounts(planJiraWrites(state))
       setState("remoteApplyOpen", false)
       toast.show(counts.planned || counts.blocked ? `Jira execution is not wired yet; ${counts.planned} planned, ${counts.blocked} blocked rows kept` : "No staged changes to write")
+    },
+    refreshWorkspace() {
+      if (state.workspaceLoading || !state.jiraProjectReady) return
+      void loadWorkspace({ project: state.project, board: state.board }, true)
     },
     retryWorkspaceLoad() {
       if (state.workspaceLoading || !state.workspaceLoadError) return
