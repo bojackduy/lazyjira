@@ -4,7 +4,7 @@ import { issueWithDraft } from "./issue-drafts"
 import { stagedChanges, type StagedChange } from "./staged-changes"
 
 export type JiraWritePlanStatus = "planned" | "blocked"
-export type JiraWriteOperation = "comment" | "field-update" | "transition" | "rank"
+export type JiraWriteOperation = "comment" | "field-update" | "transition" | "sprint-move" | "rank"
 
 export type JiraWritePlanItem = {
   id: string
@@ -22,6 +22,7 @@ export type JiraWritePlanItem = {
   fieldValue?: string
   fieldAccountId?: string
   transitionStatusId?: string
+  sprintId?: string
   rankTargetIssueKey?: string
   rankPosition?: "before" | "after"
 }
@@ -173,7 +174,20 @@ function planIssueEdit(state: AppState, change: Extract<StagedChange, { kind: "e
     }
   }
   if (change.fieldId === "sprintId") {
-    return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "POST", endpoint: "/rest/agile/1.0/sprint/{sprintId}/issue", blocker: "Sprint moves need exact target confirmation and Agile move endpoint wiring." })
+    const sprint = state.sprints.find((candidate) => candidate.id === change.value || candidate.name === change.value)
+    if (change.value && !sprint) return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "POST", endpoint: "/rest/agile/1.0/sprint/{sprintId}/issue", blocker: "Choose a loaded sprint or clear the field to move the issue to backlog." })
+    return {
+      id: change.id,
+      status: "planned",
+      issueKey: change.issueKey,
+      title,
+      detail,
+      method: "POST",
+      endpoint: sprint ? `/rest/agile/1.0/sprint/${sprint.id}/issue` : "/rest/agile/1.0/backlog/issue",
+      payloadPreview: `issues = [${change.issueKey}]`,
+      operation: "sprint-move",
+      sprintId: sprint?.id,
+    }
   }
   if (["storyPoints", "estimate", "epic", "feature", "space", "blocked"].includes(change.fieldId)) {
     return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "PUT", endpoint: `/rest/api/3/issue/${change.issueKey}`, blocker: "This field needs Jira custom field mapping before it can be written safely." })

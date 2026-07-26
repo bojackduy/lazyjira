@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueTransitions, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectRoleMembers, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
+import { fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueTransitions, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectRoleMembers, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
 import { discoverJiraIssueFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
@@ -203,6 +203,19 @@ describe("Jira discovery client", () => {
       expect(url).toBe("https://team.atlassian.net/rest/api/3/issue/PROJ-1/transitions")
       expect(init?.method).toBe("POST")
       expect(JSON.parse(String(init?.body))).toEqual({ transition: { id: "31" } })
+      return new Response(null, { status: 204 })
+    })
+  })
+
+  test("moves an issue to a sprint or the backlog", async () => {
+    await moveJiraIssueToSprint(auth, "PROJ-1", "7", async (url, init) => {
+      expect(url).toBe("https://team.atlassian.net/rest/agile/1.0/sprint/7/issue")
+      expect(init?.method).toBe("POST")
+      expect(JSON.parse(String(init?.body))).toEqual({ issues: ["PROJ-1"] })
+      return new Response(null, { status: 204 })
+    })
+    await moveJiraIssueToSprint(auth, "PROJ-1", undefined, async (url) => {
+      expect(url).toBe("https://team.atlassian.net/rest/agile/1.0/backlog/issue")
       return new Response(null, { status: 204 })
     })
   })

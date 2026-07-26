@@ -37,12 +37,13 @@ describe("Jira write plan", () => {
 
     const plan = planJiraWrites(state)
 
-    expect(writePlanCounts(plan)).toEqual({ planned: 1, blocked: 5 })
+    expect(writePlanCounts(plan)).toEqual({ planned: 2, blocked: 4 })
     expect(plan[0]).toMatchObject({ operation: "transition", transitionStatusId: "done", endpoint: "/rest/api/3/issue/PROJ-128/transitions" })
+    expect(plan[2]).toMatchObject({ operation: "sprint-move", sprintId: "sprint-25" })
     expect(plan.map((item) => item.blocker)).toEqual([
       undefined,
       "Select a Jira project member from the user picker.",
-      "Sprint moves need exact target confirmation and Agile move endpoint wiring.",
+      undefined,
       "This field needs Jira custom field mapping before it can be written safely.",
       "Remote delete is not approved yet.",
       "Board/status/type config writes are local-only until Jira admin metadata writes are scoped.",

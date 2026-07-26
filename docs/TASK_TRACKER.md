@@ -58,7 +58,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [~] A7.4 Assignee/reporter picker and account-ID execution. Reporter remains strict: project-role/group membership requires Jira admin permissions.
 - [x] A7.5 Backlog rank execution.
 - [~] A7.6 Per-issue transition execution. Apply-time transition-ID discovery is wired; the status picker still needs per-issue valid options.
-- [ ] A7.7 Sprint/backlog move execution.
+- [~] A7.7 Sprint/backlog move execution. Loaded sprint ID/name resolution and Agile move endpoints are wired; a dedicated target picker remains pending.
 - [ ] A7.8 Metadata-driven custom-field execution.
 - [ ] A7.9 Issue-type execution.
 - [ ] A7.10 Issue-link execution.

@@ -47,7 +47,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 ## Next Milestones
 
 - [~] A7.6 Transition execution resolves the valid Jira transition at apply time; per-issue status-picker options remain pending.
-- [ ] A7.7 Sprint/backlog move execution.
+- [~] A7.7 Sprint/backlog moves resolve loaded sprint IDs/names or the backlog at apply time; a dedicated target picker remains pending.
 - [ ] A7.8 Custom-field and issue-type metadata resolution.
 - [ ] A7.10 Issue links and A7.11 issue creation.
 - [ ] A7.12 Remote delete with an additional explicit confirmation.

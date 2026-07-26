@@ -958,6 +958,15 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
             else delete drafts[issueKey]
             setState("issueDrafts", reconcile(drafts))
           }
+          if (item.operation === "sprint-move") {
+            await props.source.moveIssueToSprint(issueKey, item.sprintId)
+            const draft = { ...(state.issueDrafts[issueKey] ?? {}) }
+            delete draft.sprintId
+            const drafts = { ...state.issueDrafts }
+            if (Object.keys(draft).length) drafts[issueKey] = draft
+            else delete drafts[issueKey]
+            setState("issueDrafts", reconcile(drafts))
+          }
           if (item.operation === "rank") {
             if (!item.rankTargetIssueKey || !item.rankPosition) continue
             await props.source.rankIssue(issueKey, item.rankTargetIssueKey, item.rankPosition)
