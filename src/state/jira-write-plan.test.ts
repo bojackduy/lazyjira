@@ -37,14 +37,15 @@ describe("Jira write plan", () => {
 
     const plan = planJiraWrites(state)
 
-    expect(writePlanCounts(plan)).toEqual({ planned: 2, blocked: 4 })
+    expect(writePlanCounts(plan)).toEqual({ planned: 3, blocked: 3 })
     expect(plan[0]).toMatchObject({ operation: "transition", transitionStatusId: "done", endpoint: "/rest/api/3/issue/PROJ-128/transitions" })
     expect(plan[2]).toMatchObject({ operation: "sprint-move", sprintId: "sprint-25" })
+    expect(plan[3]).toMatchObject({ operation: "discovered-field", discoveredField: "storyPoints", fieldValue: "8" })
     expect(plan.map((item) => item.blocker)).toEqual([
       undefined,
       "Select a Jira project member from the user picker.",
       undefined,
-      "This field needs Jira custom field mapping before it can be written safely.",
+      undefined,
       "Remote delete is not approved yet.",
       "Board/status/type config writes are local-only until Jira admin metadata writes are scoped.",
     ])

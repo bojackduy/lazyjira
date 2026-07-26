@@ -100,15 +100,15 @@ export type JiraTransition = {
   to?: { id?: string; name?: string }
 }
 
+export type JiraEditMetadata = {
+  fields?: Record<string, { allowedValues?: Array<{ id?: string; name?: string }> }>
+}
+
 export type JiraUser = {
   accountId?: string
   displayName?: string
 }
 
-type JiraProjectRoleActor = JiraUser & {
-  type?: string
-  actorGroup?: { groupId?: string; name?: string }
-}
 
 const jiraIssueFields = [
   "summary",
@@ -326,39 +326,13 @@ export async function moveJiraIssueToSprint(auth: JiraAuthConfig, issueKey: stri
   )
 }
 
+export async function fetchJiraIssueEditMetadata(auth: JiraAuthConfig, issueKey: string, fetchImpl: FetchLike = fetch): Promise<JiraEditMetadata> {
+  return jiraRequest<JiraEditMetadata>(auth, `/rest/api/3/issue/${encodeURIComponent(issueKey)}/editmeta`, { endpoint: `issue ${issueKey} edit metadata` }, fetchImpl)
+}
+
 export async function fetchAssignableUsers(auth: JiraAuthConfig, projectKey: string, issueKey: string, query: string, fetchImpl: FetchLike = fetch): Promise<JiraUser[]> {
   const params = new URLSearchParams({ project: projectKey, issueKey, query, maxResults: "50" })
   return jiraRequest<JiraUser[]>(auth, `/rest/api/3/user/assignable/search?${params}`, { endpoint: `assignable users for ${issueKey}` }, fetchImpl)
-}
-
-export async function fetchProjectRoleMembers(auth: JiraAuthConfig, projectKey: string, fetchImpl: FetchLike = fetch): Promise<JiraUser[]> {
-  const roles = await jiraRequest<Record<string, string>>(auth, `/rest/api/3/project/${encodeURIComponent(projectKey)}/role`, { endpoint: `project ${projectKey} roles` }, fetchImpl)
-  const actors = (await Promise.all(Object.values(roles).map(async (roleUrl) => {
-    const path = new URL(roleUrl).pathname
-    const role = await jiraRequest<{ actors?: JiraProjectRoleActor[] }>(auth, path, { endpoint: `project ${projectKey} role members` }, fetchImpl)
-    return role.actors ?? []
-  }))).flat()
-  const directUsers = actors.filter((actor) => actor.accountId)
-  const groupIds = [...new Set(actors.flatMap((actor) => actor.actorGroup?.groupId ? [actor.actorGroup.groupId] : []))]
-  const groupUsers = (await Promise.all(groupIds.map((groupId) => fetchJiraGroupMembers(auth, groupId, fetchImpl)))).flat()
-  return uniqueJiraUsers([...directUsers, ...groupUsers])
-}
-
-async function fetchJiraGroupMembers(auth: JiraAuthConfig, groupId: string, fetchImpl: FetchLike): Promise<JiraUser[]> {
-  const users: JiraUser[] = []
-  let startAt = 0
-  while (true) {
-    const page = await jiraRequest<{ values?: JiraUser[]; isLast?: boolean }>(auth, `/rest/api/3/group/member?groupId=${encodeURIComponent(groupId)}&startAt=${startAt}&maxResults=100`, { endpoint: `project role group ${groupId} members` }, fetchImpl)
-    const values = page.values ?? []
-    users.push(...values)
-    if (page.isLast || values.length < 100) return users
-    startAt += values.length
-  }
-}
-
-function uniqueJiraUsers(users: JiraUser[]) {
-  const seen = new Set<string>()
-  return users.filter((user) => !!user.accountId && !!user.displayName && !seen.has(user.accountId) && !!seen.add(user.accountId))
 }
 
 export async function fetchBoardBacklogIssues(auth: JiraAuthConfig, boardId: string, fetchImpl: FetchLike = fetch, customFields: string[] = [], maxResults = 100): Promise<JiraIssue[]> {

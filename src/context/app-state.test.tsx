@@ -313,7 +313,7 @@ describe("app state project picker", () => {
     expect(appState.state.rankDrafts["PROJ-128"]).toBeUndefined()
   })
 
-  test("stages a reporter selected from project members with its Jira account ID", async () => {
+  test("stages a reporter selected from assignable Jira users with its account ID", async () => {
     const appState = createTestAppState({
       async loadUserPicker() {
         return [{ accountId: "reporter-account", displayName: "Project reporter" }]
@@ -329,11 +329,11 @@ describe("app state project picker", () => {
     expect(appState.state.userDraftAccountIds["PROJ-128"]?.reporter).toBe("reporter-account")
   })
 
-  test("filters loaded reporter members locally without another source request", async () => {
-    let requests = 0
+  test("debounces reporter lookups like assignee lookups", async () => {
+    const queries: string[] = []
     const appState = createTestAppState({
-      async loadUserPicker() {
-        requests += 1
+      async loadUserPicker(fieldId, issueKey, projectKey, query) {
+        queries.push(query)
         return [
           { accountId: "reporter-1", displayName: "Duy" },
           { accountId: "reporter-2", displayName: "Mina" },
@@ -344,10 +344,23 @@ describe("app state project picker", () => {
     appState.moveInspectorSelection(5)
     appState.startInspectorEdit()
     await flushPromises()
+    appState.updateInspectorEditValue("M")
     appState.updateInspectorEditValue("Mina")
 
-    expect(requests).toBe(1)
+    await Bun.sleep(300)
+    expect(queries).toEqual(["", "Mina"])
     expect(appState.state.inspectorUserPicker?.options).toEqual([{ accountId: "reporter-2", displayName: "Mina" }])
+  })
+
+  test("clears picker state when cancelling a user edit", async () => {
+    const appState = createTestAppState()
+
+    appState.moveInspectorSelection(4)
+    appState.startInspectorEdit()
+    appState.cancelInspectorEdit()
+
+    expect(appState.state.inspectorEditingFieldId).toBeUndefined()
+    expect(appState.state.inspectorUserPicker).toBeUndefined()
   })
 
   test("debounces assignable-user lookups and moves the picker selection", async () => {
@@ -601,6 +614,12 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
         throw new Error("Remote Jira writes are unavailable in dev runtime")
       },
       async moveIssueToSprint() {
+        throw new Error("Remote Jira writes are unavailable in dev runtime")
+      },
+      async updateDiscoveredField() {
+        throw new Error("Remote Jira writes are unavailable in dev runtime")
+      },
+      async updateIssueType() {
         throw new Error("Remote Jira writes are unavailable in dev runtime")
       },
       async rankIssue() {

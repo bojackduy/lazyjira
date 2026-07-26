@@ -111,6 +111,7 @@ export type AppStateContext = {
   setActiveSprintGroupBy: (groupBy: BoardGroupBy) => void
   setKanbanGroupBy: (groupBy: BoardGroupBy) => void
   setBacklogGroupBy: (groupBy: BacklogGroupBy) => void
+  setSelectedBacklogGroup: (groupId: string) => void
   setActiveSprintStatusOffset: (offset: number) => void
   setKanbanStatusOffset: (offset: number) => void
 }
@@ -254,6 +255,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("stagedDiscardSelections", [])
     setState("activeSprintStatusOffset", 0)
     setState("kanbanStatusOffset", 0)
+    setState("selectedBacklogGroupId", workspace.activeSprintId || "backlog")
   }
 
   async function runRemoteSearch(query: string, append: boolean) {
@@ -317,13 +319,13 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     try {
       const options = await props.source.loadUserPicker(fieldId, issueKey, state.project.key, query)
       const picker = state.inspectorUserPicker
-      if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || (fieldId === "assignee" && (picker.query !== query || requestId !== userPickerRequestId))) return
+      if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || picker.query !== query || requestId !== userPickerRequestId) return
       const filtered = filterJiraUsers(options, picker.query)
       const currentIndex = Math.max(0, filtered.findIndex((user) => user.displayName === state.inspectorEditValue))
       setState("inspectorUserPicker", { ...picker, allOptions: options, options: filtered, selectedIndex: currentIndex, loading: false, error: undefined })
     } catch (error) {
       const picker = state.inspectorUserPicker
-      if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || (fieldId === "assignee" && (picker.query !== query || requestId !== userPickerRequestId))) return
+      if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || picker.query !== query || requestId !== userPickerRequestId) return
       setState("inspectorUserPicker", { ...picker, options: [], selectedIndex: 0, loading: false, error: error instanceof Error ? error.message : String(error) })
     }
   }
@@ -825,12 +827,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const picker = state.inspectorUserPicker
       if (picker) {
         setState("inspectorUserPicker", "query", value)
-        if (picker.fieldId === "reporter" && picker.allOptions.length) {
-          setState("inspectorUserPicker", { ...picker, query: value, options: filterJiraUsers(picker.allOptions, value), selectedIndex: 0, loading: false, error: undefined })
-          return
-        }
         setState("inspectorUserPicker", "loading", true)
-        scheduleInspectorUserPicker(picker.fieldId, picker.issueKey, value, picker.fieldId === "assignee" ? 250 : 0)
+        scheduleInspectorUserPicker(picker.fieldId, picker.issueKey, value, 250)
       }
     },
     commitInspectorEdit() {
@@ -841,7 +839,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         const picker = state.inspectorUserPicker
         const user = picker?.options[picker.selectedIndex]
         if (!picker || !user) {
-          toast.show("Select a Jira user from the project member list")
+          toast.show("Select a Jira user from the assignable-user list")
           return
         }
         setState("issueDrafts", { ...state.issueDrafts, [issueKey]: { ...(state.issueDrafts[issueKey] ?? {}), [fieldId]: user.displayName } })
@@ -857,8 +855,11 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("inspectorUserPicker", undefined)
     },
     cancelInspectorEdit() {
+      if (userPickerTimer) clearTimeout(userPickerTimer)
+      userPickerRequestId += 1
       setState("inspectorEditingFieldId", undefined)
       setState("inspectorEditValue", "")
+      setState("inspectorUserPicker", undefined)
     },
     discardInspectorFieldChange() {
       const issueKey = state.selectedIssueKey
@@ -962,6 +963,26 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
             await props.source.moveIssueToSprint(issueKey, item.sprintId)
             const draft = { ...(state.issueDrafts[issueKey] ?? {}) }
             delete draft.sprintId
+            const drafts = { ...state.issueDrafts }
+            if (Object.keys(draft).length) drafts[issueKey] = draft
+            else delete drafts[issueKey]
+            setState("issueDrafts", reconcile(drafts))
+          }
+          if (item.operation === "discovered-field") {
+            if (!item.discoveredField || item.fieldValue === undefined) continue
+            await props.source.updateDiscoveredField(issueKey, item.discoveredField, item.fieldValue)
+            const draft = { ...(state.issueDrafts[issueKey] ?? {}) }
+            delete draft[item.discoveredField]
+            const drafts = { ...state.issueDrafts }
+            if (Object.keys(draft).length) drafts[issueKey] = draft
+            else delete drafts[issueKey]
+            setState("issueDrafts", reconcile(drafts))
+          }
+          if (item.operation === "issue-type") {
+            if (!item.issueType) continue
+            await props.source.updateIssueType(issueKey, item.issueType)
+            const draft = { ...(state.issueDrafts[issueKey] ?? {}) }
+            delete draft.type
             const drafts = { ...state.issueDrafts }
             if (Object.keys(draft).length) drafts[issueKey] = draft
             else delete drafts[issueKey]
@@ -1184,6 +1205,9 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     setBacklogGroupBy(groupBy) {
       setState("backlogGroupBy", groupBy)
+    },
+    setSelectedBacklogGroup(groupId) {
+      setState("selectedBacklogGroupId", groupId)
     },
     setActiveSprintStatusOffset(offset) {
       setState("activeSprintStatusOffset", clampOffset(offset, configuredStatuses(state).length))

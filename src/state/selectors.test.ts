@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { loadDevWorkspaceState } from "./dev"
-import { activeSprintIssues, boardStatusWindowSize, visibleStatusesForBoard } from "./selectors"
+import { activeSprintIssues, boardStatusWindowSize, groupBacklogIssues, visibleStatusesForBoard } from "./selectors"
 
 describe("board selectors", () => {
   test("shows all statuses when the board is wide enough", () => {
@@ -33,5 +33,12 @@ describe("board selectors", () => {
 
     expect(renderedIssue?.statusId).toBe("code-review")
     expect(state.issues["PROJ-128"]?.statusId).toBe("blocked")
+  })
+
+  test("keeps empty sprint and backlog groups visible for backlog navigation", () => {
+    const state = loadDevWorkspaceState()
+    state.issues = {}
+
+    expect(groupBacklogIssues(state, "sprint").map((group) => group.id)).toEqual([...state.sprints.map((sprint) => sprint.id), "backlog"])
   })
 })

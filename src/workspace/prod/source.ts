@@ -1,5 +1,5 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectRoleMembers, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
+import { fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
 import { discoverJiraIssueFieldIds, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
 import type { IssuePageState, SprintSummary } from "../../state/app-state"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
@@ -19,19 +19,10 @@ const prodPlaceholderIssueTypes = [
 
 export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConfig | undefined> = loadJiraAuthConfig, fetchImpl: FetchLike = fetch): WorkspaceSource {
   let cachedFieldIds: JiraIssueFieldIds | undefined
-  const projectMemberCache = new Map<string, Awaited<ReturnType<typeof fetchProjectRoleMembers>>>()
 
   async function issueFieldIds(auth: JiraAuthConfig) {
     cachedFieldIds ??= discoverJiraIssueFieldIds(await fetchJiraFields(auth, fetchImpl))
     return cachedFieldIds
-  }
-
-  async function projectMembers(auth: JiraAuthConfig, projectKey: string) {
-    const cached = projectMemberCache.get(projectKey)
-    if (cached) return cached
-    const members = await fetchProjectRoleMembers(auth, projectKey, fetchImpl)
-    projectMemberCache.set(projectKey, members)
-    return members
   }
 
   return {
@@ -118,14 +109,28 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     async moveIssueToSprint(issueKey, sprintId) {
       await moveJiraIssueToSprint(await requireJiraAuth(authLoader), issueKey, sprintId, fetchImpl)
     },
+    async updateDiscoveredField(issueKey, field, value) {
+      const auth = await requireJiraAuth(authLoader)
+      const fieldIds = await issueFieldIds(auth)
+      const fieldId = field === "storyPoints" ? fieldIds.storyPoints : fieldIds.storyPointEstimate
+      if (!fieldId) throw new Error(`Jira does not expose a ${field === "storyPoints" ? "story points" : "estimate"} field for this project.`)
+      const number = value.trim() ? Number(value) : null
+      if (number !== null && !Number.isFinite(number)) throw new Error(`${field === "storyPoints" ? "Story points" : "Estimate"} must be a number.`)
+      await updateJiraIssue(auth, issueKey, { [fieldId]: number }, fetchImpl)
+    },
+    async updateIssueType(issueKey, type) {
+      const auth = await requireJiraAuth(authLoader)
+      const types = (await fetchJiraIssueEditMetadata(auth, issueKey, fetchImpl)).fields?.issuetype?.allowedValues ?? []
+      const match = types.find((candidate) => candidate.id === type || candidate.name === type)
+      if (!match?.id) throw new Error(`Jira does not allow changing ${issueKey} to issue type ${type}.`)
+      await updateJiraIssue(auth, issueKey, { issuetype: { id: match.id } }, fetchImpl)
+    },
     async rankIssue(issueKey, targetIssueKey, position) {
       await rankJiraIssue(await requireJiraAuth(authLoader), issueKey, targetIssueKey, position, fetchImpl)
     },
     async loadUserPicker(fieldId, issueKey, projectKey, query) {
       const auth = await requireJiraAuth(authLoader)
-      const users = fieldId === "assignee"
-        ? await fetchAssignableUsers(auth, projectKey, issueKey, query, fetchImpl)
-        : await projectMembers(auth, projectKey)
+      const users = await fetchAssignableUsers(auth, projectKey, issueKey, query, fetchImpl)
       const normalizedQuery = query.trim().toLowerCase()
       return users
         .filter((user) => user.accountId && user.displayName && (!normalizedQuery || user.displayName.toLowerCase().includes(normalizedQuery)))

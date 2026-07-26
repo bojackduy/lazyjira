@@ -34,7 +34,7 @@ export function BacklogRoute() {
 
   createEffect(() => {
     if (state.route !== "backlog") return
-    scrollbox?.scrollChildIntoView(`issue-${state.selectedIssueKey}`)
+    scrollbox?.scrollChildIntoView(`backlog-group-${state.selectedBacklogGroupId}`)
   })
 
   function scrollPage(delta: 1 | -1) {
@@ -67,7 +67,7 @@ export function BacklogRoute() {
         >
           <For each={groups()}>
             {(group) => (
-              <box borderStyle="rounded" borderColor={theme.border} padding={1} flexDirection="column" gap={1} marginBottom={1} width="100%">
+              <box id={`backlog-group-${group.id}`} borderStyle="rounded" borderColor={state.selectedBacklogGroupId === group.id ? theme.borderActive : theme.border} backgroundColor={state.selectedBacklogGroupId === group.id ? theme.panel : undefined} padding={1} flexDirection="column" gap={1} marginBottom={1} width="100%">
                 <box flexDirection="row" justifyContent="space-between">
                   <text attributes={TextAttributes.BOLD} fg={theme.text}>{group.label}</text>
                   <text fg={theme.textSubtle}>{sectionPoints(group.issueKeys)} pts · {group.issueKeys.length} issues</text>
@@ -78,6 +78,9 @@ export function BacklogRoute() {
                     return issue ? <BacklogRow issue={issue} selected={state.selectedIssueKey === issue.key} compact={compact()} /> : null
                   }}
                 </For>
+                <Show when={!group.issueKeys.length}>
+                  <text fg={theme.textMuted}>No loaded issues in this group.</text>
+                </Show>
                 <Show when={state.backlogGroupBy === "sprint"}>
                   <IssuePageLine sourceId={backlogGroupSourceId(group.id)} />
                 </Show>

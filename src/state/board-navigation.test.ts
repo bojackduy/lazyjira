@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { AppState, IssueSummary, StatusDefinition } from "./app-state"
 import { boardCellIssueKeys, boardCellItems, boardIssueKeyAtLocation, boardItemAtLocation, firstBoardLocation, nextKanbanHorizontalLocation, selectedBoardLocation } from "./board-navigation"
+import { boardView } from "./board-view"
 import { loadDevWorkspaceState } from "./dev"
 
 const statuses: StatusDefinition[] = [
@@ -61,6 +62,13 @@ describe("board navigation", () => {
 
     expect(boardCellIssueKeys(state, "active-sprint", 0, 4)).not.toContain("PROJ-128")
     expect(boardIssueKeyAtLocation(state, "active-sprint", { groupIndex: 0, statusIndex: 2, itemIndex: 0 })).toBe("PROJ-128")
+  })
+
+  test("builds each Kanban group and cell once for rendering", () => {
+    const view = boardView(sparseKanbanState(), "kanban")
+
+    expect(view.groups.map((group) => group.label)).toEqual(["Group 1", "Group 2", "Group 3"])
+    expect(view.cells[1]?.[1]).toEqual([{ kind: "issue", issueKey: "B" }, { kind: "create" }])
   })
 })
 

@@ -300,6 +300,7 @@ export type AppState = {
   activeSprintGroupBy: BoardGroupBy
   kanbanGroupBy: BoardGroupBy
   backlogGroupBy: BacklogGroupBy
+  selectedBacklogGroupId: string
   activeSprintStatusOffset: number
   kanbanStatusOffset: number
   selectedIssueKey: string

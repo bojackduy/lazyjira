@@ -6,17 +6,23 @@ import { boardGroupsForMode } from "./selectors"
 export type BoardCellItem = { kind: "issue"; issueKey: string } | { kind: "create" }
 
 export function boardCellIssueKeys(state: AppState, mode: BoardMode, groupIndex: number, statusIndex: number) {
-  const group = boardGroupsForMode(state, mode)[groupIndex]
-  const status = configuredStatuses(state)[statusIndex]
+  return boardCellIssueKeysFor(boardGroupsForMode(state, mode), configuredStatuses(state), state, groupIndex, statusIndex)
+}
+
+function boardCellIssueKeysFor(groups: ReturnType<typeof boardGroupsForMode>, statuses: ReturnType<typeof configuredStatuses>, state: AppState, groupIndex: number, statusIndex: number) {
+  const group = groups[groupIndex]
+  const status = statuses[statusIndex]
   if (!group || !status) return []
   return group.issueKeys.filter((issueKey) => issueByKey(state, issueKey)?.statusId === status.id)
 }
 
 export function boardCellItems(state: AppState, mode: BoardMode, groupIndex: number, statusIndex: number): BoardCellItem[] {
-  const group = boardGroupsForMode(state, mode)[groupIndex]
-  const status = configuredStatuses(state)[statusIndex]
+  const groups = boardGroupsForMode(state, mode)
+  const statuses = configuredStatuses(state)
+  const group = groups[groupIndex]
+  const status = statuses[statusIndex]
   if (!group || !status) return []
-  return [...boardCellIssueKeys(state, mode, groupIndex, statusIndex).map((issueKey) => ({ kind: "issue" as const, issueKey })), { kind: "create" }]
+  return [...boardCellIssueKeysFor(groups, statuses, state, groupIndex, statusIndex).map((issueKey) => ({ kind: "issue" as const, issueKey })), { kind: "create" }]
 }
 
 export function boardItemAtLocation(state: AppState, mode: BoardMode, location: BoardLocation): BoardCellItem | undefined {
@@ -33,7 +39,7 @@ export function selectedBoardLocation(state: AppState, mode: BoardMode, issueKey
   const statuses = configuredStatuses(state)
   for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
     for (let statusIndex = 0; statusIndex < statuses.length; statusIndex++) {
-      const issueKeys = boardCellIssueKeys(state, mode, groupIndex, statusIndex)
+      const issueKeys = boardCellIssueKeysFor(groups, statuses, state, groupIndex, statusIndex)
       const itemIndex = issueKeys.indexOf(issueKey)
       if (itemIndex !== -1) return { groupIndex, statusIndex, itemIndex }
     }
@@ -46,7 +52,7 @@ export function firstBoardLocation(state: AppState, mode: BoardMode): BoardLocat
   const statuses = configuredStatuses(state)
   for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
     for (let statusIndex = 0; statusIndex < statuses.length; statusIndex++) {
-      if (boardCellItems(state, mode, groupIndex, statusIndex).length) return { groupIndex, statusIndex, itemIndex: 0 }
+      if (groups[groupIndex] && statuses[statusIndex]) return { groupIndex, statusIndex, itemIndex: 0 }
     }
   }
   return

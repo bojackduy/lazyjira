@@ -2,7 +2,6 @@ import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, S
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { issueWithDraft } from "./issue-drafts"
 import { matchesIssueSearch } from "./issue-search"
-import { backlogIssuePageSourceId, issuePageCanLoadMore, sprintIssuePageSourceId } from "./issue-pages"
 import { defaultIssueTypeColor, statusColorForCategory } from "./metadata-colors"
 
 export const boardGroupModes: { id: BoardGroupBy; label: string }[] = [
@@ -148,11 +147,7 @@ export function groupBacklogIssues(state: AppState, groupBy: BacklogGroupBy): Is
     })
   }
   groups.push({ id: "backlog", label: "Backlog", issueKeys: issues.filter((issue) => !issue.sprintId).map((issue) => issue.key) })
-  return groups.filter((group) => group.issueKeys.length > 0 || issuePageCanLoadMore(state.issuePageStateBySource[backlogGroupSourceId(group.id)]))
-}
-
-function backlogGroupSourceId(groupId: string) {
-  return groupId === "backlog" ? backlogIssuePageSourceId : sprintIssuePageSourceId(groupId)
+  return groups
 }
 
 export function nextBoardGroupBy(current: BoardGroupBy) {

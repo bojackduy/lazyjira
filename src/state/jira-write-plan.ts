@@ -4,7 +4,7 @@ import { issueWithDraft } from "./issue-drafts"
 import { stagedChanges, type StagedChange } from "./staged-changes"
 
 export type JiraWritePlanStatus = "planned" | "blocked"
-export type JiraWriteOperation = "comment" | "field-update" | "transition" | "sprint-move" | "rank"
+export type JiraWriteOperation = "comment" | "field-update" | "transition" | "sprint-move" | "discovered-field" | "issue-type" | "rank"
 
 export type JiraWritePlanItem = {
   id: string
@@ -23,6 +23,8 @@ export type JiraWritePlanItem = {
   fieldAccountId?: string
   transitionStatusId?: string
   sprintId?: string
+  discoveredField?: "storyPoints" | "estimate"
+  issueType?: string
   rankTargetIssueKey?: string
   rankPosition?: "before" | "after"
 }
@@ -189,11 +191,38 @@ function planIssueEdit(state: AppState, change: Extract<StagedChange, { kind: "e
       sprintId: sprint?.id,
     }
   }
-  if (["storyPoints", "estimate", "epic", "feature", "space", "blocked"].includes(change.fieldId)) {
+  if (change.fieldId === "storyPoints" || change.fieldId === "estimate") {
+    if (change.value.trim() && !Number.isFinite(Number(change.value))) return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "PUT", endpoint: `/rest/api/3/issue/${change.issueKey}`, blocker: `${change.label} must be a number.` })
+    return {
+      id: change.id,
+      status: "planned",
+      issueKey: change.issueKey,
+      title,
+      detail,
+      method: "PUT",
+      endpoint: `/rest/api/3/issue/${change.issueKey}`,
+      payloadPreview: `${change.fieldId} = ${change.value || "empty"}`,
+      operation: "discovered-field",
+      discoveredField: change.fieldId,
+      fieldValue: change.value,
+    }
+  }
+  if (["epic", "feature", "space", "blocked"].includes(change.fieldId)) {
     return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "PUT", endpoint: `/rest/api/3/issue/${change.issueKey}`, blocker: "This field needs Jira custom field mapping before it can be written safely." })
   }
   if (change.fieldId === "type") {
-    return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "PUT", endpoint: `/rest/api/3/issue/${change.issueKey}`, blocker: "Issue type writes need create/edit metadata and Jira issue type IDs." })
+    return {
+      id: change.id,
+      status: "planned",
+      issueKey: change.issueKey,
+      title,
+      detail,
+      method: "PUT",
+      endpoint: `/rest/api/3/issue/${change.issueKey}`,
+      payloadPreview: `issuetype = ${change.value}`,
+      operation: "issue-type",
+      issueType: change.value,
+    }
   }
   if (change.fieldId === "links") {
     return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "POST", endpoint: "/rest/api/3/issueLink", blocker: "Issue link writes need link type and direction modeling." })

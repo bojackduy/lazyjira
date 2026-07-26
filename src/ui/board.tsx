@@ -1,18 +1,18 @@
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, For, Show } from "solid-js"
+import { createEffect, createMemo, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { BoardLocation, IssuePageState, IssueSummary } from "../state/app-state"
 import type { BoardCellItem } from "../state/board-navigation"
-import { boardCellItems, selectedBoardItemLocation } from "../state/board-navigation"
+import { selectedBoardItemLocation } from "../state/board-navigation"
+import { boardView } from "../state/board-view"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
 import { boardIssuePageSourceId, loadedIssueCount } from "../state/issue-pages"
 import {
   activeSprint,
-  boardGroupsForMode,
   boardGroupByForMode,
   boardStatusOffsetForMode,
   boardStatusWindowSize,
@@ -28,8 +28,10 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
   const groupBy = () => boardGroupByForMode(state, props.mode)
-  const groups = () => boardGroupsForMode(state, props.mode)
+  const board = createMemo(() => boardView(state, props.mode))
+  const groups = () => board().groups
   const visibleStatuses = () => visibleStatusesForBoard(state, props.mode, dimensions().width)
+  const selectedLocation = createMemo(() => selectedBoardItemLocation(state, props.mode))
   const statusOffset = () => boardStatusOffsetForMode(state, props.mode)
   const statusWindowSize = () => boardStatusWindowSize(dimensions().width, configuredStatuses(state).length)
   const displayedStatusStart = () => Math.min(statusOffset(), Math.max(0, configuredStatuses(state).length - statusWindowSize())) + 1
@@ -66,10 +68,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   }
 
   function rowsForGroup(groupIndex: number) {
-    const columns = visibleStatuses().map((status) => {
-      const statusIndex = configuredStatuses(state).findIndex((candidate) => candidate.id === status.id)
-      return boardCellItems(state, props.mode, groupIndex, statusIndex)
-    })
+    const columns = visibleStatuses().map((status) => board().cells[groupIndex]?.[board().statuses.findIndex((candidate) => candidate.id === status.id)] ?? [])
     const rowCount = Math.max(1, ...columns.map((column) => column.length))
     return Array.from({ length: rowCount }, (_, rowIndex) => columns.map((column) => column[rowIndex]))
   }
@@ -119,8 +118,8 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
                   <box flexDirection="row" gap={1} flexShrink={0} paddingRight={1}>
                     <For each={row}>
                       {(item, statusWindowIndex) => {
-                        const location = { groupIndex: groupIndex(), statusIndex: configuredStatuses(state).findIndex((status) => status.id === visibleStatuses()[statusWindowIndex()]?.id), itemIndex: rowIndex() }
-                        return <IssueCell item={item} location={location} mode={props.mode} selected={sameBoardLocation(selectedBoardItemLocation(state, props.mode), location)} />
+                        const location = { groupIndex: groupIndex(), statusIndex: board().statuses.findIndex((status) => status.id === visibleStatuses()[statusWindowIndex()]?.id), itemIndex: rowIndex() }
+                        return <IssueCell item={item} location={location} mode={props.mode} selected={sameBoardLocation(selectedLocation(), location)} />
                       }}
                     </For>
                   </box>

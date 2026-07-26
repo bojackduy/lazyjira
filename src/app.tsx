@@ -473,6 +473,10 @@ export function App() {
   function loadMoreSourceId() {
     if (state.route === "kanban") return boardIssuePageSourceId
     if (state.route !== "backlog") return undefined
+    if (state.backlogGroupBy === "sprint") {
+      const focusedSourceId = state.selectedBacklogGroupId === "backlog" ? backlogIssuePageSourceId : sprintIssuePageSourceId(state.selectedBacklogGroupId)
+      if (issuePageCanLoadMore(state.issuePageStateBySource[focusedSourceId])) return focusedSourceId
+    }
     const selectedIssue = issueByKey(state, state.selectedIssueKey)
     const selectedSourceId = selectedIssue?.sprintId ? sprintIssuePageSourceId(selectedIssue.sprintId) : backlogIssuePageSourceId
     if (issuePageCanLoadMore(state.issuePageStateBySource[selectedSourceId])) return selectedSourceId
@@ -566,7 +570,9 @@ export function App() {
   }
 
   function moveBacklogSelection(delta: number) {
-    const keys = groupBacklogIssues(state, state.backlogGroupBy).flatMap((group) => group.issueKeys)
+    const groups = groupBacklogIssues(state, state.backlogGroupBy)
+    const focusedGroup = groups.find((group) => group.id === state.selectedBacklogGroupId)
+    const keys = focusedGroup?.issueKeys ?? groups.flatMap((group) => group.issueKeys)
     if (!keys.length) return
     const currentIndex = keys.indexOf(state.selectedIssueKey)
     const startIndex = currentIndex === -1 ? 0 : currentIndex
@@ -576,11 +582,10 @@ export function App() {
   function moveBacklogGroup(delta: number) {
     const groups = groupBacklogIssues(state, state.backlogGroupBy)
     if (!groups.length) return
-    const currentGroupIndex = Math.max(
-      0,
-      groups.findIndex((group) => group.issueKeys.includes(state.selectedIssueKey)),
-    )
+    const currentGroupIndex = Math.max(0, groups.findIndex((group) => group.id === state.selectedBacklogGroupId))
     const nextGroup = groups[(currentGroupIndex + delta + groups.length) % groups.length]
+    if (!nextGroup) return
+    appState.setSelectedBacklogGroup(nextGroup.id)
     const firstIssueKey = nextGroup?.issueKeys[0]
     if (firstIssueKey) appState.selectIssue(firstIssueKey)
   }
