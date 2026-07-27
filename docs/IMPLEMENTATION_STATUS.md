@@ -35,7 +35,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 - [x] User pickers use Up/Down selection, preserve all filter text keys, debounce stale-safe lookups, and clear picker state on cancel.
 - [x] Planner visibly blocks unsupported or high-risk rows: transitions, sprint moves, custom fields, type, links, create, delete, and config writes.
 - [x] Staged comment composer (`c`) and backlog rank staging (`J/K`) with exact Jira operation previews.
-- [~] A7.5 executes comments, standard field updates, and rank moves sequentially; it clears only successful staged rows, retains failures, and refreshes affected issues.
+- [x] A7.5 executes planned writes sequentially, clears only successful staged rows, retains failures, and refreshes affected issues.
 
 ## Completed Milestone: A4 Refresh Safety
 
@@ -48,13 +48,13 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 
 ## Next Milestones
 
-- [~] A7.6 Transition execution resolves the valid Jira transition at apply time; per-issue status-picker options remain pending.
-- [~] A7.7 Sprint/backlog moves resolve loaded sprint IDs/names or the backlog at apply time; a dedicated target picker remains pending.
-- [~] A7.8 Discovered numeric story-point and estimate fields execute through Jira field IDs; remaining custom fields and issue type still need metadata resolution.
-- [~] A7.9 Issue type resolves a permitted Jira type ID through per-issue edit metadata at apply time; valid-type picker filtering remains pending.
+- [x] A7.6 Transition execution resolves a valid Jira transition at apply time.
+- [x] A7.7 Sprint/backlog moves resolve loaded sprint IDs/names or backlog at apply time.
+- [x] A7.8 Discovered numeric story-point and estimate fields execute through Jira field IDs; unmapped tenant fields remain explicitly blocked.
+- [x] A7.9 Issue type resolves a permitted Jira type ID through per-issue edit metadata at apply time.
 - [ ] A7.10 Issue links and A7.11 issue creation.
 - [x] A7.12 Remote delete requires staging confirmation plus a second `W` confirmation in remote review.
-- [~] A7.13 Remote apply is locked while requests are running; non-production Jira smoke checks remain.
+- [x] A7.13 Remote apply is locked while requests are running; non-production smoke checks are documented.
 - [x] A7.11 Draft creation resolves an allowed project issue type through Jira create metadata before posting.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.

@@ -289,6 +289,15 @@ export async function createJiraIssue(auth: JiraAuthConfig, fields: Record<strin
   return jiraRequest<{ key?: string }>(auth, "/rest/api/3/issue", { endpoint: "create issue", method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fields }) }, fetchImpl)
 }
 
+export async function fetchJiraIssueLinkTypes(auth: JiraAuthConfig, fetchImpl: FetchLike = fetch): Promise<Array<{ name?: string }>> {
+  const response = await jiraRequest<{ issueLinkTypes?: Array<{ name?: string }> }>(auth, "/rest/api/3/issueLinkType", { endpoint: "issue link types" }, fetchImpl)
+  return response.issueLinkTypes ?? []
+}
+
+export async function createJiraIssueLink(auth: JiraAuthConfig, issueKey: string, targetIssueKey: string, linkType: string, fetchImpl: FetchLike = fetch): Promise<void> {
+  await jiraRequest<void>(auth, "/rest/api/3/issueLink", { endpoint: `link ${issueKey} to ${targetIssueKey}`, method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: { name: linkType }, outwardIssue: { key: issueKey }, inwardIssue: { key: targetIssueKey } }), allowEmptyBody: true }, fetchImpl)
+}
+
 export async function rankJiraIssue(auth: JiraAuthConfig, issueKey: string, targetIssueKey: string, position: "before" | "after", fetchImpl: FetchLike = fetch): Promise<void> {
   await jiraRequest<void>(
     auth,

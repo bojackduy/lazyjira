@@ -4,7 +4,7 @@ import { issueWithDraft } from "./issue-drafts"
 import { stagedChanges, type StagedChange } from "./staged-changes"
 
 export type JiraWritePlanStatus = "planned" | "blocked"
-export type JiraWriteOperation = "create" | "comment" | "field-update" | "transition" | "sprint-move" | "discovered-field" | "issue-type" | "delete" | "rank"
+export type JiraWriteOperation = "create" | "comment" | "field-update" | "transition" | "sprint-move" | "discovered-field" | "issue-type" | "link" | "delete" | "rank"
 
 export type JiraWritePlanItem = {
   id: string
@@ -25,6 +25,7 @@ export type JiraWritePlanItem = {
   sprintId?: string
   discoveredField?: "storyPoints" | "estimate"
   issueType?: string
+  linkTargetKeys?: string[]
   rankTargetIssueKey?: string
   rankPosition?: "before" | "after"
 }
@@ -227,7 +228,12 @@ function planIssueEdit(state: AppState, change: Extract<StagedChange, { kind: "e
     }
   }
   if (change.fieldId === "links") {
-    return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "POST", endpoint: "/rest/api/3/issueLink", blocker: "Issue link writes need link type and direction modeling." })
+    const requested = change.value.split(",").map((key) => key.trim()).filter(Boolean)
+    const targetKeys = requested.filter((key) => !issue.links.includes(key))
+    const removed = issue.links.filter((key) => !requested.includes(key))
+    if (removed.length) return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "POST", endpoint: "/rest/api/3/issueLink", blocker: "Removing Jira links is not supported until stored link IDs are available." })
+    if (!targetKeys.length) return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, blocker: "No new Jira issue links to create." })
+    return { id: change.id, status: "planned", issueKey: change.issueKey, title, detail, method: "POST", endpoint: "/rest/api/3/issueLink", payloadPreview: `Relates: ${targetKeys.join(", ")}`, operation: "link", linkTargetKeys: targetKeys }
   }
 
   const jiraField = jiraFieldForEditable(change.fieldId)

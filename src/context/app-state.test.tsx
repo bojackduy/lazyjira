@@ -648,6 +648,9 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
       async createIssue() {
         throw new Error("Remote Jira writes are unavailable in dev runtime")
       },
+      async createIssueLinks() {
+        throw new Error("Remote Jira writes are unavailable in dev runtime")
+      },
       async rankIssue() {
         throw new Error("Remote Jira writes are unavailable in dev runtime")
       },

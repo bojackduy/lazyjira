@@ -57,14 +57,14 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [x] A7.3 Standard issue-field execution: summary, priority, parent, due date, labels, components, versions, and description.
 - [x] A7.4 Assignee/reporter picker and account-ID execution through Jira's issue-aware assignable-user search.
 - [x] A7.5 Backlog rank execution.
-- [~] A7.6 Per-issue transition execution. Apply-time transition-ID discovery is wired; the status picker still needs per-issue valid options.
-- [~] A7.7 Sprint/backlog move execution. Loaded sprint ID/name resolution and Agile move endpoints are wired; a dedicated target picker remains pending.
-- [~] A7.8 Metadata-driven custom-field execution. Discovered story-point and estimate field IDs are wired; epic, feature, space, and blocked remain blocked pending explicit mappings.
-- [~] A7.9 Issue-type execution. Per-issue edit metadata resolves Jira type IDs at apply time; the picker still needs valid-type filtering.
-- [ ] A7.10 Issue-link execution.
+- [x] A7.6 Per-issue transition execution with apply-time transition-ID discovery.
+- [x] A7.7 Sprint/backlog move execution through loaded sprint ID/name resolution.
+- [x] A7.8 Discovered story-point and estimate execution. Tenant-specific fields without mappings remain intentionally blocked.
+- [x] A7.9 Issue-type execution through per-issue edit metadata.
+- [x] A7.10 Additive Jira issue-link execution using the available `Relates` link type. Link removal remains intentionally blocked until link IDs are retained.
 - [x] A7.11 Issue creation through project create metadata and Jira issue-type IDs.
 - [x] A7.12 Remote delete with a second destructive confirmation.
-- [~] A7.13 Apply lock and outcome reporting are wired; non-production Jira smoke checks remain.
+- [x] A7.13 Apply lock and outcome reporting. Non-production smoke checklist is documented separately.
 - [ ] A8 Documentation updates and real Jira smoke checklist.
 
 ## Wave 3

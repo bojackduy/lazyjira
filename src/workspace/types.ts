@@ -56,6 +56,7 @@ export type WorkspaceSource = {
   updateIssueType: (issueKey: string, type: string) => Promise<void>
   deleteIssue: (issueKey: string) => Promise<void>
   createIssue: (issue: IssueSummary, projectKey: string) => Promise<string>
+  createIssueLinks: (issueKey: string, targetIssueKeys: string[]) => Promise<void>
   rankIssue: (issueKey: string, targetIssueKey: string, position: "before" | "after") => Promise<void>
   loadUserPicker: (fieldId: "assignee" | "reporter", issueKey: string, projectKey: string, query: string) => Promise<JiraUserOption[]>
 }
