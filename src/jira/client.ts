@@ -104,6 +104,8 @@ export type JiraEditMetadata = {
   fields?: Record<string, { allowedValues?: Array<{ id?: string; name?: string }> }>
 }
 
+export type JiraCreateIssueType = { id?: string; name?: string }
+
 export type JiraUser = {
   accountId?: string
   displayName?: string
@@ -277,6 +279,14 @@ export async function updateJiraIssue(auth: JiraAuthConfig, issueKey: string, fi
 
 export async function deleteJiraIssue(auth: JiraAuthConfig, issueKey: string, fetchImpl: FetchLike = fetch): Promise<void> {
   await jiraRequest<void>(auth, `/rest/api/3/issue/${encodeURIComponent(issueKey)}`, { endpoint: `issue ${issueKey} delete`, method: "DELETE", allowEmptyBody: true }, fetchImpl)
+}
+
+export async function fetchJiraCreateIssueTypes(auth: JiraAuthConfig, projectKey: string, fetchImpl: FetchLike = fetch): Promise<JiraCreateIssueType[]> {
+  return jiraRequest<JiraCreateIssueType[]>(auth, `/rest/api/3/issue/createmeta/${encodeURIComponent(projectKey)}/issuetypes`, { endpoint: `project ${projectKey} create issue types` }, fetchImpl)
+}
+
+export async function createJiraIssue(auth: JiraAuthConfig, fields: Record<string, unknown>, fetchImpl: FetchLike = fetch): Promise<{ key?: string }> {
+  return jiraRequest<{ key?: string }>(auth, "/rest/api/3/issue", { endpoint: "create issue", method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fields }) }, fetchImpl)
 }
 
 export async function rankJiraIssue(auth: JiraAuthConfig, issueKey: string, targetIssueKey: string, position: "before" | "after", fetchImpl: FetchLike = fetch): Promise<void> {

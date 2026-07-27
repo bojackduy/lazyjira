@@ -4,7 +4,7 @@ import { issueWithDraft } from "./issue-drafts"
 import { stagedChanges, type StagedChange } from "./staged-changes"
 
 export type JiraWritePlanStatus = "planned" | "blocked"
-export type JiraWriteOperation = "comment" | "field-update" | "transition" | "sprint-move" | "discovered-field" | "issue-type" | "delete" | "rank"
+export type JiraWriteOperation = "create" | "comment" | "field-update" | "transition" | "sprint-move" | "discovered-field" | "issue-type" | "delete" | "rank"
 
 export type JiraWritePlanItem = {
   id: string
@@ -121,16 +121,17 @@ function planCreateIssue(state: AppState, issueKey: string): JiraWritePlanItem {
   if (!effectiveIssue) {
     return blockedPlan({ id: `create:${issueKey}`, issueKey, title: `${issueKey} create issue`, detail: "Draft issue is missing from local state.", blocker: "Cannot build a create payload without the draft issue." })
   }
-  return blockedPlan({
+  return {
     id: `create:${issueKey}`,
+    status: "planned",
     issueKey,
     title: `${issueKey} create issue`,
     detail: `${effectiveIssue.type} · ${effectiveIssue.title}`,
     method: "POST",
     endpoint: "/rest/api/3/issue",
     payloadPreview: `project=${state.project.key}, issuetype=${effectiveIssue.type}, summary=${effectiveIssue.title}`,
-    blocker: "Create metadata and Jira issue type IDs are not loaded yet.",
-  })
+    operation: "create",
+  }
 }
 
 function planIssueEdit(state: AppState, change: Extract<StagedChange, { kind: "edit" }>): JiraWritePlanItem {

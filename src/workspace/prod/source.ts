@@ -1,5 +1,5 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
+import { createJiraIssue, deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
 import { discoverJiraIssueFieldIds, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
 import type { IssuePageState, SprintSummary } from "../../state/app-state"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
@@ -127,6 +127,22 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     },
     async deleteIssue(issueKey) {
       await deleteJiraIssue(await requireJiraAuth(authLoader), issueKey, fetchImpl)
+    },
+    async createIssue(issue, projectKey) {
+      const auth = await requireJiraAuth(authLoader)
+      const issueType = (await fetchJiraCreateIssueTypes(auth, projectKey, fetchImpl)).find((candidate) => candidate.id === issue.type || candidate.name === issue.type)
+      if (!issueType?.id) throw new Error(`Jira does not allow creating issue type ${issue.type} in project ${projectKey}.`)
+      const created = await createJiraIssue(auth, {
+        project: { key: projectKey },
+        summary: issue.title,
+        issuetype: { id: issueType.id },
+        priority: { name: issue.priority },
+        labels: issue.labels,
+        components: issue.components.map((name) => ({ name })),
+        description: issue.description ? { type: "doc", version: 1, content: issue.description.split("\n").map((text) => ({ type: "paragraph", content: text ? [{ type: "text", text }] : [] })) } : undefined,
+      }, fetchImpl)
+      if (!created.key) throw new Error("Jira created an issue without returning its key.")
+      return created.key
     },
     async rankIssue(issueKey, targetIssueKey, position) {
       await rankJiraIssue(await requireJiraAuth(authLoader), issueKey, targetIssueKey, position, fetchImpl)

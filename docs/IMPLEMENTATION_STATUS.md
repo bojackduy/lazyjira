@@ -55,6 +55,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 - [ ] A7.10 Issue links and A7.11 issue creation.
 - [x] A7.12 Remote delete requires staging confirmation plus a second `W` confirmation in remote review.
 - [~] A7.13 Remote apply is locked while requests are running; non-production Jira smoke checks remain.
+- [x] A7.11 Draft creation resolves an allowed project issue type through Jira create metadata before posting.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.
 

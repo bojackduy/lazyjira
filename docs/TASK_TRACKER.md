@@ -62,7 +62,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [~] A7.8 Metadata-driven custom-field execution. Discovered story-point and estimate field IDs are wired; epic, feature, space, and blocked remain blocked pending explicit mappings.
 - [~] A7.9 Issue-type execution. Per-issue edit metadata resolves Jira type IDs at apply time; the picker still needs valid-type filtering.
 - [ ] A7.10 Issue-link execution.
-- [ ] A7.11 Issue creation.
+- [x] A7.11 Issue creation through project create metadata and Jira issue-type IDs.
 - [x] A7.12 Remote delete with a second destructive confirmation.
 - [~] A7.13 Apply lock and outcome reporting are wired; non-production Jira smoke checks remain.
 - [ ] A8 Documentation updates and real Jira smoke checklist.

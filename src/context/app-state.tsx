@@ -932,6 +932,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       let applied = 0
       const failures: string[] = []
       const refreshedIssueKeys = new Set<string>()
+      const createdIssueKeys = new Set<string>()
       for (const item of operations) {
         const issueKey = item.issueKey
         if (!issueKey) continue
@@ -1010,6 +1011,16 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
             setState("issueDeletes", (deletes) => deletes.filter((key) => key !== issueKey))
             if (state.selectedIssueKey === issueKey) setState("selectedIssueKey", Object.keys(issues)[0] ?? "")
           }
+          if (item.operation === "create") {
+            const draft = state.issues[issueKey]
+            if (!draft) continue
+            const createdKey = await props.source.createIssue(draft, state.project.key)
+            const issues = { ...state.issues }
+            delete issues[issueKey]
+            setState("issues", reconcile(issues))
+            if (state.selectedIssueKey === issueKey) setState("selectedIssueKey", createdKey)
+            createdIssueKeys.add(createdKey)
+          }
           if (item.operation === "rank") {
             if (!item.rankTargetIssueKey || !item.rankPosition) continue
             await props.source.rankIssue(issueKey, item.rankTargetIssueKey, item.rankPosition)
@@ -1017,13 +1028,13 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
             delete drafts[issueKey]
             setState("rankDrafts", reconcile(drafts))
           }
-          if (item.operation !== "delete") refreshedIssueKeys.add(issueKey)
+          if (item.operation !== "delete" && item.operation !== "create") refreshedIssueKeys.add(issueKey)
           applied += 1
         } catch (error) {
           failures.push(error instanceof Error ? error.message : String(error))
         }
       }
-      await Promise.all([...refreshedIssueKeys].map((issueKey) => context.loadIssueDetail(issueKey)))
+      await Promise.all([...refreshedIssueKeys, ...createdIssueKeys].map((issueKey) => context.loadIssueDetail(issueKey)))
       if (failures.length) {
         setState("remoteApplyApplying", false)
         toast.show(`${applied} Jira operation${applied === 1 ? "" : "s"} applied; ${failures.length} failed: ${failures.join("; ")}`)

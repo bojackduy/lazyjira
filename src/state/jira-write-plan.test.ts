@@ -51,7 +51,7 @@ describe("Jira write plan", () => {
     ])
   })
 
-  test("folds staged edits on draft issues into the blocked create preview", () => {
+  test("folds staged edits on draft issues into a create operation", () => {
     const state = loadDevWorkspaceState()
     state.issues["DRAFT-1"] = { ...state.issues["PROJ-121"]!, key: "DRAFT-1", title: "New issue", isDraft: true }
     state.issueDrafts["DRAFT-1"] = { title: "Remote create candidate" }
@@ -61,11 +61,11 @@ describe("Jira write plan", () => {
     expect(plan).toHaveLength(1)
     expect(plan[0]).toMatchObject({
       id: "create:DRAFT-1",
-      status: "blocked",
+      status: "planned",
+      operation: "create",
       method: "POST",
       endpoint: "/rest/api/3/issue",
       detail: "Task · Remote create candidate",
-      blocker: "Create metadata and Jira issue type IDs are not loaded yet.",
     })
   })
 
