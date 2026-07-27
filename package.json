@@ -1,9 +1,40 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "lazyjira",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@bojackduy/lazyjira",
+  "version": "0.1.0",
+  "description": "A keyboard-first Jira workspace for the terminal.",
+  "homepage": "https://bojackduy.github.io/lazyjira/",
+  "private": false,
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bojackduy/lazyjira.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bojackduy/lazyjira/issues"
+  },
+  "keywords": [
+    "atlassian",
+    "cli",
+    "jira",
+    "terminal",
+    "tui"
+  ],
+  "bin": {
+    "lazyjira": "dist/main.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  },
   "scripts": {
     "dev": "bun --hot src/main.tsx dev",
     "dev:prod": "bun --hot src/main.tsx prod",
@@ -12,8 +43,13 @@
     "auth:login": "bun src/main.tsx auth login",
     "auth:status": "bun src/main.tsx auth status",
     "auth:logout": "bun src/main.tsx auth logout",
+    "build": "bun build src/main.tsx --target=bun --packages=external --outdir=dist",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "lint": "bun run typecheck",
+    "release:patch": "bun run typecheck && bun run test && npm version patch -m \"chore: release %s\" && git push && git push origin $(git describe --tags --abbrev=0)",
+    "release:minor": "bun run typecheck && bun run test && npm version minor -m \"chore: release %s\" && git push && git push origin $(git describe --tags --abbrev=0)",
+    "release:major": "bun run typecheck && bun run test && npm version major -m \"chore: release %s\" && git push && git push origin $(git describe --tags --abbrev=0)"
   },
   "dependencies": {
     "@opentui/core": "^0.4.5",
