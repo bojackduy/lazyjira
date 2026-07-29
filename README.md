@@ -210,6 +210,7 @@ The app should use lazy-family muscle memory, adapted to Jira's board and backlo
 | Key | Meaning |
 |---|---|
 | `?` | Help for current context |
+| `p` / `;` / `:` | Open the command palette |
 | `/` | Search or filter current screen |
 | `S` | Search Jira remotely |
 | `q` | Back, close, or quit depending on context |

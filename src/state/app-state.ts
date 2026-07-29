@@ -271,6 +271,10 @@ export type AppState = {
   workspaceSelectedIndex: number
   workspaceFocusedArea: WorkspaceFocusArea
   workspaceResultSelectedIndex: number
+  commandPaletteOpen: boolean
+  commandPaletteQuery: string
+  commandPaletteSelectedIndex: number
+  helpOpen: boolean
   searchOpen: boolean
   searchMode: SearchMode
   searchQuery: string

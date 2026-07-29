@@ -8,6 +8,7 @@ import { configuredStatuses } from "./state/config-drafts"
 import { issueByKey } from "./state/issue-drafts"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageCanLoadMore, sprintIssuePageSourceId } from "./state/issue-pages"
 import { sidebarRoutes } from "./state/routes"
+import { searchPaletteCommands } from "./keymap/commands"
 import type { BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
 import {
   boardCellItems,
@@ -57,6 +58,14 @@ export function App() {
             appState.closeProjectPicker()
             return
           }
+          if (state.commandPaletteOpen) {
+            appState.closeCommandPalette()
+            return
+          }
+          if (state.helpOpen) {
+            appState.closeHelp()
+            return
+          }
           if (state.searchOpen) {
             appState.closeSearch()
             return
@@ -92,6 +101,8 @@ export function App() {
           if (state.remoteApplyOpen) appState.closeRemoteIssueApply()
           else if (state.stagedDiscardOpen) appState.closeStagedDiscard()
           else if (state.projectPicker.open) appState.closeProjectPicker()
+          else if (state.commandPaletteOpen) appState.closeCommandPalette()
+          else if (state.helpOpen) appState.closeHelp()
           else if (state.searchOpen) appState.closeSearch()
           else if (state.pendingDeleteIssueKey) appState.cancelIssueDelete()
           else if (state.route === "workspace" && state.workspaceFocusedArea === "results") appState.closeWorkspaceResults()
@@ -102,6 +113,12 @@ export function App() {
         },
       },
       { name: "edit.stage", run: () => stageCurrentEdit() },
+      { name: "help.open", run: () => (canRunGlobalShortcut() ? appState.openHelp() : false) },
+      { name: "help.close", run: () => (state.helpOpen ? appState.closeHelp() : false) },
+      { name: "command-palette.open", run: () => (canRunGlobalShortcut() ? appState.openCommandPalette() : false) },
+      { name: "command-palette.close", run: () => (state.commandPaletteOpen ? appState.closeCommandPalette() : false) },
+      { name: "command-palette.next", run: () => moveCommandPaletteSelection(1) },
+      { name: "command-palette.previous", run: () => moveCommandPaletteSelection(-1) },
       { name: "detail.back", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.closeIssueDetail()) },
       { name: "route.workspace", run: () => (canRunGlobalShortcut() ? appState.setRoute("workspace") : false) },
       { name: "route.active-sprint", run: () => (canRunGlobalShortcut() ? appState.setRoute("active-sprint") : false) },
@@ -141,7 +158,7 @@ export function App() {
       { name: "issue.cancel-delete", run: () => (canRunGlobalShortcut() ? appState.cancelIssueDelete() : false) },
       { name: "staged-discard.open", run: () => (isPlainTextEditing() || isPopupOpen() || isAnyEditing() ? false : appState.openStagedDiscard()) },
     ],
-    bindings: state.searchOpen ? searchBindings() : [
+    bindings: state.commandPaletteOpen ? commandPaletteBindings() : state.helpOpen ? helpBindings() : state.searchOpen ? searchBindings() : [
       { key: "q", cmd: "app.quit", preventDefault: false },
       { key: { name: "c", ctrl: true }, cmd: "app.force-quit" },
       { key: "escape", cmd: "edit.cancel" },
@@ -155,6 +172,10 @@ export function App() {
       { key: "4", cmd: "route.kanban", preventDefault: false },
       { key: "5", cmd: "route.config", preventDefault: false },
       { key: { name: "p", shift: true }, cmd: "project.switch", preventDefault: false },
+      { key: "?", cmd: "help.open", preventDefault: false },
+      { key: "p", cmd: "command-palette.open", preventDefault: false },
+      { key: ";", cmd: "command-palette.open", preventDefault: false },
+      { key: ":", cmd: "command-palette.open", preventDefault: false },
       { key: "/", cmd: "search.open", preventDefault: false },
       { key: { name: "s", shift: true }, cmd: "search.remote-open", preventDefault: false },
       { key: "r", cmd: "issue.refresh-detail", preventDefault: false },
@@ -187,6 +208,28 @@ export function App() {
 
   function searchBindings() {
     return [{ key: "escape", cmd: "edit.cancel", preventDefault: false }]
+  }
+
+  function commandPaletteBindings() {
+    return [
+      { key: "escape", cmd: "command-palette.close", preventDefault: false },
+      { key: "down", cmd: "command-palette.next", preventDefault: false },
+      { key: "up", cmd: "command-palette.previous", preventDefault: false },
+      { key: { name: "n", ctrl: true }, cmd: "command-palette.next", preventDefault: false },
+      { key: { name: "p", ctrl: true }, cmd: "command-palette.previous", preventDefault: false },
+    ]
+  }
+
+  function helpBindings() {
+    return [
+      { key: "escape", cmd: "help.close", preventDefault: false },
+      { key: "q", cmd: "help.close", preventDefault: false },
+    ]
+  }
+
+  function moveCommandPaletteSelection(delta: number) {
+    if (!state.commandPaletteOpen) return false
+    appState.moveCommandPaletteSelection(delta, searchPaletteCommands(state.commandPaletteQuery).length)
   }
 
   function moveVertical(delta: number) {
@@ -487,11 +530,11 @@ export function App() {
   }
 
   function isPopupOpen() {
-    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.projectPicker.open || state.commentEditing
+    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.helpOpen || state.commentEditing
   }
 
   function isPlainTextEditing() {
-    return state.authOnboarding.open || state.projectPicker.open || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
+    return state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.helpOpen || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
   }
 
   function isAnyEditing() {

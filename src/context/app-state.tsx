@@ -55,6 +55,12 @@ export type AppStateContext = {
   openWorkspaceSelection: () => void
   focusWorkspaceResults: () => void
   closeWorkspaceResults: () => void
+  openCommandPalette: () => void
+  closeCommandPalette: () => void
+  updateCommandPaletteQuery: (query: string) => void
+  moveCommandPaletteSelection: (delta: number, resultCount: number) => void
+  openHelp: () => void
+  closeHelp: () => void
   openSearch: () => void
   openRemoteSearch: () => void
   closeSearch: () => void
@@ -221,6 +227,10 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("workspaceSelectedIndex", 0)
     setState("workspaceFocusedArea", "cards")
     setState("workspaceResultSelectedIndex", 0)
+    setState("commandPaletteOpen", false)
+    setState("commandPaletteQuery", "")
+    setState("commandPaletteSelectedIndex", 0)
+    setState("helpOpen", false)
     setState("searchOpen", false)
     setState("searchMode", "loaded")
     setState("searchQuery", "")
@@ -595,6 +605,33 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     closeWorkspaceResults() {
       setState("workspaceFocusedArea", "cards")
       setState("workspaceResultSelectedIndex", 0)
+    },
+    openCommandPalette() {
+      setState("commandPaletteQuery", "")
+      setState("commandPaletteSelectedIndex", 0)
+      setState("commandPaletteOpen", true)
+    },
+    closeCommandPalette() {
+      setState("commandPaletteOpen", false)
+      setState("commandPaletteQuery", "")
+      setState("commandPaletteSelectedIndex", 0)
+    },
+    updateCommandPaletteQuery(query) {
+      setState("commandPaletteQuery", query)
+      setState("commandPaletteSelectedIndex", 0)
+    },
+    moveCommandPaletteSelection(delta, resultCount) {
+      if (!resultCount) {
+        setState("commandPaletteSelectedIndex", 0)
+        return
+      }
+      setState("commandPaletteSelectedIndex", (state.commandPaletteSelectedIndex + delta + resultCount) % resultCount)
+    },
+    openHelp() {
+      setState("helpOpen", true)
+    },
+    closeHelp() {
+      setState("helpOpen", false)
     },
     openSearch() {
       setState("searchMode", "loaded")

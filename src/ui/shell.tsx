@@ -1,4 +1,4 @@
-import { TextAttributes, type InputRenderable, type KeyEvent, type TextareaRenderable } from "@opentui/core"
+import { TextAttributes, type InputRenderable, type KeyEvent, type ScrollBoxRenderable, type TextareaRenderable } from "@opentui/core"
 import { useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { createEffect, For, onCleanup, onMount, Show, type JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
@@ -14,6 +14,8 @@ import { routeLabel, sidebarRoutes } from "../state/routes"
 import { allIssues, issueList } from "../state/selectors"
 import { stagedChanges, type StagedChange } from "../state/staged-changes"
 import { IssueInspector } from "./issue-inspector"
+import { paletteCommands, searchPaletteCommands, type PaletteCommand } from "../keymap/commands"
+import { useBindings, useKeymap } from "../context/keymap"
 
 export function AppShell() {
   const dimensions = useTerminalDimensions()
@@ -37,6 +39,8 @@ export function AppShell() {
       <StagedDiscardPopup />
       <RemoteApplyPopup />
       <CommentComposerPopup />
+      <CommandPalettePopup />
+      <HelpPopup />
     </box>
   )
 }
@@ -205,7 +209,9 @@ function Footer() {
   const { state } = useAppState()
   const theme = useTheme()
   const toast = useToast()
-  const items = () => state.searchOpen
+  const items = () => state.commandPaletteOpen
+    ? ["command palette", "type filter", "up/down choose", "enter run", "esc close"]
+    : state.searchOpen
     ? state.searchMode === "remote" ? ["search Jira", "type text", "enter run", "esc close", "empty enter clears"] : ["filter loaded", "type query", "enter apply", "esc close", "empty enter clears"]
     : footerItems(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open ? state.projectPicker.mode : undefined)
 
@@ -214,6 +220,135 @@ function Footer() {
       <FooterHints items={items()} />
       <text fg={theme.textSubtle}>{toast.message() ?? "dev/prod runtime scaffold"}</text>
     </box>
+  )
+}
+
+function CommandPalettePopup() {
+  const appState = useAppState()
+  const { state } = appState
+  const theme = useTheme()
+  const keymap = useKeymap()
+  const dimensions = useTerminalDimensions()
+  let input: InputRenderable | undefined
+  let scrollbox: ScrollBoxRenderable | undefined
+  const commands = () => searchPaletteCommands(state.commandPaletteQuery)
+  const listHeight = () => Math.max(4, dimensions().height - Math.max(8, Math.floor(dimensions().height * 0.2)) - 7)
+
+  createEffect(() => {
+    if (!state.commandPaletteOpen) return
+    setTimeout(() => input && !input.isDestroyed && input.focus(), 1)
+  })
+
+  createEffect(() => {
+    if (!state.commandPaletteOpen) return
+    scrollbox?.scrollChildIntoView(commandPaletteRowId(state.commandPaletteSelectedIndex))
+  })
+
+  return (
+    <Show when={state.commandPaletteOpen}>
+      <ModalFrame borderColor={theme.accent} width={88}>
+        <box flexDirection="row" justifyContent="space-between">
+          <text attributes={TextAttributes.BOLD} fg={theme.accent}>Command Palette</text>
+          <text fg={theme.textSubtle}>p · ; · : actions</text>
+        </box>
+        <input
+          value={state.commandPaletteQuery}
+          onInput={(value) => appState.updateCommandPaletteQuery(value)}
+          onSubmit={() => runSelectedCommand()}
+          ref={(element: InputRenderable) => (input = element)}
+          placeholder="Type an action, key, or description"
+          placeholderColor={theme.textSubtle}
+          textColor={theme.text}
+          focusedTextColor={theme.text}
+          cursorColor={theme.accent}
+          backgroundColor={theme.panel}
+          focusedBackgroundColor={theme.panel}
+        />
+        <text fg={theme.textSubtle} wrapMode="none">{commands().length} commands · type to filter · up/down choose · enter run · esc close</text>
+        <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} height={listHeight()} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
+          <Show when={commands().length} fallback={<text fg={theme.textMuted}>No commands match "{state.commandPaletteQuery}".</text>}>
+            <For each={commands()}>
+              {(command, index) => <CommandPaletteRow id={commandPaletteRowId(index())} command={command} selected={index() === state.commandPaletteSelectedIndex} />}
+            </For>
+          </Show>
+        </scrollbox>
+      </ModalFrame>
+    </Show>
+  )
+
+  function runSelectedCommand() {
+    const command = commands()[state.commandPaletteSelectedIndex]
+    if (!command) return
+    appState.closeCommandPalette()
+    keymap.runCommand(command.name)
+  }
+}
+
+function CommandPaletteRow(props: { id: string; command: PaletteCommand; selected: boolean }) {
+  const theme = useTheme()
+  return (
+    <box id={props.id} height={3} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? theme.selected : undefined} flexDirection="column">
+      <box flexDirection="row" gap={2}>
+        <text fg={props.selected ? theme.selectedText : theme.warning} width={16} wrapMode="none">{props.command.keys}</text>
+        <text attributes={TextAttributes.BOLD} fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">{props.command.label}</text>
+      </box>
+      <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">{props.command.description} · {props.command.group}</text>
+    </box>
+  )
+}
+
+function commandPaletteRowId(index: number) {
+  return `command-palette-row-${index}`
+}
+
+function HelpPopup() {
+  const appState = useAppState()
+  const { state } = appState
+  const theme = useTheme()
+  const dimensions = useTerminalDimensions()
+  let scrollbox: ScrollBoxRenderable | undefined
+  const listHeight = () => Math.max(4, dimensions().height - Math.max(8, Math.floor(dimensions().height * 0.2)) - 5)
+
+  useBindings(() => ({
+    commands: [
+      { name: "help.scroll.down", run: () => scrollbox?.scrollBy(1) },
+      { name: "help.scroll.up", run: () => scrollbox?.scrollBy(-1) },
+      { name: "help.page.down", run: () => scrollbox?.scrollBy(1, "viewport") },
+      { name: "help.page.up", run: () => scrollbox?.scrollBy(-1, "viewport") },
+    ],
+    bindings: state.helpOpen ? [
+      { key: "j", cmd: "help.scroll.down", preventDefault: false },
+      { key: "down", cmd: "help.scroll.down", preventDefault: false },
+      { key: "k", cmd: "help.scroll.up", preventDefault: false },
+      { key: "up", cmd: "help.scroll.up", preventDefault: false },
+      { key: "d", cmd: "help.page.down", preventDefault: false },
+      { key: "u", cmd: "help.page.up", preventDefault: false },
+    ] : [],
+  }))
+
+  return (
+    <Show when={state.helpOpen}>
+      <ModalFrame borderColor={theme.accent} width={88}>
+        <box flexDirection="row" justifyContent="space-between">
+          <text attributes={TextAttributes.BOLD} fg={theme.accent}>Keyboard Help</text>
+          <text fg={theme.textSubtle}>j/k scroll · d/u page · ?/Esc/q close</text>
+        </box>
+        <text fg={theme.textMuted}>Commands reflect the current lazyjira keyboard workflow.</text>
+        <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} height={listHeight()} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
+          <For each={paletteCommands}>
+            {(command) => (
+              <box height={2} flexDirection="column">
+                <box flexDirection="row" gap={2}>
+                  <text fg={theme.warning} width={16} wrapMode="none">{command.keys}</text>
+                  <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none">{command.label}</text>
+                </box>
+                <text fg={theme.textMuted} wrapMode="none">{command.description}</text>
+              </box>
+            )}
+          </For>
+        </scrollbox>
+      </ModalFrame>
+    </Show>
   )
 }
 
