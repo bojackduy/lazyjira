@@ -1,6 +1,7 @@
 import type { IssueComment, IssuePriority, IssueSummary, SprintSummary, StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
 import { statusColorForStatus } from "../state/metadata-colors"
 import type { JiraBoardConfiguration, JiraComment, JiraField, JiraIssue, JiraProjectStatusesByIssueType, JiraSprint } from "./client"
+import { adfToRichText } from "./adf"
 
 type JiraIssueFields = NonNullable<JiraIssue["fields"]>
 
@@ -101,6 +102,7 @@ export function normalizeJiraIssues(issues: JiraIssue[], statuses: StatusDefinit
     const labels = stringArray(fields.labels)
     const storyPointValue = numberField(fields, fieldIds.storyPoints)
     const estimateValue = numberField(fields, fieldIds.storyPointEstimate)
+    const description = adfToRichText(fields.description)
     return [{
       key: issue.key,
       title: fields.summary?.trim() || issue.key,
@@ -123,7 +125,8 @@ export function normalizeJiraIssues(issues: JiraIssue[], statuses: StatusDefinit
       components: names(fields.components),
       blocked: statusCategory === "blocked" || labels.some((label) => label.toLowerCase().includes("block")),
       staleDays: 0,
-      description: jiraDescriptionText(fields.description),
+      description: description.markdown,
+      descriptionWriteBlockedReason: description.writeBlockedReason,
       comments: [],
       links: linkedIssueKeys(fields.issuelinks, fields.subtasks),
       rank: stringField(fields, fieldIds.rank),
@@ -134,10 +137,12 @@ export function normalizeJiraIssues(issues: JiraIssue[], statuses: StatusDefinit
 export function normalizeJiraComments(comments: JiraComment[]): IssueComment[] {
   return comments.flatMap((comment) => {
     if (!comment.id) return []
+    const body = adfToRichText(comment.body)
     return [{
       id: comment.id,
       author: comment.author?.displayName ?? "Unknown",
-      body: jiraDescriptionText(comment.body),
+      body: body.markdown,
+      writeBlockedReason: body.writeBlockedReason,
       age: jiraDateLabel(comment.updated ?? comment.created),
     }]
   })
@@ -281,25 +286,9 @@ function linkedIssueKeys(links: JiraIssueFields["issuelinks"], subtasks: JiraIss
   ]
 }
 
-function jiraDescriptionText(value: unknown) {
-  if (typeof value === "string") return value
-  const text = adfText(value).trim()
-  return text || ""
-}
-
 function jiraDateLabel(value: string | undefined) {
   if (!value) return "unknown"
   return value.slice(0, 10) || value
-}
-
-function adfText(value: unknown): string {
-  if (typeof value === "string") return value
-  if (!value || typeof value !== "object") return ""
-  if (Array.isArray(value)) return value.map(adfText).filter(Boolean).join(" ")
-  const record = value as Record<string, unknown>
-  const ownText = typeof record.text === "string" ? record.text : ""
-  const childText = adfText(record.content)
-  return [ownText, childText].filter(Boolean).join(" ")
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

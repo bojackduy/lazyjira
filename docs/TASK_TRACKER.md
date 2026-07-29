@@ -74,6 +74,16 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [ ] Add loading/empty/error state coverage.
 - [ ] Add final manual smoke checklist.
 
+## Wave 4: Rich Jira Text
+
+Scope and architecture: `docs/RICH_TEXT_EPIC.md`.
+
+- [~] `R1` Add the shared Jira ADF-to-Markdown mapper with supported-node coverage and unsupported fallback metadata.
+- [~] `R2` Add the Markdown-to-ADF writer and replace duplicated plain-text builders for descriptions, comments, and issue creation.
+- [~] `R3` Carry rich-text safe-write metadata through normalization, drafts, write planning, apply, and reload.
+- [~] `R4` Add shared OpenTUI Markdown rendering for descriptions, comments, and readable rich fields.
+- [~] `R5` Add rich dev fixtures, conversion/API/render tests, narrow-terminal checks, and Jira smoke steps.
+
 ## Cross-Track Reviews
 
 - [ ] All screens use the shared domain/state model.

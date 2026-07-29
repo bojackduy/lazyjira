@@ -70,6 +70,19 @@ Outputs:
 - Error/loading/empty state checks.
 - Manual verification checklist.
 
+### Wave 4: Rich Jira Text
+
+Goal: render and safely edit Jira ADF across issue descriptions, comments, and issue-create bodies.
+
+Owner brief: `docs/RICH_TEXT_EPIC.md`.
+
+Outputs:
+
+- Shared ADF-to-Markdown and Markdown-to-ADF mapping boundary.
+- OpenTUI Markdown rendering for readable Jira text.
+- Strict blocked-write behavior for unsupported ADF.
+- Rich-text fixtures, conversion tests, payload tests, and a Jira smoke checklist.
+
 ## Parallelization Map
 
 | Workstream | Can Start | Depends On | Main Files/Areas |
@@ -82,6 +95,7 @@ Outputs:
 | Inspector/detail | After issue model exists | Domain/demo data | inspector, staged edits, detail route, markdown |
 | Read-only Jira API | After domain model stabilizes | Domain/demo data | api client, normalization, effects |
 | Quality integration | Any time after foundation | All tracks for final pass | tests, fixtures, docs |
+| Rich Jira text | After read/write foundations | Jira read loading, staged writes, inspector/detail | `docs/RICH_TEXT_EPIC.md`, Jira ADF mapper, rich reader |
 
 ## Integration Checkpoints
 
@@ -102,7 +116,7 @@ Pass when:
 - `j/k` moves within a column.
 - `h/l` moves across columns.
 - Inspector updates with selected card.
-- `Enter` opens issue detail and `q`/Backspace returns to the previous overview.
+- `Enter` opens issue detail and `q`/`Esc` returns to the previous overview.
 - `e` focuses the inspector on overview routes and edits the selected field.
 
 ### Checkpoint C: Backlog Is Useful

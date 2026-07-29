@@ -2,6 +2,7 @@ import type { AppState, IssueEditableField, IssueSummary } from "./app-state"
 import { configuredStatuses } from "./config-drafts"
 import { issueWithDraft } from "./issue-drafts"
 import { stagedChanges, type StagedChange } from "./staged-changes"
+import { markdownToAdf } from "../jira/adf"
 
 export type JiraWritePlanStatus = "planned" | "blocked"
 export type JiraWriteOperation = "create" | "comment" | "field-update" | "transition" | "sprint-move" | "discovered-field" | "issue-type" | "link" | "delete" | "rank"
@@ -81,6 +82,8 @@ function planComment(state: AppState, change: Extract<StagedChange, { kind: "com
   const issue = state.issues[change.issueKey]
   if (!issue) return blockedPlan({ id: change.id, issueKey: change.issueKey, title: `${change.issueKey} comment`, detail: "Issue is missing from local state.", blocker: "Cannot post a comment for a missing issue." })
   if (issue.isDraft) return blockedPlan({ id: change.id, issueKey: change.issueKey, title: `${change.issueKey} comment`, detail: commentPreview(change.value), method: "POST", endpoint: `/rest/api/3/issue/${change.issueKey}/comment`, blocker: "Create the draft issue before posting a comment." })
+  const writeBlockedReason = markdownToAdf(change.value).writeBlockedReason
+  if (writeBlockedReason) return blockedPlan({ id: change.id, issueKey: change.issueKey, title: `${change.issueKey} comment`, detail: commentPreview(change.value), method: "POST", endpoint: `/rest/api/3/issue/${change.issueKey}/comment`, blocker: writeBlockedReason })
   return {
     id: change.id,
     status: "planned",
@@ -122,6 +125,8 @@ function planCreateIssue(state: AppState, issueKey: string): JiraWritePlanItem {
   if (!effectiveIssue) {
     return blockedPlan({ id: `create:${issueKey}`, issueKey, title: `${issueKey} create issue`, detail: "Draft issue is missing from local state.", blocker: "Cannot build a create payload without the draft issue." })
   }
+  const writeBlockedReason = effectiveIssue.descriptionWriteBlockedReason ?? markdownToAdf(effectiveIssue.description).writeBlockedReason
+  if (writeBlockedReason) return blockedPlan({ id: `create:${issueKey}`, issueKey, title: `${issueKey} create issue`, detail: `${effectiveIssue.type} · ${effectiveIssue.title}`, method: "POST", endpoint: "/rest/api/3/issue", blocker: writeBlockedReason })
   return {
     id: `create:${issueKey}`,
     status: "planned",
@@ -145,6 +150,11 @@ function planIssueEdit(state: AppState, change: Extract<StagedChange, { kind: "e
   const after = draftFieldValue(state, change.fieldId, change.value)
   const title = `${change.issueKey} ${change.label}`
   const detail = `${before || "empty"} -> ${after || "empty"}`
+
+  if (change.fieldId === "description") {
+    const writeBlockedReason = issue.descriptionWriteBlockedReason ?? markdownToAdf(change.value).writeBlockedReason
+    if (writeBlockedReason) return blockedPlan({ id: change.id, issueKey: change.issueKey, title, detail, method: "PUT", endpoint: `/rest/api/3/issue/${change.issueKey}`, blocker: writeBlockedReason })
+  }
 
   if (change.fieldId === "statusId") {
     return {

@@ -8,6 +8,7 @@ import { useTheme } from "../context/theme"
 import type { IssueSummary } from "../state/app-state"
 import { issueByKey } from "../state/issue-drafts"
 import { issueTypeColor, statusColor, statusName } from "../state/selectors"
+import { RichText } from "../ui/rich-text"
 
 export function IssueDetailRoute() {
   const appState = useAppState()
@@ -54,7 +55,7 @@ export function IssueDetailRoute() {
   return (
     <Show when={issue()} fallback={<text fg={theme.textMuted}>No issue selected</text>}>
       {(selectedIssue) => (
-        <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
+        <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} scrollX viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
           <IssueHeader issue={selectedIssue()} />
           <DetailLoadState issueKey={selectedIssue().key} />
           <DetailSection title="Body">
@@ -80,7 +81,7 @@ export function IssueDetailRoute() {
               {(comment) => (
                 <box flexDirection="column" marginBottom={1}>
                   <text fg={theme.text} wrapMode="none">{comment.author} · {comment.age}</text>
-                  <text fg={theme.textMuted}>{comment.body}</text>
+                  <RichText markdown={comment.body} writeBlockedReason={comment.writeBlockedReason} />
                 </box>
               )}
             </For>
@@ -138,7 +139,7 @@ function BodyEditor(props: { issue: IssueSummary }) {
         <Show when={state.issueDrafts[props.issue.key]?.description !== undefined}>
           <text fg={theme.warning} wrapMode="none">Body staged · w render · W write Jira</text>
         </Show>
-        <text fg={theme.textMuted}>{body() || "No description"}</text>
+        <RichText markdown={body()} writeBlockedReason={props.issue.descriptionWriteBlockedReason} />
         <text fg={theme.textSubtle} wrapMode="none">e edit body · j/k line scroll · d/u half page</text>
       </box>
     }>
@@ -150,7 +151,7 @@ function BodyEditor(props: { issue: IssueSummary }) {
           onContentChange={() => appState.updateDetailBodyEditValue(textarea?.plainText ?? "")}
           onSubmit={() => appState.commitDetailBodyEdit()}
           keyBindings={[{ name: "return", ctrl: true, action: "submit" }]}
-          placeholder="Issue body"
+          placeholder="Markdown issue body"
           placeholderColor={theme.textSubtle}
           textColor={theme.text}
           focusedTextColor={theme.text}
@@ -158,7 +159,7 @@ function BodyEditor(props: { issue: IssueSummary }) {
           backgroundColor={theme.panel}
           focusedBackgroundColor={theme.panel}
         />
-        <text fg={theme.textSubtle} wrapMode="none">Ctrl-Enter stage body · Esc cancel · w render · W write Jira</text>
+        <text fg={theme.textSubtle} wrapMode="none">Markdown supported · Ctrl-Enter stage · Esc cancel · w render · W write Jira</text>
       </box>
     </Show>
   )

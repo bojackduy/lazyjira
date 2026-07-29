@@ -43,6 +43,7 @@ This document tells contributors where each feature area lives, what it owns, wh
 | Boards | Active | `src/routes/active-sprint.tsx`, `src/routes/kanban.tsx`, `src/ui/board.tsx` |
 | Backlog | Active | `src/routes/backlog.tsx`, `src/state/selectors.ts` |
 | Inspector And Detail | Active | `src/ui/issue-inspector.tsx`, `src/routes/issue-detail.tsx` |
+| Rich Jira Text | Planned | `docs/RICH_TEXT_EPIC.md`, future `src/jira/adf.ts`, shared rich reader |
 | Staged Changes | Active | `src/state/issue-drafts.ts`, `src/state/staged-changes.ts` |
 | Metadata Config | Active | `src/routes/config.tsx`, `src/state/config-drafts.ts` |
 | Loaded Search | Active | `src/state/issue-search.ts`, `src/state/selectors.ts` |
@@ -728,6 +729,62 @@ Verification:
 
 - `bun test src/state/issue-fields.test.ts`
 - Manual smoke: inspector edit, status/type choice edit, detail body edit, `Ctrl-Enter` stage, `X` discard.
+
+## Rich Jira Text
+
+Goal:
+
+- Read, render, edit, stage, and safely write rich Jira ADF through one Markdown projection.
+- Apply the same mapping rules to issue descriptions, comments, issue-create bodies, and future readable/editable rich text fields.
+
+Read First:
+
+- `docs/RICH_TEXT_EPIC.md`
+- `src/jira/normalize.ts`
+- `src/context/app-state.tsx`
+- `src/routes/issue-detail.tsx`
+- `src/ui/issue-inspector.tsx`
+- `src/jira/client.ts`
+- `src/workspace/prod/source.ts`
+
+Main Files:
+
+- Future `src/jira/adf.ts`
+- `src/jira/normalize.ts`
+- `src/state/app-state.ts`
+- `src/context/app-state.tsx`
+- `src/state/jira-write-plan.ts`
+- `src/routes/issue-detail.tsx`
+- `src/ui/issue-inspector.tsx`
+- `src/jira/client.ts`
+- `src/workspace/prod/source.ts`
+- Focused mapper, payload, state, and render tests.
+
+Dependencies:
+
+- Jira Read Loading
+- Inspector And Detail
+- Staged Changes
+- Jira Writes
+- Testing And Quality
+
+Out Of Scope:
+
+- Do not flatten ADF independently in a route, widget, or write endpoint.
+- Do not silently replace unsupported ADF with lossy Markdown or plain text.
+- Do not make a rich-text edit bypass staged review and the existing `W` apply path.
+- Do not implement attachment/media upload until its Jira API and round-trip behavior are separately scoped.
+
+Next Work:
+
+- Complete `R1` through `R5` in `docs/RICH_TEXT_EPIC.md` in order.
+- Reuse the shared ADF builder for comments and create-issue descriptions after `R2`.
+- Add a safe Jira project smoke check after conversion and payload tests are stable.
+
+Verification:
+
+- Follow the conversion, payload, state, render, and manual checks in `docs/RICH_TEXT_EPIC.md`.
+- Run `bun run typecheck` and `bun test` for every rich-text change.
 
 ## Staged Changes
 

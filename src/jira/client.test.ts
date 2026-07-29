@@ -166,8 +166,7 @@ describe("Jira discovery client", () => {
           type: "doc",
           version: 1,
           content: [
-            { type: "paragraph", content: [{ type: "text", text: "Ready" }] },
-            { type: "paragraph", content: [{ type: "text", text: "for review" }] },
+            { type: "paragraph", content: [{ type: "text", text: "Ready" }, { type: "hardBreak" }, { type: "text", text: "for review" }] },
           ],
         },
       })
@@ -376,6 +375,15 @@ describe("Jira discovery client", () => {
 
     expect(comments).toEqual([{ id: "10001", author: "Mina", body: "Looks good", age: "2026-07-24" }])
     expect(mergeIssueDetail(existing, detail, comments)).toMatchObject({ title: "Detailed summary", description: "Detailed body", comments })
+  })
+
+  test("keeps unsupported Jira ADF readable and marks it write-blocked", () => {
+    const issue = normalizeJiraIssues([
+      { key: "PROJ-5", fields: { summary: "Rich body", status: { id: "10000" }, description: { type: "doc", content: [{ type: "mediaSingle", content: [] }] } } },
+    ], [{ id: "10000", name: "To Do", category: "todo", color: "#94A3B8" }])[0]!
+
+    expect(issue.description).toContain("Unsupported Jira content: mediaSingle")
+    expect(issue.descriptionWriteBlockedReason).toContain("mediaSingle")
   })
 
   test("sends Jira auth and JSON headers", async () => {

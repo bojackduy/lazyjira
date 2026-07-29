@@ -26,6 +26,7 @@ import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from ".
 import { workspaceCurrentResults, workspaceItems, workspaceSelectedItem } from "../state/workspace"
 import { defaultIssuePageState, remoteSearchIssuePageSourceId } from "../state/issue-pages"
 import { planJiraWrites, writePlanCounts } from "../state/jira-write-plan"
+import { markdownToAdf } from "../jira/adf"
 import { useToast } from "./toast"
 
 export type AppStateContext = {
@@ -1463,12 +1464,7 @@ function filterJiraUsers(users: JiraUserOption[], query: string) {
 }
 
 function jiraDocument(text: string) {
-  return {
-    type: "doc",
-    version: 1,
-    content: text.replace(/\r\n/g, "\n").split("\n").map((line) => ({
-      type: "paragraph",
-      content: line ? [{ type: "text", text: line }] : [],
-    })),
-  }
+  const result = markdownToAdf(text)
+  if (!result.document) throw new Error(result.writeBlockedReason ?? "This Jira text cannot be converted safely.")
+  return result.document
 }

@@ -1,4 +1,5 @@
 import { jiraBasicAuthHeader, type JiraAuthConfig } from "../auth/config"
+import { markdownToAdf } from "./adf"
 
 export type JiraProjectOption = {
   id: string
@@ -452,14 +453,9 @@ function jiraHeaders(auth: JiraAuthConfig, headers: HeadersInit | undefined) {
 }
 
 function jiraDocument(text: string) {
-  return {
-    type: "doc",
-    version: 1,
-    content: text.replace(/\r\n/g, "\n").split("\n").map((line) => ({
-      type: "paragraph",
-      content: line ? [{ type: "text", text: line }] : [],
-    })),
-  }
+  const result = markdownToAdf(text)
+  if (!result.document) throw new Error(result.writeBlockedReason ?? "This Jira text cannot be converted safely.")
+  return result.document
 }
 
 function paginatedPath(path: string, startAt: number, maxResults: number) {

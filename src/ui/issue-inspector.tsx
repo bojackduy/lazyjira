@@ -8,6 +8,7 @@ import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldColor, issueFieldDisplayValue, issueFields, type IssueFieldDefinition } from "../state/issue-fields"
 import { issueTypeColor, statusColor, statusName } from "../state/selectors"
 import { stagedChanges } from "../state/staged-changes"
+import { RichText } from "./rich-text"
 
 export function IssueInspector(props: { compact: boolean }) {
   const appState = useAppState()
@@ -82,7 +83,7 @@ export function IssueInspector(props: { compact: boolean }) {
                   {(comment) => (
                     <box flexDirection="column" marginTop={1}>
                       <text fg={theme.text} wrapMode="none">{comment.author} · {comment.age}</text>
-                      <text fg={theme.textMuted}>{comment.body}</text>
+                       <RichText markdown={comment.body} writeBlockedReason={comment.writeBlockedReason} compact />
                     </box>
                   )}
                 </For>

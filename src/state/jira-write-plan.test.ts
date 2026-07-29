@@ -24,6 +24,20 @@ describe("Jira write plan", () => {
     expect(plan.every((item) => item.method === "PUT" && item.endpoint === "/rest/api/3/issue/PROJ-128")).toBe(true)
   })
 
+  test("blocks a description replacement when loaded ADF was unsupported", () => {
+    const state = loadDevWorkspaceState()
+    state.issues["PROJ-128"]!.descriptionWriteBlockedReason = "This Jira text contains unsupported ADF content (mediaSingle) and cannot be safely replaced yet."
+    state.issueDrafts["PROJ-128"] = { description: "# Replacement" }
+
+    expect(planJiraWrites(state)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: "edit:PROJ-128:description",
+        status: "blocked",
+        blocker: "This Jira text contains unsupported ADF content (mediaSingle) and cannot be safely replaced yet.",
+      }),
+    ]))
+  })
+
   test("plans status transitions and blocks changes that need unresolved metadata or stronger confirmation", () => {
     const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = {

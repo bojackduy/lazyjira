@@ -43,6 +43,7 @@ export type IssueComment = {
   author: string
   body: string
   age: string
+  writeBlockedReason?: string
 }
 
 export type IssueCommentDraft = {
@@ -231,6 +232,7 @@ export type IssueSummary = {
   blocked: boolean
   staleDays: number
   description: string
+  descriptionWriteBlockedReason?: string
   comments: IssueComment[]
   links: string[]
 }
