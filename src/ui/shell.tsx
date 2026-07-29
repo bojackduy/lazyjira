@@ -232,7 +232,7 @@ function CommandPalettePopup() {
   let input: InputRenderable | undefined
   let scrollbox: ScrollBoxRenderable | undefined
   const commands = () => searchPaletteCommands(state.commandPaletteQuery)
-  const listHeight = () => Math.max(4, dimensions().height - Math.max(8, Math.floor(dimensions().height * 0.2)) - 7)
+  const listHeight = () => Math.max(4, dimensions().height - 12)
 
   createEffect(() => {
     if (!state.commandPaletteOpen) return
@@ -246,7 +246,7 @@ function CommandPalettePopup() {
 
   return (
     <Show when={state.commandPaletteOpen}>
-      <ModalFrame borderColor={theme.accent} width={88}>
+      <ModalFrame borderColor={theme.accent} width={88} centered>
         <box flexDirection="row" justifyContent="space-between">
           <text attributes={TextAttributes.BOLD} fg={theme.accent}>Command Palette</text>
           <text fg={theme.textSubtle}>p · ; · : actions</text>
@@ -307,7 +307,7 @@ function HelpPopup() {
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
-  const listHeight = () => Math.max(4, dimensions().height - Math.max(8, Math.floor(dimensions().height * 0.2)) - 5)
+  const listHeight = () => Math.max(4, dimensions().height - 10)
 
   useBindings(() => ({
     commands: [
@@ -328,7 +328,7 @@ function HelpPopup() {
 
   return (
     <Show when={state.helpOpen}>
-      <ModalFrame borderColor={theme.accent} width={88}>
+      <ModalFrame borderColor={theme.accent} width={88} centered>
         <box flexDirection="row" justifyContent="space-between">
           <text attributes={TextAttributes.BOLD} fg={theme.accent}>Keyboard Help</text>
           <text fg={theme.textSubtle}>j/k scroll · d/u page · ?/Esc/q close</text>
@@ -793,10 +793,10 @@ function useProjectPickerKeyboard(appState: ReturnType<typeof useAppState>) {
   })
 }
 
-function ModalFrame(props: { borderColor: string; width: number; children: JSX.Element }) {
+function ModalFrame(props: { borderColor: string; width: number; centered?: boolean; children: JSX.Element }) {
   const dimensions = useTerminalDimensions()
   const theme = useTheme()
-  const width = () => Math.min(props.width, Math.max(40, dimensions().width - 4))
+  const width = () => Math.min(props.width, Math.max(1, dimensions().width - 2))
   const top = () => Math.max(1, Math.floor(dimensions().height * 0.2))
 
   return (
@@ -808,7 +808,8 @@ function ModalFrame(props: { borderColor: string; width: number; children: JSX.E
       width={dimensions().width}
       height={dimensions().height}
       alignItems="center"
-      paddingTop={top()}
+      justifyContent={props.centered ? "center" : undefined}
+      paddingTop={props.centered ? 0 : top()}
     >
       <box
         width={width()}
