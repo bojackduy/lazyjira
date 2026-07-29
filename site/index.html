@@ -4,12 +4,177 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A keyboard-first Jira workspace for the terminal." />
-    <title>Terminal Jira Workspace</title>
+    <title>lazyjira | Jira without the browser drift</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #e8eef8;
+        --muted: #91a0b8;
+        --dim: #5f6e85;
+        --page: #090d14;
+        --panel: #101722;
+        --line: #24334a;
+        --cyan: #45c7f5;
+        --amber: #f7b955;
+        --green: #43d17a;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(90deg, rgba(69, 199, 245, 0.04) 1px, transparent 1px),
+          linear-gradient(rgba(69, 199, 245, 0.04) 1px, transparent 1px),
+          var(--page);
+        background-size: 32px 32px;
+        color: var(--ink);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        line-height: 1.55;
+      }
+
+      a { color: inherit; }
+
+      .shell { max-width: 1240px; margin: 0 auto; padding: 24px; }
+
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 20px;
+      }
+
+      .mark { color: var(--ink); font-size: 18px; font-weight: 700; text-decoration: none; }
+      .mark span { color: var(--cyan); }
+
+      .nav-links { display: flex; gap: 18px; color: var(--muted); font-size: 13px; }
+      .nav-links a { text-decoration: none; }
+      .nav-links a:hover { color: var(--cyan); }
+
+      .hero { padding: 84px 0 52px; max-width: 890px; }
+
+      .eyebrow {
+        color: var(--amber);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      h1 { font-size: clamp(38px, 7vw, 78px); letter-spacing: -0.06em; line-height: 0.96; margin: 14px 0 24px; }
+      h1 em { color: var(--cyan); font-style: normal; }
+
+      .intro { color: var(--muted); font-size: clamp(16px, 2.2vw, 21px); max-width: 720px; }
+
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+      .button { border: 1px solid var(--cyan); color: var(--page); background: var(--cyan); padding: 10px 15px; text-decoration: none; font-size: 14px; font-weight: 700; }
+      .button.secondary { background: transparent; color: var(--ink); border-color: var(--line); }
+      .button:hover { background: #8fddf7; border-color: #8fddf7; }
+      .button.secondary:hover { background: var(--panel); border-color: var(--muted); }
+
+      .terminal {
+        background: #111;
+        border: 1px solid #314764;
+        border-radius: 7px;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+        margin: 0 -12px;
+        overflow: hidden;
+      }
+
+      .terminal-bar { align-items: center; background: #0b111a; border-bottom: 1px solid #1d2d43; color: var(--muted); display: flex; font-size: 12px; gap: 7px; padding: 10px 14px; }
+      .terminal-bar i { background: var(--dim); border-radius: 50%; display: block; height: 8px; width: 8px; }
+      .terminal-bar i:first-child { background: #ed6b5b; }
+      .terminal-bar i:nth-child(2) { background: var(--amber); }
+      .terminal-bar i:nth-child(3) { background: var(--green); }
+      .terminal-bar span { margin-left: 8px; }
+
+      .terminal img { display: block; height: auto; width: 100%; }
+
+      .features { display: grid; gap: 1px; grid-template-columns: repeat(3, 1fr); background: var(--line); border: 1px solid var(--line); margin: 74px 0; }
+      .feature { background: var(--panel); min-height: 188px; padding: 25px; }
+      .feature-number { color: var(--cyan); font-size: 12px; }
+      h2 { font-size: 20px; letter-spacing: -0.03em; margin: 16px 0 8px; }
+      .feature p { color: var(--muted); font-size: 14px; margin: 0; }
+
+      .install { border-top: 1px solid var(--line); display: grid; gap: 38px; grid-template-columns: 1fr 1.4fr; padding: 54px 0 76px; }
+      .install p { color: var(--muted); margin: 0; }
+      pre { background: #06090e; border-left: 2px solid var(--amber); color: #c8d5e8; margin: 0; overflow-x: auto; padding: 22px; }
+      .prompt { color: var(--green); }
+
+      footer { border-top: 1px solid var(--line); color: var(--dim); display: flex; font-size: 12px; justify-content: space-between; padding: 20px 0; }
+
+      @media (max-width: 720px) {
+        .shell { padding: 18px; }
+        .nav-links { gap: 12px; }
+        .hero { padding-top: 60px; }
+        .terminal { margin: 0; }
+        .features, .install { grid-template-columns: 1fr; }
+        .feature { min-height: auto; }
+        footer { gap: 12px; flex-direction: column; }
+      }
+    </style>
   </head>
   <body>
-    <main>
-      <h1>Terminal Jira Workspace</h1>
-      <p>A keyboard-first workspace for Jira.</p>
-    </main>
+    <div class="shell">
+      <nav>
+        <a class="mark" href="/lazyjira/"><span>lazy</span>jira</a>
+        <div class="nav-links">
+          <a href="https://github.com/bojackduy/lazyjira">GitHub</a>
+          <a href="https://www.npmjs.com/package/@bojackduy/lazyjira">npm</a>
+        </div>
+      </nav>
+
+      <main>
+        <section class="hero">
+          <div class="eyebrow">Terminal-first Jira workspace</div>
+          <h1>Stay on top of the sprint.<br /><em>Stay out of the browser.</em></h1>
+          <p class="intro">lazyjira brings the board, backlog, triage signals, and issue inspector into one keyboard-first terminal workspace.</p>
+          <div class="actions">
+            <a class="button" href="https://github.com/bojackduy/lazyjira">View on GitHub</a>
+            <a class="button secondary" href="#install">Install</a>
+          </div>
+        </section>
+
+        <section class="terminal" aria-label="lazyjira active sprint board">
+          <div class="terminal-bar"><i></i><i></i><i></i><span>lazyjira · Active Sprint</span></div>
+          <img src="assets/demo.png" alt="lazyjira showing an active sprint board, project navigation, quick filters, and issue inspector" />
+        </section>
+
+        <section class="features">
+          <article class="feature">
+            <div class="feature-number">01 / OVERVIEW</div>
+            <h2>See the work move</h2>
+            <p>Active sprint, backlog, and Kanban views make flow, blockers, stale work, and ownership visible at a glance.</p>
+          </article>
+          <article class="feature">
+            <div class="feature-number">02 / FOCUS</div>
+            <h2>Keep context close</h2>
+            <p>Inspect the selected issue without leaving the board. Open rich detail only when the work calls for it.</p>
+          </article>
+          <article class="feature">
+            <div class="feature-number">03 / FLOW</div>
+            <h2>Operate by keyboard</h2>
+            <p>Use lazy and vim muscle memory for navigation, filtering, assignment, transitions, and daily triage.</p>
+          </article>
+        </section>
+
+        <section class="install" id="install">
+          <div>
+            <div class="eyebrow">Get started</div>
+            <h2>Install, connect, work.</h2>
+            <p>Use an Atlassian API token to connect your Jira site. Development mode works with bundled fixture data and needs no credentials.</p>
+          </div>
+          <pre><code><span class="prompt">$</span> npm install -g @bojackduy/lazyjira
+<span class="prompt">$</span> lazyjira auth login
+<span class="prompt">$</span> lazyjira</code></pre>
+        </section>
+      </main>
+
+      <footer>
+        <span>Built for keyboard-first Jira work.</span>
+        <a href="https://github.com/bojackduy/lazyjira">github.com/bojackduy/lazyjira</a>
+      </footer>
+    </div>
   </body>
 </html>

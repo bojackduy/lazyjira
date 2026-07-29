@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "assets/demo.png"
       - "site/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -29,6 +30,9 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
+
+      - name: Stage demo image
+        run: mkdir -p site/assets && cp assets/demo.png site/assets/demo.png
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -1,10 +1,29 @@
 # lazyjira
 
-`lazyjira` is a keyboard-first Jira workspace for the terminal.
+> A keyboard-first Jira workspace for the terminal.
 
-The goal is not to make a simple ticket browser. The goal is to bring the high-value Jira web workflows into a fast terminal UI: backlog grooming, Kanban tracking, active sprint overview, issue triage, and rich issue/document reading.
+<p align="center">
+  <img src="assets/demo.png" alt="lazyjira active sprint board with project navigation and issue inspector" width="100%" />
+</p>
 
-We want the speed and muscle memory of the `lazy*` family, but the UI itself should be designed for Jira's real value: seeing work, moving work, tracking sprint health, and drilling into details only when needed.
+`lazyjira` brings active sprint tracking, backlog grooming, Kanban flow, issue triage, and rich issue detail into one focused terminal workspace. It keeps lazy/vim muscle memory while making the state of work visible before you drill into a ticket.
+
+## Install
+
+```bash
+npm install -g @bojackduy/lazyjira
+lazyjira auth login
+lazyjira
+```
+
+Use `lazyjira dev` to run with bundled fixture data and no Jira credentials.
+
+## Why lazyjira
+
+- **Overview first:** active sprint, backlog, and Kanban are first-class views, not filters over a ticket list.
+- **Context stays visible:** inspect an issue beside the board instead of losing your place in the browser.
+- **Keyboard-native:** `j/k`, `h/l`, `/`, `?`, `q`, `Tab`, and focused Jira actions keep daily work fast.
+- **Safe writes:** stage changes locally, review the exact Jira operations, then apply them deliberately.
 
 ## Product Direction
 
