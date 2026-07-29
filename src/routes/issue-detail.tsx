@@ -178,7 +178,7 @@ function IssueHeader(props: { issue: IssueSummary }) {
         <text fg={props.issue.blocked ? theme.danger : theme.textSubtle} wrapMode="none">{props.issue.blocked ? "Blocked" : "Not blocked"}</text>
         <text fg={props.issue.staleDays >= 7 ? theme.warning : theme.textSubtle} wrapMode="none">Stale {props.issue.staleDays}d</text>
       </box>
-      <text fg={theme.textSubtle}>j/k line scroll · d/u half page · e edit body · q/backspace back</text>
+      <text fg={theme.textSubtle}>j/k line scroll · d/u half page · e edit body · q/Esc back</text>
     </box>
   )
 }

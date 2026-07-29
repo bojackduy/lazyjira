@@ -109,6 +109,7 @@ export function App() {
           else if (state.configEditing) appState.cancelConfigEdit()
           else if (state.detailBodyEditing) appState.cancelDetailBodyEdit()
           else if (state.commentEditing) appState.cancelComment()
+          else if (state.route === "issue-detail") appState.closeIssueDetail()
           else appState.cancelInspectorEdit()
         },
       },
@@ -119,7 +120,6 @@ export function App() {
       { name: "command-palette.close", run: () => (state.commandPaletteOpen ? appState.closeCommandPalette() : false) },
       { name: "command-palette.next", run: () => moveCommandPaletteSelection(1) },
       { name: "command-palette.previous", run: () => moveCommandPaletteSelection(-1) },
-      { name: "detail.back", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.closeIssueDetail()) },
       { name: "route.workspace", run: () => (canRunGlobalShortcut() ? appState.setRoute("workspace") : false) },
       { name: "route.active-sprint", run: () => (canRunGlobalShortcut() ? appState.setRoute("active-sprint") : false) },
       { name: "route.backlog", run: () => (canRunGlobalShortcut() ? appState.setRoute("backlog") : false) },
@@ -163,7 +163,6 @@ export function App() {
       { key: { name: "c", ctrl: true }, cmd: "app.force-quit" },
       { key: "escape", cmd: "edit.cancel" },
       { key: { name: "return", ctrl: true }, cmd: "edit.stage" },
-      { key: "backspace", cmd: "detail.back", preventDefault: false },
       { key: "tab", cmd: "focus.next", preventDefault: false },
       { key: { name: "tab", shift: true }, cmd: "focus.previous", preventDefault: false },
       { key: "1", cmd: "route.workspace", preventDefault: false },
