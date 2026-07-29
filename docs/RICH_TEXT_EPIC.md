@@ -28,7 +28,26 @@ The initial mapper supports:
 - Bold, italic, strike-through, inline code, and links.
 - Jira ADF `doc`, `paragraph`, `heading`, `bulletList`, `orderedList`, `listItem`, `blockquote`, `panel`, `codeBlock`, `rule`, `table`, `tableRow`, `tableHeader`, `tableCell`, `hardBreak`, and matching inline marks.
 
-Unsupported nodes such as media, task lists, mentions, status pills, emojis, expand blocks, inline cards, and unknown vendor extensions must have a readable fallback. A description or comment containing unsupported nodes is marked write-blocked until its round-trip behavior is explicitly implemented.
+Unsupported nodes such as media, attachment references, layout/color marks, unknown vendor extensions, and unmodeled ADF nodes must have a readable fallback. A description or comment containing unsupported nodes is marked write-blocked until its round-trip behavior is explicitly implemented.
+
+### Jira Markdown Directives
+
+The non-media Jira-specific nodes use visible, editable directives so their identity survives the textarea round trip:
+
+```md
+@[Duy](jira-mention://account-id)
+:rocket:
+[[status:In Review|yellow]]
+[[date:1765843200000]]
+[[card:https://example.com|Architecture]]
+- [ ] Verify release
+- [x] Notify team
+[[expand:Rollout notes]]
+Details shown in the reader.
+[[/expand]]
+```
+
+The reader renders standalone status, date, card, and expand directives as Jira-aware terminal components. Mentions and emoji remain readable inline Markdown/text while retaining their ADF identity on write. Image, attachment, and media directives remain intentionally deferred to a separate media epic.
 
 ## Architecture
 

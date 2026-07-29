@@ -4,6 +4,15 @@ export type JiraRichText = {
   writeBlockedReason?: string
 }
 
+export type JiraRichTextPart =
+  | { type: "markdown"; content: string }
+  | { type: "mention"; label: string; accountId: string }
+  | { type: "emoji"; shortName: string }
+  | { type: "status"; label: string; color: string }
+  | { type: "date"; timestamp: string }
+  | { type: "card"; url: string; label: string }
+  | { type: "expand"; title: string }
+
 type AdfNode = {
   type?: unknown
   text?: unknown
@@ -15,10 +24,11 @@ type AdfNode = {
 type MarkdownBlock =
   | { type: "heading"; level: number; text: string }
   | { type: "paragraph"; lines: string[] }
-  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "list"; ordered: boolean; items: string[]; task?: boolean; decision?: boolean }
   | { type: "code"; language?: string; text: string }
   | { type: "quote"; panel?: string; lines: string[] }
   | { type: "table"; rows: string[][] }
+  | { type: "expand"; title: string; lines: string[] }
   | { type: "rule" }
 
 export function adfToRichText(value: unknown): JiraRichText {
@@ -54,6 +64,29 @@ export function markdownPlainText(markdown: string) {
     .trim()
 }
 
+export function splitJiraRichText(markdown: string): JiraRichTextPart[] {
+  const parts: JiraRichTextPart[] = []
+  const markdownLines: string[] = []
+  for (const line of markdown.split("\n")) {
+    const status = /^\[\[status:([^|\]]+)\|([^\]]+)\]\]$/.exec(line.trim())
+    const date = /^\[\[date:([^\]]+)\]\]$/.exec(line.trim())
+    const card = /^\[\[card:([^|\]]+)(?:\|([^\]]+))?\]\]$/.exec(line.trim())
+    const expand = /^\[\[expand:([^\]]+)\]\]$/.exec(line.trim())
+    if (!status && !date && !card && !expand && line.trim() !== "[[/expand]]") {
+      markdownLines.push(line)
+      continue
+    }
+    appendMarkdownPart(parts, markdownLines.join("\n"))
+    markdownLines.length = 0
+    if (status) parts.push({ type: "status", label: status[1]!, color: status[2]! })
+    else if (date) parts.push({ type: "date", timestamp: date[1]! })
+    else if (card) parts.push({ type: "card", url: card[1]!, label: card[2] ?? card[1]! })
+    else if (expand) parts.push({ type: "expand", title: expand[1]! })
+  }
+  appendMarkdownPart(parts, markdownLines.join("\n"))
+  return parts.length ? parts : [{ type: "markdown", content: markdown }]
+}
+
 function renderBlock(node: AdfNode, unsupported: Set<string>): string {
   const type = nodeType(node)
   if (!type) {
@@ -83,6 +116,13 @@ function renderBlock(node: AdfNode, unsupported: Set<string>): string {
       return "---"
     case "table":
       return renderTable(nodeArray(node.content), unsupported)
+    case "expand":
+    case "nestedExpand":
+      return [`[[expand:${stringAttr(node.attrs, "title") ?? "Details"}]]`, ...nodeArray(node.content).map((child) => renderBlock(child, unsupported)), "[[/expand]]"].join("\n\n")
+    case "taskList":
+      return renderTaskList(nodeArray(node.content), unsupported, false)
+    case "decisionList":
+      return renderTaskList(nodeArray(node.content), unsupported, true)
     default:
       unsupported.add(type || "unknown")
       return unsupportedMarker(type || "unknown", nodeText(node))
@@ -123,8 +163,21 @@ function renderTable(rows: AdfNode[], unsupported: Set<string>) {
   ].join("\n")
 }
 
+function renderTaskList(items: AdfNode[], unsupported: Set<string>, decision: boolean) {
+  return items.map((item) => {
+    const attrs = item.attrs
+    const state = stringAttr(attrs, "state")
+    const prefix = decision ? "[decision]" : state === "DONE" ? "[x]" : "[ ]"
+    return `- ${prefix} ${renderInline(nodeArray(item.content), unsupported).trim()}`
+  }).join("\n")
+}
+
 function tableRow(cells: string[]) {
   return `| ${cells.join(" | ")} |`
+}
+
+function appendMarkdownPart(parts: JiraRichTextPart[], content: string) {
+  if (content) parts.push({ type: "markdown", content })
 }
 
 function renderInline(nodes: AdfNode[], unsupported: Set<string>) {
@@ -133,7 +186,21 @@ function renderInline(nodes: AdfNode[], unsupported: Set<string>) {
     if (type === "text" || (!type && textValue(node))) return applyMarks(escapeMarkdown(textValue(node)), nodeArray(node.marks), unsupported)
     if (type === "hardBreak") return "\n"
     if (type === "emoji") return `:${stringAttr(node.attrs, "shortName") ?? stringAttr(node.attrs, "text") ?? "emoji"}:`
-    if (type === "mention") return `@${stringAttr(node.attrs, "text") ?? "mention"}`
+    if (type === "mention") {
+      const accountId = stringAttr(node.attrs, "id")
+      const label = stringAttr(node.attrs, "text") ?? "mention"
+      if (accountId) return `@[${label}](jira-mention://${accountId})`
+      unsupported.add("mention")
+      return `@${label}`
+    }
+    if (type === "status") return `[[status:${stringAttr(node.attrs, "text") ?? "Status"}|${stringAttr(node.attrs, "color") ?? "neutral"}]]`
+    if (type === "date") return `[[date:${stringAttr(node.attrs, "timestamp") ?? ""}]]`
+    if (type === "inlineCard") {
+      const url = stringAttr(node.attrs, "url")
+      if (url) return `[[card:${url}|${url}]]`
+      unsupported.add("inlineCard")
+      return "[inline card]"
+    }
     unsupported.add(type || "unknown")
     return `[${type || "unsupported"}: ${nodeText(node)}]`
   }).join("")
@@ -178,6 +245,15 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
     const heading = /^(#{1,6})\s+(.+)$/.exec(line)
     if (heading) { blocks.push({ type: "heading", level: heading[1]!.length, text: heading[2]!.trim() }); index += 1; continue }
     if (/^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { blocks.push({ type: "rule" }); index += 1; continue }
+    const expand = /^\[\[expand:([^\]]+)\]\]\s*$/.exec(line)
+    if (expand) {
+      const content: string[] = []
+      index += 1
+      while (index < lines.length && lines[index] !== "[[/expand]]") content.push(lines[index++]!)
+      if (index < lines.length) index += 1
+      blocks.push({ type: "expand", title: expand[1]!, lines: content })
+      continue
+    }
     if (isTableStart(lines, index)) {
       const rows = [splitTableRow(line)]
       index += 2
@@ -194,7 +270,7 @@ function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
         items.push(item.text)
         index += 1
       }
-      blocks.push({ type: "list", ordered: list.ordered, items })
+      blocks.push({ type: "list", ordered: list.ordered, items, task: items.every((item) => /^\[[ xX]\]\s+/.test(item)), decision: items.every((item) => /^\[decision\]\s+/.test(item)) })
       continue
     }
     if (/^>\s?/.test(line)) {
@@ -215,10 +291,21 @@ function blockToAdf(block: MarkdownBlock): Record<string, unknown> {
   switch (block.type) {
     case "heading": return { type: "heading", attrs: { level: block.level }, content: inlineToAdf(block.text) }
     case "paragraph": return { type: "paragraph", content: linesToAdf(block.lines) }
-    case "list": return { type: block.ordered ? "orderedList" : "bulletList", content: block.items.map((item) => ({ type: "listItem", content: [{ type: "paragraph", content: inlineToAdf(item) }] })) }
+    case "list": {
+      if (block.task) return {
+        type: "taskList",
+        content: block.items.map((item) => ({ type: "taskItem", attrs: { state: /^\[[xX]\]/.test(item) ? "DONE" : "TODO" }, content: inlineToAdf(item.replace(/^\[[ xX]\]\s+/, "")) })),
+      }
+      if (block.decision) return {
+        type: "decisionList",
+        content: block.items.map((item) => ({ type: "decisionItem", attrs: { state: "DECIDED" }, content: inlineToAdf(item.replace(/^\[decision\]\s+/, "")) })),
+      }
+      return { type: block.ordered ? "orderedList" : "bulletList", content: block.items.map((item) => ({ type: "listItem", content: [{ type: "paragraph", content: inlineToAdf(item) }] })) }
+    }
     case "code": return { type: "codeBlock", attrs: block.language ? { language: block.language } : undefined, content: block.text ? [{ type: "text", text: block.text }] : [] }
     case "quote": return { type: block.panel ? "panel" : "blockquote", content: [{ type: "paragraph", content: linesToAdf(block.lines) }] }
     case "table": return { type: "table", content: block.rows.map((row, rowIndex) => ({ type: "tableRow", content: row.map((cell) => ({ type: rowIndex === 0 ? "tableHeader" : "tableCell", content: [{ type: "paragraph", content: inlineToAdf(cell.replace(/<br>/g, "\n")) }] })) })) }
+    case "expand": return { type: "expand", attrs: { title: block.title }, content: parseMarkdownBlocks(block.lines.join("\n")).map(blockToAdf) }
     case "rule": return { type: "rule" }
   }
 }
@@ -229,13 +316,31 @@ function linesToAdf(lines: string[]) {
 
 function inlineToAdf(value: string): Record<string, unknown>[] {
   const result: Record<string, unknown>[] = []
-  const pattern = /(\*\*[^*]+\*\*|~~[^~]+~~|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g
+  const pattern = /(@\[[^\]]+\]\(jira-mention:\/\/[^)]+\)|\[\[status:[^|\]]+\|[^\]]+\]\]|\[\[date:[^\]]+\]\]|\[\[card:[^|\]]+(?:\|[^\]]+)?\]\]|:[a-zA-Z0-9_+\-]+:|\*\*[^*]+\*\*|~~[^~]+~~|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g
   let last = 0
   let match: RegExpExecArray | null
   while ((match = pattern.exec(value)) !== null) {
     appendText(result, value.slice(last, match.index))
     const token = match[0]!
-    if (token.startsWith("**")) appendText(result, token.slice(2, -2), [{ type: "strong" }])
+    if (token.startsWith("@[")) {
+      const mention = /^@\[([^\]]+)\]\(jira-mention:\/\/([^)]+)\)$/.exec(token)
+      if (mention) result.push({ type: "mention", attrs: { id: mention[2], text: mention[1] } })
+      else appendText(result, token)
+    } else if (token.startsWith("[[status:")) {
+      const status = /^\[\[status:([^|\]]+)\|([^\]]+)\]\]$/.exec(token)
+      if (status) result.push({ type: "status", attrs: { text: status[1], color: status[2] } })
+      else appendText(result, token)
+    } else if (token.startsWith("[[date:")) {
+      const date = /^\[\[date:([^\]]+)\]\]$/.exec(token)
+      if (date) result.push({ type: "date", attrs: { timestamp: date[1] } })
+      else appendText(result, token)
+    } else if (token.startsWith("[[card:")) {
+      const card = /^\[\[card:([^|\]]+)(?:\|([^\]]+))?\]\]$/.exec(token)
+      if (card) result.push({ type: "inlineCard", attrs: { url: card[1] } })
+      else appendText(result, token)
+    } else if (/^:[a-zA-Z0-9_+\-]+:$/.test(token)) {
+      result.push({ type: "emoji", attrs: { shortName: token.slice(1, -1), text: token } })
+    } else if (token.startsWith("**")) appendText(result, token.slice(2, -2), [{ type: "strong" }])
     else if (token.startsWith("~~")) appendText(result, token.slice(2, -2), [{ type: "strike" }])
     else if (token.startsWith("`")) appendText(result, token.slice(1, -1), [{ type: "code" }])
     else if (token.startsWith("*")) appendText(result, token.slice(1, -1), [{ type: "em" }])
@@ -259,7 +364,7 @@ function appendText(result: Record<string, unknown>[], value: string, marks?: Re
 
 function startsBlock(lines: string[], index: number) {
   const line = lines[index]!
-  return /^```/.test(line) || /^(#{1,6})\s+/.test(line) || /^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(line) || !!listItem(line) || /^>\s?/.test(line) || isTableStart(lines, index)
+  return /^```/.test(line) || /^(#{1,6})\s+/.test(line) || /^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(line) || /^\[\[expand:/.test(line) || !!listItem(line) || /^>\s?/.test(line) || isTableStart(lines, index)
 }
 
 function isTableStart(lines: string[], index: number) {

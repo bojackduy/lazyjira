@@ -55,4 +55,41 @@ describe("Jira ADF rich text", () => {
       ],
     })
   })
+
+  test("round-trips Jira text directives without flattening their identity", () => {
+    const markdown = [
+      "@[Duy](jira-mention://account-1) :rocket:",
+      "",
+      "[[status:In Review|yellow]]",
+      "[[date:1765843200000]]",
+      "",
+      "- [ ] Verify release",
+      "- [x] Notify team",
+      "",
+      "[[expand:Rollout notes]]",
+      "Keep this reversible.",
+      "[[/expand]]",
+    ].join("\n")
+    const written = markdownToAdf(markdown)
+
+    const content = (written.document?.content ?? []) as Array<Record<string, unknown>>
+    expect(content[0]).toMatchObject({ type: "paragraph", content: [{ type: "mention", attrs: { id: "account-1", text: "Duy" } }, { type: "text", text: " " }, { type: "emoji", attrs: { shortName: "rocket" } }] })
+    expect(content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "taskList", content: [
+        expect.objectContaining({ type: "taskItem", attrs: { state: "TODO" } }),
+        expect.objectContaining({ type: "taskItem", attrs: { state: "DONE" } }),
+      ] }),
+      expect.objectContaining({ type: "expand", attrs: { title: "Rollout notes" } }),
+    ]))
+    expect(JSON.stringify(written.document)).toContain('"type":"status"')
+    expect(JSON.stringify(written.document)).toContain('"type":"date"')
+
+    const read = adfToRichText(written.document)
+    expect(read.markdown).toContain("@[Duy](jira-mention://account-1)")
+    expect(read.markdown).toContain(":rocket:")
+    expect(read.markdown).toContain("[[status:In Review|yellow]]")
+    expect(read.markdown).toContain("- [ ] Verify release")
+    expect(read.markdown).toContain("[[expand:Rollout notes]]")
+    expect(read.writeBlockedReason).toBeUndefined()
+  })
 })
