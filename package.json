@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@bojackduy/lazyjira",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A keyboard-first Jira workspace for the terminal.",
   "homepage": "https://bojackduy.github.io/lazyjira/",
   "private": false,
