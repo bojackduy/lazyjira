@@ -3,10 +3,12 @@
 > A keyboard-first Jira workspace for the terminal.
 
 <p align="center">
-  <img src="assets/demo.png" alt="lazyjira active sprint board with project navigation and issue inspector" width="100%" />
+  <img src="assets/demo.png" alt="Earlier lazyjira fixture build showing an active sprint board and issue inspector" width="100%" />
 </p>
 
-`lazyjira` brings active sprint tracking, backlog grooming, Kanban flow, issue triage, and rich issue detail into one focused terminal workspace. It keeps lazy/vim muscle memory while making the state of work visible before you drill into a ticket.
+_The screenshot shows an earlier fixture build. Current navigation keeps the same three-pane terminal layout and uses the Jira-style `Global`, `Project`, `Quick Filters`, and `Pending` sidebar sections documented below._
+
+`lazyjira` brings project Timeline, Backlog, List, Scrum Active sprints or Kanban Board, issue triage, and rich issue detail into one focused terminal workspace. It keeps lazy/vim muscle memory while making the state of work visible before you drill into a ticket.
 
 ## Install
 
@@ -20,7 +22,7 @@ Use `lazyjira dev` to run with bundled fixture data and no Jira credentials.
 
 ## Why lazyjira
 
-- **Overview first:** active sprint, backlog, and Kanban are first-class views, not filters over a ticket list.
+- **Overview first:** Timeline, Backlog, List, and the board-aware Active sprints/Board view are first-class project destinations.
 - **Context stays visible:** inspect an issue beside the board instead of losing your place in the browser.
 - **Keyboard-native:** `j/k`, `h/l`, `/`, `?`, `q`, `Tab`, and focused Jira actions keep daily work fast.
 - **Safe writes:** stage changes locally, review the exact Jira operations, then apply them deliberately.
@@ -64,102 +66,48 @@ Use them as reference material. Do not copy their product model blindly. Our dir
 
 ## Primary Screens
 
-### 1. Workspace Home
-
-Purpose: give the user a fast starting point.
-
-Should show:
-
-- Projects and boards.
-- Active sprint entry points.
-- Backlog entry points.
-- My assigned work.
-- Recently updated issues.
-- Blocked/unassigned/stale quick filters.
-- Recently opened issues and docs.
-
-### 2. Active Sprint Board
-
-Purpose: track current sprint execution.
-
-Should show:
-
-- Columns by workflow status.
-- Issue cards in each status.
-- Sprint health summary.
-- Blocked, stale, unassigned, and high-priority indicators.
-- Quick filters for assignee, epic, type, priority, labels, and blockers.
-- Inspector for selected card.
-
-Example direction:
+The selected board determines the final project destination: Scrum shows `Active sprints`; Kanban shows `Board`. They share one route and board renderer while retaining separate Jira loading policies.
 
 ```text
-┌─ Workspace ───────────────┐┌─ Active Sprint: Sprint 24 ───────────────────────────────────────────────┐┌─ Inspector ─────────────┐
-│ Project: PROJ             ││  To Do              In Progress          Review              Done        ││ PROJ-128                │
-│ Board: Product Kanban     ││ ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌─────────┐ ││ Fix login redirect     │
-│                           ││ │ PROJ-121      │   │ PROJ-128      │   │ PROJ-117      │   │ PROJ-1  │ ││ Bug · High             │
-│ Views                     ││ │ OAuth setup   │   │ Login redirect│   │ Race in loader│   │ Cleanup │ ││ In Progress            │
-│ > Active Sprint           ││ │ Task · Medium │   │ Bug · High    │   │ Bug · High    │   │ Done    │ ││ Assignee: Duy          │
-│   Backlog                 ││ └───────────────┘   └───────────────┘   └───────────────┘   └─────────┘ ││ Sprint: Sprint 24      │
-│   Kanban Board            ││                                                                          ││                         │
-│   My Work                 ││ ┌───────────────┐   ┌───────────────┐                                      ││ Actions                 │
-│                           ││ │ PROJ-122      │   │ PROJ-130      │                                      ││ s status                │
-│ Quick Filters             ││ │ Docs refresh  │   │ Payment retry │                                      ││ a assign                │
-│ > Only My Issues          ││ │ Story · Low   │   │ Bug · Medium  │                                      ││ c comment               │
-│   Blocked                 ││ └───────────────┘   └───────────────┘                                      ││ e edit                  │
-└───────────────────────────┘└──────────────────────────────────────────────────────────────────────────┘└─────────────────────────┘
-? help  / search  j/k card  h/l column  n new  enter detail  e inspector  w apply
+┌─ Sidebar ─────────────┐┌─ Current project view ─────────────────────────────┐┌─ Inspector ─────────────┐
+│ PROJ Product Platform││ Timeline / Backlog / List / Active sprints        ││ PROJ-128                │
+│ Delivery · Scrum     ││                                                     ││ Fix login redirect      │
+│                      ││                                                     ││ Status: In Progress     │
+│ Global               ││                                                     ││ Priority: High          │
+│   Workspace          ││                                                     ││ Assignee: Duy           │
+│ Project              ││                                                     ││                        │
+│   Timeline           ││                                                     ││ e edit · W review       │
+│   Backlog            ││                                                     ││                        │
+│   List               ││                                                     ││                        │
+│ > Active sprints     ││                                                     ││                        │
+│ Quick Filters        ││                                                     ││                        │
+│   [ ] Only my issues ││                                                     ││                        │
+│ Pending              ││                                                     ││                        │
+│   0 staged changes   ││                                                     ││                        │
+└──────────────────────┘└─────────────────────────────────────────────────────┘└─────────────────────────┘
 ```
+
+### 1. Workspace
+
+The global dashboard shows jump targets, attention queues, recent issues, loaded or remote search results, and staged-change context for the selected project and board.
+
+### 2. Timeline
+
+Timeline projects the independently paged project issue source into a read-only hierarchy and schedule. It shows loaded/total completeness, discovered Start and Due dates, missing-parent or invalid-hierarchy notices, explicit unscheduled rows, collapse state, zoom, and a textual narrow-terminal fallback. It never invents dates or hierarchy.
 
 ### 3. Backlog
 
-Purpose: groom, rank, and plan work.
+Scrum Backlog shows collapsible active sprint, future sprint, and backlog groups with rank and move staging. Kanban Backlog shows the board backlog without sprint-only controls. `L` loads the focused source page when Jira has more results.
 
-Should show:
+### 4. List
 
-- Active sprint block.
-- Future sprint blocks.
-- Backlog block.
-- Epics and quick filters.
-- Ranking movement.
-- Move-to-sprint and move-to-backlog actions.
-- Sprint capacity and health indicators.
+List is a dense, project-wide paginated issue table independent from board, backlog, and remote search sources. Key and Summary remain visible as the terminal narrows; selection drives the shared inspector and `Enter` opens detail.
 
-Example direction:
+### 5. Active Sprints / Board
 
-```text
-┌─ Workspace ─────────────┐┌─ Backlog: Product Kanban ──────────────────────────────────────────┐┌─ Sprint Health ─────────┐
-│ PROJ Product App        ││ Active Sprint: Sprint 24                                           ││ Sprint 24               │
-│                         ││ ┌────────────────────────────────────────────────────────────────┐ ││ 42 issues               │
-│ Views                   ││ │ > PROJ-128  Bug   High  Fix login redirect       Duy   Auth   │ ││ 18 todo                 │
-│   Active Sprint         ││ │   PROJ-121  Task  Med   OAuth setup wizard       An    Auth   │ ││ 16 in progress          │
-│ > Backlog               ││ │   PROJ-117  Bug   High  Race in detail loader    Duy   Core   │ ││ 8 done                  │
-│   Kanban Board          ││ └────────────────────────────────────────────────────────────────┘ ││                         │
-│                         ││ Future Sprint: Sprint 25                                           ││ Warnings                │
-│ Quick Filters           ││ ┌────────────────────────────────────────────────────────────────┐ ││ 3 unassigned            │
-│ > Only My Issues        ││ │   PROJ-140  Story Med   Improve docs reader     Linh  Docs   │ ││ 2 blocked               │
-│   Bugs                  ││ │   PROJ-141  Task  Low   Add board hints        Duy   UI     │ ││ 5 stale > 7d            │
-│   Blocked               ││ └────────────────────────────────────────────────────────────────┘ ││                         │
-│   Unassigned            ││ Backlog                                                             ││ Actions                 │
-│                         ││ ┌────────────────────────────────────────────────────────────────┐ ││ n new issue             │
-│                         ││ │   PROJ-160  Task  Low   Cleanup labels        Unassigned     │ ││ m move to sprint        │
-└─────────────────────────┘└────────────────────────────────────────────────────────────────────┘└─────────────────────────┘
-j/k move  J/K rank  m move to sprint  s transition  / filter  enter detail  tab focus
-```
+Scrum Active sprints loads complete active-sprint issue pages and retains sprint goal/date context. Kanban Board uses bounded board pages with explicit `L` load more. Both show workflow columns, create cards, local filters, issue actions, and the shared inspector.
 
-### 4. Kanban Board
-
-Purpose: track continuous-flow projects without sprint structure.
-
-Should show:
-
-- Columns by status.
-- Optional WIP limits.
-- Swimlanes by epic, assignee, priority, or issue type.
-- Blocker/stale signals.
-- Fast transition and assignment actions.
-
-### 5. Issue Detail And Inspector
+### 6. Issue Detail And Inspector
 
 Purpose: inspect, edit, create, and deeply read one selected item without losing board/backlog context.
 
@@ -182,13 +130,13 @@ The right inspector pane is the quick issue/status/edit surface and stays visibl
 
 Board cells always include a trailing `+ New issue` placeholder, even when a column or grouped swimlane is otherwise empty. Selecting that placeholder makes empty columns reachable with `h/l`; pressing `Enter` or `n` creates a draft issue in that exact status and group context.
 
-### 6. Metadata Config
+### 7. Metadata Config
 
 Purpose: inspect board/project metadata without turning the app into a Jira admin console.
 
 In dev/local mode, Board Columns, Statuses, and Issue Types can be staged with `a` add, `e` rename, `c` color, and `x` remove. Board Columns summarize Jira board lanes and their mapped workflow statuses; Statuses shows the detailed workflow state list. Status colors use app semantic rules for readable terminal contrast, with Jira `statusCategory.colorName` only as a fallback signal; issue types, priorities, and blocked signals use app semantic colors. `j/k` moves row by row, `d/u` pages through long metadata lists, `w` renders staged metadata locally while keeping it discardable, `X` discards staged changes, and `W` opens the Jira write review with planned and blocked operation previews. Priorities, Fields, and Quick Filters stay read-only but focusable until the model and API support are real.
 
-### 7. Search And Command Palette
+### 8. Search And Command Palette
 
 Purpose: let users jump anywhere without navigating through panes.
 
@@ -210,7 +158,7 @@ The app should use lazy-family muscle memory, adapted to Jira's board and backlo
 | Key | Meaning |
 |---|---|
 | `?` | Help for current context |
-| `p` / `;` / `:` | Open the command palette |
+| `;` / `:` | Open the command palette |
 | `/` | Search or filter current screen |
 | `S` | Search Jira remotely |
 | `q` | Back, close, or quit depending on context |
@@ -225,6 +173,7 @@ The app should use lazy-family muscle memory, adapted to Jira's board and backlo
 | `r` | Refresh current screen |
 | `R` | Refresh all visible data |
 | `P` | Switch active Jira project/board |
+| `1` / `2` / `3` / `4` / `5` | Workspace / Timeline / Backlog / List / Active sprints or Board |
 | `s` | Status/transition |
 | `a` | Assign |
 | `p` | Priority |
@@ -389,7 +338,7 @@ Success criteria:
 
 ## Open Product Decisions
 
-- Default landing screen: Active Sprint, Backlog, or Workspace Home.
+- Default landing screen: the last saved Workspace or project destination.
 - How much of the inspector should always be visible on narrow terminals.
 - How much rich issue content belongs directly in the detail route versus future linked-doc reading surfaces.
 - How to represent swimlanes without making the board visually noisy.

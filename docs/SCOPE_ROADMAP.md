@@ -33,27 +33,27 @@ This document tells contributors where each feature area lives, what it owns, wh
 | Product Direction | Active | `README.md`, `docs/BUILD_PLAN.md` |
 | Runtime Bootstrap | Mostly wired | `src/main.tsx`, `src/runtime/*`, `src/context/providers.tsx` |
 | Auth And Config | Mostly wired | `src/auth/*` |
-| Workspace Source | Partially wired | `src/workspace/*` |
-| Project Switcher | Needs A1.5 | `src/context/app-state.tsx`, `src/state/project-picker.ts`, `src/ui/shell.tsx` |
+| Workspace Source | Wired for dev/prod reads and writes | `src/workspace/*` |
+| Project Switcher | Active | `src/context/app-state.tsx`, `src/state/project-picker.ts`, `src/ui/shell.tsx` |
 | Jira Client | A1 complete | `src/jira/client.ts` |
-| Jira Read Loading | Not wired | future `src/jira/endpoints.ts`, `src/jira/normalize.ts`, `src/jira/loaders.ts` |
+| Jira Read Loading | Active | `src/jira/client.ts`, `src/jira/normalize.ts`, `src/workspace/prod/source.ts` |
 | Domain State | Active | `src/state/app-state.ts`, `src/workspace/types.ts`, `src/state/selectors.ts` |
 | Dev Fixtures | Active | `src/workspace/dev/*` |
 | Workspace Home | Active | `src/routes/workspace.tsx`, `src/state/workspace.ts` |
-| Jira Project Navigation | Planned | `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`, `src/state/routes.ts`, `src/ui/shell.tsx` |
-| Boards | Active | `src/routes/active-sprint.tsx`, `src/routes/kanban.tsx`, `src/ui/board.tsx` |
+| Jira Project Navigation | Active | `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`, `src/state/routes.ts`, `src/ui/shell.tsx` |
+| Boards | Active | `src/routes/board.tsx`, `src/ui/board.tsx` |
 | Backlog | Active | `src/routes/backlog.tsx`, `src/state/selectors.ts` |
-| Project List | Planned | future `src/routes/list.tsx`, project issue paging/state |
-| Timeline | Planned | future `src/routes/timeline.tsx`, hierarchy/date selectors |
+| Project List | Active | `src/routes/project-list.tsx`, `src/state/project-list.ts`, project issue paging |
+| Timeline | Active | `src/routes/timeline.tsx`, `src/state/timeline.ts` |
 | Inspector And Detail | Active | `src/ui/issue-inspector.tsx`, `src/routes/issue-detail.tsx` |
 | Rich Jira Text | Planned | `docs/RICH_TEXT_EPIC.md`, future `src/jira/adf.ts`, shared rich reader |
 | Staged Changes | Active | `src/state/issue-drafts.ts`, `src/state/staged-changes.ts` |
 | Metadata Config | Active | `src/routes/config.tsx`, `src/state/config-drafts.ts` |
 | Loaded Search | Active | `src/state/issue-search.ts`, `src/state/selectors.ts` |
-| Remote Search | Not wired | future Jira search endpoint and UI mode |
+| Remote Search | Active | `src/workspace/prod/source.ts`, `src/state/issue-search.ts`, `src/ui/shell.tsx` |
 | Keymap And Commands | Active | `src/app.tsx`, `src/context/keymap.tsx` |
 | UI Shell And Popups | Active | `src/ui/shell.tsx`, `src/context/toast.tsx`, `src/context/dialog.tsx` |
-| Jira Writes | Placeholder only | `src/state/staged-changes.ts`, future Jira write endpoints |
+| Jira Writes | Active staged review/apply | `src/state/jira-write-plan.ts`, `src/context/app-state.tsx`, `src/workspace/prod/source.ts` |
 | Testing And Quality | Active | `src/**/*.test.ts`, `package.json` |
 | Documentation | Active | `docs/*`, `README.md`, `AGENTS.md` |
 
@@ -249,15 +249,15 @@ Out Of Scope:
 
 Current Behavior:
 
-- `WorkspaceSource` exposes `fetchProjects`, `fetchBoards`, and `loadWorkspace`.
+- `WorkspaceSource` owns project/board discovery, workspace loading, bounded issue pages, detail/search reads, and supported Jira writes.
 - Dev source uses fixtures and requires no auth.
-- Prod source uses Jira project/board discovery but returns an empty not-wired workspace for selected boards.
+- Prod source loads board metadata, active/future sprints, active sprint issues, bounded backlog or Kanban board pages, and project-wide List/Timeline pages.
+- Project List, board, backlog, sprint, Timeline parent hydration, and remote search retain independent source state.
 
 Next Work:
 
-- A1.5: support local recent workspaces before remote project discovery.
-- A2/A3: replace prod not-wired workspace with real board metadata, sprint, and backlog loading.
-- Add cached discovery data to source or a companion cache module after the shape is decided.
+- Keep endpoint orchestration in workspace sources and state, never routes or widgets.
+- Extend read/write coverage only with focused normalization, stale-response, and source-isolation tests.
 
 Verification:
 
@@ -313,14 +313,6 @@ Out Of Scope:
 
 Current Behavior:
 
-- `P` opens a project picker.
-- Picker loads projects from the current source if projects are not already in memory.
-- Selecting a project fetches boards for that project.
-- Selecting a board calls `source.loadWorkspace()`, persists the workspace, and applies the workspace.
-- Current switch applies loaded workspace and clears local staged changes.
-
-Target A1.5 Behavior:
-
 - `P` opens local saved workspaces instantly.
 - Local stage shows `prodWorkspace`, `devWorkspace`, and recent saved workspaces for the current env.
 - `/` filters local workspaces without remote calls.
@@ -333,7 +325,7 @@ Target A1.5 Behavior:
 - `r` refreshes the active local workspace data, not all project discovery.
 - `R` in remote mode can hard-refresh project discovery if needed.
 
-Suggested State Shape:
+State Shape:
 
 - `projectPicker.mode`: `local` or `remote-projects` or `remote-boards`.
 - `projectPicker.localWorkspaces`: saved workspaces for the current env.
@@ -345,11 +337,8 @@ Suggested State Shape:
 
 Next Work:
 
-- Add recent workspace config helpers.
-- Change `openProjectPicker()` to load local workspaces only.
-- Add key handling for `a`, `r`, and `R` in picker mode.
-- Update picker UI copy from `one active project context` to `local workspaces first`.
-- Add tests for no remote calls on `P`, remote calls only after `a`, and final workspace sync only after board selection.
+- Preserve local-first discovery and staged-change blocking as workspace loading evolves.
+- Keep prod and dev recent workspace persistence isolated.
 
 Verification:
 
@@ -423,11 +412,10 @@ Read First:
 Main Files:
 
 - `src/workspace/prod/source.ts`
-- future `src/jira/endpoints.ts`
-- future `src/jira/types.ts`
-- future `src/jira/normalize.ts`
-- future `src/jira/loaders.ts`
-- future tests beside each file.
+- `src/jira/client.ts`
+- `src/jira/normalize.ts`
+- `src/state/issue-pages.ts`
+- focused tests beside each file.
 
 Dependencies:
 
@@ -443,12 +431,16 @@ Out Of Scope:
 - Do not make `/` trigger remote search.
 - Do not leak raw Jira REST shapes into route components.
 
+Current Behavior:
+
+- Prod loads board metadata, active/future sprints, all active sprint issues, bounded backlog and Kanban board pages, project-wide List/Timeline pages, detail/comments, and remote search.
+- Jira Start date discovery and batched missing-parent hydration support Timeline without private roadmap endpoints or per-row requests.
+- Page append and refresh retain successful rows on failure and reject stale workspace responses.
+
 Next Work:
 
-- A2: board metadata loader for statuses, columns, issue types, and field IDs.
-- A3: active sprint, future sprint, and bounded backlog issue loading.
-- A6: remote search mode and remote search pagination.
-- Add fixture JSON responses for normalization tests.
+- Add endpoint coverage only as the shared domain and user-facing surfaces need it.
+- Preserve bounded loading, explicit `L` paging, source isolation, and actionable permission/rate-limit failures.
 
 Verification:
 
@@ -601,22 +593,21 @@ Verification:
 
 Goal:
 
-- Render active sprint and Kanban board views with stable keyboard navigation.
-- Keep active sprint and Kanban as first-class routes.
+- Render Scrum Active sprints and Kanban Board through one board route with stable keyboard navigation.
+- Preserve separate active-sprint and Kanban loading policies behind the shared renderer.
 
 Read First:
 
-- `src/routes/active-sprint.tsx`
-- `src/routes/kanban.tsx`
+- `src/routes/board.tsx`
 - `src/ui/board.tsx`
+- `src/state/routes.ts`
 - `src/state/board-navigation.ts`
 - `src/state/board-navigation.test.ts`
 - `src/state/selectors.ts`
 
 Main Files:
 
-- `src/routes/active-sprint.tsx`
-- `src/routes/kanban.tsx`
+- `src/routes/board.tsx`
 - `src/ui/board.tsx`
 - `src/state/board-navigation.ts`
 
@@ -633,23 +624,79 @@ Out Of Scope:
 - Do not add direct mouse-first interactions as the primary workflow.
 - Do not break narrow terminal behavior when adding columns or swimlanes.
 
+Current Behavior:
+
+- Scrum uses complete active sprint issue loading with sprint goal/date context and the `Active sprints` route label.
+- Kanban uses bounded board pages, explicit `L` load more, and the `Board` route label.
+- Internal `BoardMode` values remain `active-sprint` and `kanban`; these are renderer/data modes, not public routes.
+
 Next Work:
 
-- Wire real board status windows once A2 supplies board metadata.
-- Add loading/empty/error board states for prod workspaces.
-- Add WIP limits/swimlanes only after basic Jira loading is stable.
+- Add WIP limits/swimlanes only when the Jira metadata and terminal interaction remain clear.
 
 Verification:
 
 - `bun test src/state/board-navigation.test.ts`
 - Manual smoke: `j/k`, `h/l`, `g` group cycle, narrow terminal board windows.
 
+## Project List
+
+Goal:
+
+- Scan all loaded issues for the selected project independently from board, backlog, and remote search sources.
+- Keep Key and Summary visible while degrading optional columns intentionally on narrow terminals.
+
+Read First:
+
+- `src/routes/project-list.tsx`
+- `src/state/project-list.ts`
+- `src/state/issue-pages.ts`
+- `src/workspace/prod/source.ts`
+- `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`
+
+Current Behavior:
+
+- `project-list` uses escaped project JQL, cursor paging, append dedupe, retained rows on failure, and explicit loaded/total completeness.
+- List selection and horizontal offset are independent from Timeline even though both reuse normalized project issue entities.
+- `/` filters loaded rows, `S` opens independent remote search, and `L` requests the next project page.
+
+Verification:
+
+- `bun test src/state/project-list.test.ts`
+- Manual smoke: source isolation, filter, paging, narrow columns, detail open/return, and staged review.
+
+## Timeline
+
+Goal:
+
+- Present a read-only project hierarchy and schedule from public Jira issue fields without inventing dates or parent relationships.
+- Make partial pages, missing fields, unresolved parents, invalid hierarchy, and narrow layout explicit.
+
+Read First:
+
+- `src/routes/timeline.tsx`
+- `src/state/timeline.ts`
+- `src/state/project-list.ts`
+- `src/jira/normalize.ts`
+- `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`
+
+Current Behavior:
+
+- Timeline reuses the `project-list` cache, discovers Start date metadata, retains Due date, and hydrates missing parents in batches.
+- Hierarchy projection supports arbitrary depth, collapse state, missing-parent groups, cycle protection, schedule bars or milestones, and unscheduled rows.
+- Wide date grids switch to exact textual ranges when the terminal cannot retain issue identity plus a meaningful date window.
+
+Verification:
+
+- `bun test src/state/timeline.test.ts`
+- Manual smoke: partial completeness, date/hierarchy notices, paging, narrow layout, detail return, filters, and source isolation.
+
 ## Backlog
 
 Goal:
 
-- Show active/future sprint groups and backlog groups for grooming and planning.
-- Support keyboard navigation before write actions are wired.
+- Show sprint-aware planning groups for Scrum and a non-sprint board backlog for Kanban.
+- Support keyboard navigation, bounded paging, collapse state, and staged rank/move actions.
 
 Read First:
 
@@ -662,26 +709,26 @@ Main Files:
 
 - `src/routes/backlog.tsx`
 - `src/state/selectors.ts`
-- future backlog move/rank command files if split later.
+- `src/state/issue-pages.ts`
+- `src/state/jira-write-plan.ts`
 
 Dependencies:
 
 - Domain State
 - Jira Read Loading
 - Keymap And Commands
-- Jira Writes for future move/rank actions.
+- Jira Writes.
 
 Out Of Scope:
 
-- Do not implement remote rank/move writes until read loading and write review are ready.
 - Do not load unlimited Jira backlog pages by default.
 - Do not flatten backlog into a generic issue list.
 
-Next Work:
+Current Behavior:
 
-- Add bounded backlog loading after A3.
-- Add explicit `load more` for backlog pages.
-- Add move/rank preview before remote writes.
+- Scrum renders collapsible active, future, and backlog planning groups; empty groups remain focusable.
+- Kanban renders a non-sprint backlog group and omits sprint-only controls.
+- `L` pages the focused source, `J/K` stages rank, and `m` stages sprint/backlog moves through the shared Jira review/apply path.
 
 Verification:
 
@@ -1024,13 +1071,14 @@ Current Behavior:
 
 - Global bindings live mostly in `src/app.tsx`.
 - Popup-specific keyboard handlers live in `src/ui/shell.tsx`.
-- Some route-local page scrolling bindings exist in route files.
+- Route navigation is `1` Workspace, `2` Timeline, `3` Backlog, `4` List, and `5` Active sprints/Board.
+- `;` and `:` open the command palette; `p` is issue Priority.
+- Help and palette labels come from board-aware command metadata; footer hints are route-aware.
 
 Next Work:
 
-- Add proper help/dialog command metadata.
-- Add project picker local/remote mode keybindings for A1.5.
-- Reduce hardcoded footer shortcut strings once command metadata exists.
+- Continue moving route-local footer copy into shared command metadata where that reduces duplication without obscuring context.
+- Keep text editors and modal keymaps higher priority than printable global shortcuts.
 
 Verification:
 
@@ -1087,7 +1135,7 @@ Verification:
 
 Goal:
 
-- Convert staged local changes into safe Jira mutations after read loading is reliable.
+- Convert staged local changes into safe Jira mutations through a required review step.
 - Show exact before/after context before applying remote writes.
 
 Read First:
@@ -1096,13 +1144,13 @@ Read First:
 - `src/context/app-state.tsx` remote apply handlers.
 - `src/ui/shell.tsx` remote apply popup.
 - `docs/ATLASSIAN_API_INTEGRATION_PLAN.md` Staged Writes Plan.
-- Future Jira field metadata from A2.
+- Jira field, transition, user, and create metadata from the selected workspace/issue.
 
 Main Files:
 
 - `src/state/staged-changes.ts`
-- future `src/jira/write-endpoints.ts` or `src/jira/endpoints.ts` write section.
-- future write preview/operation translator.
+- `src/state/jira-write-plan.ts`
+- `src/workspace/prod/source.ts`
 - `src/context/app-state.tsx`
 - `src/ui/shell.tsx`
 
@@ -1115,22 +1163,23 @@ Dependencies:
 
 Out Of Scope:
 
-- Do not implement writes before read models and field IDs are known.
-- Do not remotely delete issues until product explicitly allows it.
+- Do not bypass metadata/transition/account-ID resolution for writes that require it.
+- Do not remotely delete issues without the second destructive confirmation.
 - Do not clear staged changes after a failed write.
 - Do not silently ignore unsupported staged changes.
 
-Next Work:
+Current Behavior:
 
-- Add write operation preview translator.
-- Mark unsupported operations in review popup.
-- Add transition/status write path after transitions metadata is available.
+- `W` renders exact planned and blocked rows before supported operations execute.
+- Supported operations include comments, mapped fields, transitions, users, sprint/backlog moves, rank, issue type, additive links, create, and confirmed delete.
+- Failed and blocked rows remain staged; successful neighboring rows clear independently and affected issues refresh.
+- Unmapped tenant fields, link removal, and metadata config writes remain explicit blockers.
 
 Verification:
 
-- Unit tests for staged-change to write-preview translation.
-- Mock Jira write tests for error preservation.
-- Manual smoke with a safe test Jira project only after explicit approval.
+- Unit tests for staged-change planning and blocked rows.
+- Mock Jira write tests for payloads, partial success, failure preservation, and apply locking.
+- `docs/JIRA_WRITE_SMOKE_CHECKLIST.md` on a non-production Jira project only after explicit approval.
 
 ## Testing And Quality
 
@@ -1149,7 +1198,8 @@ Main Files:
 
 - `src/**/*.test.ts`
 - `docs/TASK_TRACKER.md`
-- future manual smoke checklist.
+- `docs/JIRA_PROJECT_NAVIGATION_SMOKE_CHECKLIST.md`
+- `docs/JIRA_WRITE_SMOKE_CHECKLIST.md`
 
 Dependencies:
 
@@ -1169,9 +1219,8 @@ Current Commands:
 
 Next Work:
 
-- Add manual smoke checklist for prod Jira read-only loading.
-- Add tests for project switcher local/remote mode before implementing A1.5.
-- Add fixture-based normalization tests for A2/A3/A5.
+- Execute the Scrum and Kanban navigation checklist against non-production Jira credentials.
+- Keep automated route, source, hierarchy, paging, and narrow-terminal tests as the prerequisite for manual smoke.
 
 Verification:
 

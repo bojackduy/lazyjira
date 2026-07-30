@@ -6,14 +6,16 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 
 ## Product Baseline
 
-- [x] Overview-first OpenTUI shell with Active Sprint, Backlog, Kanban, Workspace, Config, inspector, and detail routes.
+- [x] Overview-first OpenTUI shell with Workspace, Timeline, Backlog, List, unified board, Config, inspector, and detail routes.
 - [x] Keyboard-first navigation, staged issue/config edits, local rendering, discard flow, and help/keymap behavior.
 - [x] Dev runtime remains fixture-backed and credential-free.
 - [x] Prod runtime has local auth configuration and saved project/board workspaces.
 - [x] Local-first `P` workspace switcher; remote project discovery only begins after explicit `a`.
-- [x] Wave 5 N1 Jira-style navigation foundation: scoped sidebar sections, Timeline/List placeholders, unified board route, Scrum/Kanban labels, legacy route migration, numeric navigation, and palette/settings separation.
+- [x] Wave 5 N1 Jira-style navigation foundation: scoped sidebar sections, Timeline/List route slots, unified board route, Scrum/Kanban labels, legacy route migration, numeric navigation, and palette/settings separation.
 
 ## Jira Read Integration
+
+Current project navigation uses `Workspace`, `Timeline`, `Backlog`, `List`, and one board-aware route labeled `Active sprints` for Scrum or `Board` for Kanban. Timeline and List are implemented project-wide surfaces, not placeholders.
 
 - [x] Jira client foundation, error mapping, project discovery, and board discovery.
 - [x] Board configuration, status-column normalization, active/future sprint discovery, and Jira field-ID discovery for sprint/points/rank.
@@ -69,6 +71,6 @@ Every completed milestone must include targeted state/UI tests, `bun run typeche
 
 - Jira API access stays in source/loader/state code, never route or widget rendering.
 - Prod does not fall back to fixture tickets.
-- Only staged comments, mapped standard field updates, and rank moves execute remotely; all other Jira writes remain review-only.
+- Supported staged writes include comments, mapped fields, transitions, sprint/backlog moves, rank, issue type, additive links, create, and confirmed delete; unsupported tenant fields and metadata config remain visibly blocked.
 - Future sprints with large issue counts are not eagerly loaded.
 - Workspace changes with staged edits are blocked until the user discards or finishes that work.

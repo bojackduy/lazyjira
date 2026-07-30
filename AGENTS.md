@@ -15,7 +15,7 @@ The goal is not a simple ticket browser. The goal is to make daily Jira work fas
 ## UX Policy
 
 - Optimize for overview first, details second.
-- Treat Active Sprint, Backlog, and Kanban Board as first-class screens.
+- Treat Timeline, Backlog, List, and the board-aware Active sprints/Board destination as first-class project screens.
 - Prioritize keyboard workflows over mouse workflows.
 - Keep the UI stable: panels should not jump around unless terminal size requires it.
 - Prefer one or two keystrokes for common actions once focus is in the right pane.

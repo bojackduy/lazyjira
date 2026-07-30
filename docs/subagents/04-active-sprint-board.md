@@ -10,7 +10,7 @@ Can start once demo board data and navigation command names exist. It can be dev
 
 ## Inputs
 
-- Product screen spec: `README.md` Active Sprint Board section.
+- Product screen spec: `README.md` Active Sprints / Board section.
 - Domain/demo data from `02-domain-demo-data`.
 - Command names from `03-keymap-command-system`.
 - OpenTUI layout notes: `docs/OPENTUI_REFERENCE.md`.
@@ -27,7 +27,7 @@ Can start once demo board data and navigation command names exist. It can be dev
 
 ## Suggested Files
 
-- `src/routes/active-sprint.tsx`
+- `src/routes/board.tsx`
 - `src/ui/board/board.tsx`
 - `src/ui/board/column.tsx`
 - `src/ui/board/card.tsx`

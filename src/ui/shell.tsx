@@ -872,7 +872,7 @@ function footerItems(focusedPane: string, route: AppRoute, board: AppState["boar
   if (projectPickerMode === "local") return ["workspace switcher", "/ filter local", "enter switch", "a browse Jira", "esc/q close"]
   if (projectPickerMode === "remote-projects") return ["remote projects", "/ filter", "j/k choose", "enter load boards", "r refresh", "h local"]
   if (projectPickerMode === "remote-boards") return ["remote boards", "/ filter", "j/k choose", "enter switch", "r refresh boards", "h projects"]
-  if (remoteApplyOpen) return ["remote write", "W final apply placeholder", "esc/q close"]
+  if (remoteApplyOpen) return ["remote write review", "W apply to Jira", "esc/q close"]
   if (stagedDiscardOpen) return ["discard staged", "j/k choose", "space mark", "enter discard", "esc/q close"]
   if (focusedPane === "sidebar") return ["sidebar", "j/k choose", "enter/l open/toggle", "space filter", "P project", "R refresh", "q quit"]
   if (focusedPane === "inspector") return ["inspector", "j/k field", "e/enter edit", "ctrl-enter stage", "x delete", "X discard", "w render", "W Jira"]

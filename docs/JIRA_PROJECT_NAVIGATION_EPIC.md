@@ -672,7 +672,7 @@ The target route model separates navigation concepts from renderer reuse:
 - Internal: `issue-detail`
 - Settings: configuration is excluded from normal sidebar routes
 
-Migration may temporarily retain `active-sprint` and `kanban` aliases while persisted local workspace state and keymaps migrate. Remove aliases once state, tests, command palette, and docs consistently use `board`.
+Persisted `active-sprint` and `kanban` values are normalized to `board` while config is parsed. They are migration inputs only, not `AppRoute` values or route components. Internal `BoardMode` strings remain because the unified board renderer still distinguishes Scrum active-sprint data from Kanban board data.
 
 ## Delivery Phases
 
@@ -710,8 +710,7 @@ Deliver:
 
 Read first:
 
-- `src/routes/active-sprint.tsx`
-- `src/routes/kanban.tsx`
+- `src/routes/board.tsx`
 - `src/ui/board.tsx`
 - `src/routes/backlog.tsx`
 - `src/state/board-navigation.ts`
@@ -795,6 +794,7 @@ Deliver:
 - Remove retired sidebar labels/routes after compatibility migration is complete.
 - Update README examples, build plan, task tracker, scope roadmap, command palette, help, and footer hints.
 - Add a real-Jira smoke checklist for Scrum and Kanban projects.
+- Use `docs/JIRA_PROJECT_NAVIGATION_SMOKE_CHECKLIST.md` for the concrete non-production checks.
 
 Verify:
 
@@ -816,4 +816,4 @@ Verify:
 - Jira plan/advanced-roadmap scheduling fields vary by tenant. N4 must discover mappings and leave unmapped fields unavailable.
 - Team-managed parent hierarchy is project-specific. Timeline must use loaded metadata rather than hardcoded Epic/Story assumptions.
 - Project List pagination needs an independent source ID so it cannot conflict with backlog, board, or remote search pagination.
-- Persisted route migration must be handled before removing `active-sprint` and `kanban` route IDs.
+- Persisted route migration remains covered even though `active-sprint` and `kanban` are no longer route IDs; keep normalization fixtures as long as older config files can exist.
