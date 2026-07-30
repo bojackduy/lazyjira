@@ -88,11 +88,11 @@ export function statusById(state: AppState, statusId: string): StatusDefinition 
 }
 
 export function issueTypeColor(state: AppState, issue: IssueSummary) {
-  return configuredIssueTypes(state).find((type) => type.id === issue.type)?.color ?? defaultIssueTypeColor
+  return configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type)?.color ?? defaultIssueTypeColor
 }
 
 export function issueTypeName(state: AppState, issue: IssueSummary) {
-  return configuredIssueTypes(state).find((type) => type.id === issue.type)?.name ?? issue.type
+  return configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type)?.name ?? issue.type
 }
 
 export function statusColor(state: AppState, issue: IssueSummary) {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { detailBodyInitialValue } from "../context/app-state"
-import { applyIssueDraft, issueFieldColor, issueFieldDisplayValue, issueFields } from "./issue-fields"
+import { applyIssueDraft, issueFieldColor, issueFieldDisplayValue, issueFields, parentIssueChoices } from "./issue-fields"
 import { loadDevWorkspaceState } from "./dev"
 
 describe("issue fields", () => {
@@ -41,5 +41,20 @@ describe("issue fields", () => {
 
     expect(detailBodyInitialValue(state, issue)).toBe(issue.description)
     expect(detailBodyInitialValue(state, issue).length).toBeGreaterThan(0)
+  })
+
+  test("only offers loaded higher-level issues as parent choices when Jira exposes hierarchy levels", () => {
+    const state = loadDevWorkspaceState()
+    state.issueTypes = [
+      { id: "Feature", name: "Feature", color: "#22C55E", hierarchyLevel: 1 },
+      { id: "Story", name: "Story", color: "#3B82F6", hierarchyLevel: 0 },
+      { id: "Subtask", name: "Subtask", color: "#64748B", hierarchyLevel: -1, subtask: true },
+    ]
+    const issue = { ...state.issues[state.selectedIssueKey]!, type: "Story" }
+    state.issues["PARENT-1"] = { ...issue, key: "PARENT-1", title: "Parent feature", type: "Feature" }
+    state.issues["CHILD-1"] = { ...issue, key: "CHILD-1", title: "Nested child", type: "Subtask" }
+
+    expect(parentIssueChoices(state, issue).map((choice) => choice.value)).toContain("PARENT-1")
+    expect(parentIssueChoices(state, issue).map((choice) => choice.value)).not.toContain("CHILD-1")
   })
 })

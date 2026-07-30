@@ -9,6 +9,7 @@ import type { IssueSummary } from "../state/app-state"
 import { issueByKey } from "../state/issue-drafts"
 import { issueTypeColor, statusColor, statusName } from "../state/selectors"
 import { RichText } from "../ui/rich-text"
+import { ParentBadge } from "../ui/parent-badge"
 
 export function IssueDetailRoute() {
   const appState = useAppState()
@@ -173,12 +174,13 @@ function IssueHeader(props: { issue: IssueSummary }) {
     <box flexDirection="column" gap={1} marginBottom={1}>
       <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">{props.issue.key}{props.issue.isDraft ? " draft" : ""}</text>
       <text attributes={TextAttributes.BOLD} fg={theme.text}>{props.issue.title}</text>
-      <box flexDirection="row" gap={1}>
+       <box flexDirection="row" gap={1}>
         <text fg={issueTypeColor(state, props.issue)} wrapMode="none">■ {props.issue.type}</text>
         <text fg={statusColor(state, props.issue)} wrapMode="none">● {statusName(state, props.issue)}</text>
         <text fg={props.issue.blocked ? theme.danger : theme.textSubtle} wrapMode="none">{props.issue.blocked ? "Blocked" : "Not blocked"}</text>
         <text fg={props.issue.staleDays >= 7 ? theme.warning : theme.textSubtle} wrapMode="none">Stale {props.issue.staleDays}d</text>
-      </box>
+       </box>
+       <ParentBadge issue={props.issue} />
       <text fg={theme.textSubtle}>j/k line scroll · d/u half page · e edit body · q/Esc back</text>
     </box>
   )

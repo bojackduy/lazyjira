@@ -25,6 +25,16 @@ export const issueTypeColors = {
   bug: "#F85149",
 }
 
+export function issueTypeColorForName(name: string) {
+  const normalized = name.toLowerCase()
+  if (normalized.includes("epic")) return issueTypeColors.epic
+  if (normalized.includes("feature")) return issueTypeColors.feature
+  if (normalized.includes("story")) return issueTypeColors.story
+  if (normalized.includes("subtask") || normalized.includes("sub-task")) return issueTypeColors.subtask
+  if (normalized.includes("bug")) return issueTypeColors.bug
+  return issueTypeColors.task
+}
+
 const statusIntentColors = {
   ready: "#22D3EE",
   review: "#A78BFA",

@@ -10,6 +10,7 @@ import { selectedBoardItemLocation } from "../state/board-navigation"
 import { boardView } from "../state/board-view"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
+import { ParentBadge } from "./parent-badge"
 import { boardIssuePageSourceId, loadedIssueCount } from "../state/issue-pages"
 import {
   activeSprint,
@@ -18,6 +19,7 @@ import {
   boardStatusWindowSize,
   groupModeLabel,
   issueTypeColor,
+  issueTypeName,
   statusColor,
   visibleStatusesForBoard,
 } from "../state/selectors"
@@ -145,10 +147,10 @@ function issuePageText(page: IssuePageState) {
 
 function IssueCell(props: { item?: BoardCellItem; location: BoardLocation; mode: "active-sprint" | "kanban"; selected: boolean }) {
   const { state } = useAppState()
-  if (!props.item) return <box width={19} height={4} flexShrink={0} />
+  if (!props.item) return <box width={19} height={5} flexShrink={0} />
   if (props.item.kind === "create") return <CreateIssueCard location={props.location} mode={props.mode} selected={props.selected} />
   const issue = issueByKey(state, props.item.issueKey)
-  if (!issue) return <box width={19} height={4} flexShrink={0} />
+  if (!issue) return <box width={19} height={5} flexShrink={0} />
   return <IssueCard issue={issue} selected={props.selected} id={boardItemElementId(props.mode, props.location)} />
 }
 
@@ -160,15 +162,16 @@ function IssueCard(props: { issue: IssueSummary; selected: boolean; id: string }
   const signal = () => (props.issue.blocked ? " · blocked" : props.issue.staleDays >= 7 ? ` · stale ${props.issue.staleDays}d` : "")
 
   return (
-    <box id={props.id} width={19} height={4} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined} border={["left"]} borderColor={borderColor()} overflow="hidden">
+    <box id={props.id} width={19} height={5} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined} border={["left"]} borderColor={borderColor()} overflow="hidden">
       <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">
         <span style={{ fg: typeColor() }}>■ </span>
         <span>{props.issue.key}</span>
       </text>
       <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">{props.issue.title}</text>
       <text fg={theme.textSubtle} wrapMode="none">
-        {props.issue.type} · {props.issue.priority}{signal()}
+        {issueTypeName(state, props.issue)} · {props.issue.priority}{signal()}
       </text>
+      <ParentBadge issue={props.issue} compact />
     </box>
   )
 }
@@ -179,7 +182,7 @@ function CreateIssueCard(props: { location: BoardLocation; mode: "active-sprint"
   const status = () => configuredStatuses(state)[props.location.statusIndex]
 
   return (
-    <box id={boardItemElementId(props.mode, props.location)} width={19} height={4} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? theme.selected : undefined} border={["left"]} borderColor={props.selected ? theme.borderActive : theme.border} overflow="hidden">
+    <box id={boardItemElementId(props.mode, props.location)} width={19} height={5} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? theme.selected : undefined} border={["left"]} borderColor={props.selected ? theme.borderActive : theme.border} overflow="hidden">
       <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">+ New issue</text>
       <text fg={props.selected ? theme.selectedText : status()?.color ?? theme.textSubtle} wrapMode="none">{status()?.name ?? "Status"}</text>
       <text fg={props.selected ? theme.selectedText : theme.textSubtle} wrapMode="none">enter/n create</text>

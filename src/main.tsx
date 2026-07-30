@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import { createCliRenderer } from "@opentui/core"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { render } from "@opentui/solid"

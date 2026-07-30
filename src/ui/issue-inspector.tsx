@@ -5,8 +5,8 @@ import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
-import { isEditableField, issueFieldColor, issueFieldDisplayValue, issueFields, type IssueFieldDefinition } from "../state/issue-fields"
-import { issueTypeColor, statusColor, statusName } from "../state/selectors"
+import { isEditableField, issueFieldColor, issueFieldDisplayValue, issueFields, parentIssueChoices, type IssueFieldDefinition } from "../state/issue-fields"
+import { issueTypeColor, issueTypeName, statusColor, statusName } from "../state/selectors"
 import { stagedChanges } from "../state/staged-changes"
 import { RichText } from "./rich-text"
 
@@ -56,7 +56,7 @@ export function IssueInspector(props: { compact: boolean }) {
             <box flexDirection="column" flexShrink={0}>
               <text fg={theme.accent} wrapMode="none">{selectedIssue().key}{selectedIssue().isDraft ? " draft" : ""}</text>
               <text fg={theme.text} wrapMode="none">{selectedIssue().title}</text>
-              <text fg={issueTypeColor(state, selectedIssue())} wrapMode="none">■ {selectedIssue().type} <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span></text>
+               <text fg={issueTypeColor(state, selectedIssue())} wrapMode="none">■ {issueTypeName(state, selectedIssue())} <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span></text>
               <Show when={state.issueDeletes.includes(selectedIssue().key)}>
                 <text fg={theme.danger} wrapMode="none">Delete staged · w render · W write Jira</text>
               </Show>
@@ -135,7 +135,7 @@ function FieldEditor(props: { field: IssueFieldDefinition }) {
   const appState = useAppState()
   const { state } = appState
   const theme = useTheme()
-  if (props.field.id === "statusId" || props.field.id === "type") return <ChoiceEditor field={props.field} />
+  if (props.field.id === "statusId" || props.field.id === "type" || props.field.id === "parentKey") return <ChoiceEditor field={props.field} />
   if (props.field.id === "assignee" || props.field.id === "reporter") return <UserPickerEditor fieldId={props.field.id} />
   if (props.field.multiline) {
     let textarea: TextareaRenderable | undefined
@@ -220,7 +220,9 @@ function ChoiceEditor(props: { field: IssueFieldDefinition }) {
   const choices = () =>
     props.field.id === "statusId"
       ? configuredStatuses(state).map((status) => ({ value: status.id, label: status.name, color: status.color }))
-      : configuredIssueTypes(state).map((type) => ({ value: type.id, label: type.name, color: type.color }))
+      : props.field.id === "type"
+        ? configuredIssueTypes(state).map((type) => ({ value: type.id, label: type.name, color: type.color }))
+        : [{ value: "", label: "No parent", color: theme.textSubtle }, ...(issueByKey(state, state.selectedIssueKey) ? parentIssueChoices(state, issueByKey(state, state.selectedIssueKey)!) : [])]
 
   return (
     <box flexDirection="column" gap={1}>
@@ -229,7 +231,7 @@ function ChoiceEditor(props: { field: IssueFieldDefinition }) {
           const selected = () => state.inspectorEditValue === choice.value
           return (
             <text fg={choice.color} bg={selected() ? theme.selected : undefined} wrapMode="none">
-              {selected() ? ">" : " "} {props.field.id === "statusId" ? "●" : "■"} {choice.label}
+              {selected() ? ">" : " "} {props.field.id === "statusId" ? "●" : props.field.id === "type" ? "■" : "◆"} {choice.label}
             </text>
           )
         }}

@@ -20,7 +20,7 @@ import {
 import { defaultIssueTypeColor, statusColorForCategory } from "../state/metadata-colors"
 import { sidebarRoutes, type AppRoute } from "../state/routes"
 import { issueByKey } from "../state/issue-drafts"
-import { isEditableField, issueFieldDisplayValue, issueFields, selectedIssueField } from "../state/issue-fields"
+import { isEditableField, issueFieldDisplayValue, issueFields, parentIssueChoices, selectedIssueField } from "../state/issue-fields"
 import { filteredProjectPickerBoards, filteredProjectPickerOptions, filteredProjectPickerProjects, filteredProjectPickerWorkspaces } from "../state/project-picker"
 import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from "../state/staged-changes"
 import { workspaceCurrentResults, workspaceItems, workspaceSelectedItem } from "../state/workspace"
@@ -845,8 +845,13 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         setState("inspectorUserPicker", "selectedIndex", (picker.selectedIndex + delta + picker.options.length) % picker.options.length)
         return
       }
-      if (fieldId !== "statusId" && fieldId !== "type") return
-      const choices = fieldId === "statusId" ? configuredStatuses(state).map((status) => status.id) : configuredIssueTypes(state).map((type) => type.id)
+      if (fieldId !== "statusId" && fieldId !== "type" && fieldId !== "parentKey") return
+      const issue = issueByKey(state, state.selectedIssueKey)
+      const choices = fieldId === "statusId"
+        ? configuredStatuses(state).map((status) => status.id)
+        : fieldId === "type"
+          ? configuredIssueTypes(state).map((type) => type.id)
+          : issue ? ["", ...parentIssueChoices(state, issue).map((choice) => choice.value)] : []
       if (!choices.length) return
       const currentIndex = Math.max(0, choices.findIndex((choice) => choice === state.inspectorEditValue))
       setState("inspectorEditValue", choices[(currentIndex + delta + choices.length) % choices.length]!)
@@ -856,7 +861,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const field = selectedIssueField(state)
       if (!issue || !field || !field.editable || !isEditableField(field.id)) return
       setState("inspectorEditingFieldId", field.id)
-      setState("inspectorEditValue", field.id === "statusId" ? issue.statusId : field.id === "type" ? issue.type : issueFieldDisplayValue(state, issue, field))
+      setState("inspectorEditValue", field.id === "statusId" ? issue.statusId : field.id === "type" ? issue.type : field.id === "parentKey" ? issue.parentKey ?? "" : issueFieldDisplayValue(state, issue, field))
       if (field.id === "assignee" || field.id === "reporter") {
         setState("inspectorUserPicker", { fieldId: field.id, issueKey: issue.key, query: "", allOptions: [], options: [], selectedIndex: 0, loading: true })
         scheduleInspectorUserPicker(field.id, issue.key, "")

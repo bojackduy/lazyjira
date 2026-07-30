@@ -29,6 +29,10 @@ describe("prod workspace source", () => {
       async (url) => {
         requests.push(url)
         if (url.includes("/project/REAL/statuses")) return jsonResponse([{ name: "Task", statuses: [{ id: "10000", name: "Selected for Work" }] }])
+        if (url.includes("/issue/createmeta/REAL/issuetypes")) return jsonResponse({ values: [
+          { id: "10001", name: "Story", hierarchyLevel: 0 },
+          { id: "10002", name: "Sub-task", hierarchyLevel: -1, subtask: true },
+        ] })
         if (url.includes("/field")) return jsonResponse([
           { id: "customfield_10020", name: "Sprint", schema: { custom: "com.pyxis.greenhopper.jira:gh-sprint" } },
           { id: "customfield_10036", name: "Story Points" },
@@ -52,19 +56,21 @@ describe("prod workspace source", () => {
       board: { id: "100", name: "Real Board", type: "scrum" },
     })
 
-    expect(requests.slice(0, 4)).toEqual([
+    expect(requests.slice(0, 5)).toEqual([
       "https://team.atlassian.net/rest/agile/1.0/board/100/configuration",
       "https://team.atlassian.net/rest/api/3/project/REAL/statuses",
+      "https://team.atlassian.net/rest/api/3/issue/createmeta/REAL/issuetypes",
       "https://team.atlassian.net/rest/agile/1.0/board/100/sprint?state=active%2Cfuture&startAt=0&maxResults=50",
       "https://team.atlassian.net/rest/api/3/field",
     ])
-    expect(requests[4]).toBe("https://team.atlassian.net/rest/api/2/status/10001")
-    expect(requests[5]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/12/issue?fields=")).toBe(true)
-    expect(requests[5]).toContain("customfield_10020%2Ccustomfield_10036%2Ccustomfield_10016%2Ccustomfield_10019")
-    expect(requests[6]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/13/issue?fields=")).toBe(true)
-    expect(requests[7]?.startsWith("https://team.atlassian.net/rest/agile/1.0/board/100/backlog?fields=")).toBe(true)
+    expect(requests[5]).toBe("https://team.atlassian.net/rest/api/2/status/10001")
+    expect(requests[6]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/12/issue?fields=")).toBe(true)
+    expect(requests[6]).toContain("customfield_10020%2Ccustomfield_10036%2Ccustomfield_10016%2Ccustomfield_10019")
+    expect(requests[7]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/13/issue?fields=")).toBe(true)
+    expect(requests[8]?.startsWith("https://team.atlassian.net/rest/agile/1.0/board/100/backlog?fields=")).toBe(true)
     expect(workspace.project.key).toBe("REAL")
     expect(workspace.statuses.map((status) => status.name)).toEqual(["Selected for Work", "Released"])
+    expect(workspace.issueTypes).toMatchObject([{ id: "10001", name: "Story", hierarchyLevel: 0 }, { id: "10002", name: "Sub-task", subtask: true }])
     expect(workspace.columns.map((column) => ({ name: column.name, statusIds: column.statusIds }))).toEqual([
       { name: "Selected", statusIds: ["10000"] },
       { name: "Done", statusIds: ["10001"] },

@@ -36,6 +36,15 @@ export type IssueTypeDefinition = {
   id: IssueType
   name: string
   color: string
+  hierarchyLevel?: number
+  subtask?: boolean
+  iconUrl?: string
+}
+
+export type ParentIssueSummary = {
+  key: string
+  title?: string
+  type?: IssueType
 }
 
 export type IssueComment = {
@@ -217,6 +226,7 @@ export type IssueSummary = {
   space?: string
   sprintId?: string
   parentKey?: string
+  parent?: ParentIssueSummary
   storyPoints?: number
   estimate?: number
   dueDate?: string

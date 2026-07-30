@@ -66,12 +66,12 @@ export type JiraIssue = {
   key?: string
   fields?: {
     summary?: string
-    issuetype?: { name?: string }
+    issuetype?: { id?: string; name?: string }
     priority?: { name?: string }
     status?: { id?: string; name?: string }
     assignee?: { displayName?: string } | null
     reporter?: { displayName?: string } | null
-    parent?: { key?: string }
+    parent?: { key?: string; fields?: { summary?: string; issuetype?: { id?: string; name?: string } } }
     labels?: string[]
     components?: Array<{ name?: string }>
     fixVersions?: Array<{ name?: string }>
@@ -105,7 +105,7 @@ export type JiraEditMetadata = {
   fields?: Record<string, { allowedValues?: Array<{ id?: string; name?: string }> }>
 }
 
-export type JiraCreateIssueType = { id?: string; name?: string }
+export type JiraCreateIssueType = { id?: string; name?: string; hierarchyLevel?: number; subtask?: boolean; iconUrl?: string }
 
 export type JiraUser = {
   accountId?: string
@@ -283,7 +283,8 @@ export async function deleteJiraIssue(auth: JiraAuthConfig, issueKey: string, fe
 }
 
 export async function fetchJiraCreateIssueTypes(auth: JiraAuthConfig, projectKey: string, fetchImpl: FetchLike = fetch): Promise<JiraCreateIssueType[]> {
-  return jiraRequest<JiraCreateIssueType[]>(auth, `/rest/api/3/issue/createmeta/${encodeURIComponent(projectKey)}/issuetypes`, { endpoint: `project ${projectKey} create issue types` }, fetchImpl)
+  const response = await jiraRequest<JiraCreateIssueType[] | { values?: JiraCreateIssueType[] }>(auth, `/rest/api/3/issue/createmeta/${encodeURIComponent(projectKey)}/issuetypes`, { endpoint: `project ${projectKey} create issue types` }, fetchImpl)
+  return Array.isArray(response) ? response : response.values ?? []
 }
 
 export async function createJiraIssue(auth: JiraAuthConfig, fields: Record<string, unknown>, fetchImpl: FetchLike = fetch): Promise<{ key?: string }> {

@@ -22,7 +22,7 @@ export const issueFields: IssueFieldDefinition[] = [
   { id: "assignee", label: "Assignee", editable: true, value: (issue) => issue.assignee },
   { id: "reporter", label: "Reporter", editable: true, value: (issue) => issue.reporter },
   { id: "sprintId", label: "Sprint", editable: true, value: (issue, state) => state.sprints.find((sprint) => sprint.id === issue.sprintId)?.name ?? "Backlog" },
-  { id: "parentKey", label: "Parent", editable: true, value: (issue) => issue.parentKey ?? "" },
+  { id: "parentKey", label: "Parent", editable: true, value: (issue) => issue.parent?.title ? `${issue.parent.key} ${issue.parent.title}` : issue.parentKey ?? "" },
   { id: "storyPoints", label: "Story Points", editable: true, value: (issue) => String(issue.storyPoints ?? "") },
   { id: "estimate", label: "Estimate", editable: true, value: (issue) => String(issue.estimate ?? "") },
   { id: "dueDate", label: "Due Date", editable: true, value: (issue) => issue.dueDate ?? "" },
@@ -52,7 +52,19 @@ export function issueFieldColor(state: AppState, issue: IssueSummary, field: Iss
   const renderedIssue = issueWithDraft(state, issue)
   if (field.id === "statusId") return statusColor(state, renderedIssue)
   if (field.id === "type") return issueTypeColor(state, renderedIssue)
+  if (field.id === "parentKey" && renderedIssue.parent?.type) return configuredIssueTypes(state).find((type) => type.id === renderedIssue.parent?.type || type.name === renderedIssue.parent?.type)?.color
   return undefined
+}
+
+export function parentIssueChoices(state: AppState, issue: IssueSummary) {
+  const issueType = configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type)
+  return Object.values(state.issues)
+    .filter((candidate) => candidate.key !== issue.key)
+    .filter((candidate) => {
+      const candidateType = configuredIssueTypes(state).find((type) => type.id === candidate.type || type.name === candidate.type)
+      return issueType?.hierarchyLevel === undefined || candidateType?.hierarchyLevel === undefined || candidateType.hierarchyLevel > issueType.hierarchyLevel
+    })
+    .map((candidate) => ({ value: candidate.key, label: `${candidate.key} ${candidate.title}`, color: issueTypeColor(state, candidate) }))
 }
 
 export function selectedIssueField(state: AppState) {

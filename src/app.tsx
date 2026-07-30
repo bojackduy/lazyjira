@@ -4,7 +4,7 @@ import { useBindings } from "./context/keymap"
 import { useAppState } from "./context/app-state"
 import { useExit } from "./context/exit"
 import { AppShell } from "./ui/shell"
-import { configuredStatuses } from "./state/config-drafts"
+import { configuredIssueTypes, configuredStatuses } from "./state/config-drafts"
 import { issueByKey } from "./state/issue-drafts"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageCanLoadMore, sprintIssuePageSourceId } from "./state/issue-pages"
 import { sidebarRoutes } from "./state/routes"
@@ -243,7 +243,7 @@ export function App() {
       return
     }
     if (state.focusedPane === "inspector") {
-      if (state.inspectorEditingFieldId === "statusId" || state.inspectorEditingFieldId === "type") {
+      if (state.inspectorEditingFieldId === "statusId" || state.inspectorEditingFieldId === "type" || state.inspectorEditingFieldId === "parentKey") {
         appState.moveInspectorChoice(delta)
         return
       }
@@ -380,7 +380,7 @@ export function App() {
     const issue: IssueSummary = {
       key,
       title: "New issue",
-      type: groupDefaults.type ?? "Task",
+      type: groupDefaults.type ?? defaultCreateIssueType(),
       priority: groupDefaults.priority ?? defaultSource?.priority ?? "Medium",
       statusId: statusId ?? statuses[0]?.id ?? "todo",
       assignee: groupDefaults.assignee ?? defaultSource?.assignee ?? state.currentUser,
@@ -414,6 +414,10 @@ export function App() {
     function firstIssueInBoardGroup(location: BoardLocation, mode: BoardMode) {
       const issueKey = boardGroupsForMode(state, mode)[location.groupIndex]?.issueKeys[0]
       return issueKey ? state.issues[issueKey] : undefined
+    }
+
+    function defaultCreateIssueType() {
+      return configuredIssueTypes(state).find((type) => !type.subtask)?.id ?? configuredIssueTypes(state)[0]?.id ?? "Task"
     }
   }
 

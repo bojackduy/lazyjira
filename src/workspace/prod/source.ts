@@ -4,7 +4,8 @@ import { discoverJiraIssueFieldIds, issueCustomFieldIds, mergeIssueDetail, norma
 import { markdownToAdf } from "../../jira/adf"
 import type { IssuePageState, SprintSummary } from "../../state/app-state"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
-import { issueTypeColors, statusColorForCategory } from "../../state/metadata-colors"
+import { issueTypeColorForName, issueTypeColors, statusColorForCategory } from "../../state/metadata-colors"
+import type { IssueTypeDefinition } from "../../state/app-state"
 import { createLoadedWorkspace, type WorkspaceSelection, type WorkspaceSource } from "../types"
 
 const prodPlaceholderStatuses = [
@@ -37,9 +38,10 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     async loadWorkspace(selection) {
       if (!selection.board.id) return createProdWorkspace(selection)
       const auth = await requireJiraAuth(authLoader)
-      const [boardConfig, statusIssueTypes, sprints, jiraFields] = await Promise.all([
+      const [boardConfig, statusIssueTypes, createIssueTypes, sprints, jiraFields] = await Promise.all([
         fetchBoardConfiguration(auth, selection.board.id, fetchImpl),
         fetchProjectStatuses(auth, selection.project.key, fetchImpl),
+        fetchJiraCreateIssueTypes(auth, selection.project.key, fetchImpl),
         selection.board.type === "scrum" ? fetchBoardSprints(auth, selection.board.id, fetchImpl) : Promise.resolve([]),
         issueFieldIds(auth),
       ])
@@ -62,7 +64,7 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
         ...activeSprintIssuePages.flat(),
         ...normalizeJiraIssues(backlogPage.items, metadata.statuses, { fieldIds }),
       ])
-      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, backlogPage))
+      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, backlogPage), normalizeCreateIssueTypes(createIssueTypes))
     },
     async loadIssueDetail(issueKey, context) {
       const auth = await requireJiraAuth(authLoader)
@@ -143,6 +145,7 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
         labels: issue.labels,
         components: issue.components.map((name) => ({ name })),
         description: issue.description ? description.document : undefined,
+        parent: issue.parentKey ? { key: issue.parentKey } : undefined,
       }, fetchImpl)
       if (!created.key) throw new Error("Jira created an issue without returning its key.")
       return created.key
@@ -173,7 +176,22 @@ export function createProdWorkspacePlaceholder(selection: WorkspaceSelection) {
   return createProdWorkspace(selection)
 }
 
-function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnType<typeof normalizeBoardConfiguration>, sprints: ReturnType<typeof normalizeBoardSprints> = [], issues: ReturnType<typeof normalizeSprintIssues> = [], issuePageStateBySource: Record<string, IssuePageState> = {}) {
+function normalizeCreateIssueTypes(types: Awaited<ReturnType<typeof fetchJiraCreateIssueTypes>>): IssueTypeDefinition[] {
+  const normalized = types.flatMap((type) => {
+    if (!type.id || !type.name) return []
+    return [{
+      id: type.id,
+      name: type.name,
+      color: issueTypeColorForName(type.name),
+      hierarchyLevel: type.hierarchyLevel,
+      subtask: type.subtask,
+      iconUrl: type.iconUrl,
+    }]
+  })
+  return normalized.length ? normalized : prodPlaceholderIssueTypes
+}
+
+function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnType<typeof normalizeBoardConfiguration>, sprints: ReturnType<typeof normalizeBoardSprints> = [], issues: ReturnType<typeof normalizeSprintIssues> = [], issuePageStateBySource: Record<string, IssuePageState> = {}, issueTypes: IssueTypeDefinition[] = prodPlaceholderIssueTypes) {
   const notice = selection.project.key === "JIRA"
     ? "Prod runtime is waiting for a Jira project selection. Tickets stay empty until a project is selected."
     : issues.length
@@ -187,7 +205,7 @@ function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnTyp
     sprints,
     statuses: metadata?.statuses.length ? metadata.statuses : prodPlaceholderStatuses,
     columns: metadata?.columns.length ? metadata.columns : undefined,
-    issueTypes: prodPlaceholderIssueTypes,
+    issueTypes,
     issues,
     issuePageStateBySource,
     selectedIssueKey: "",
