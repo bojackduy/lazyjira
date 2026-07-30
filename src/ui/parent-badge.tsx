@@ -2,13 +2,13 @@ import { Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useTheme } from "../context/theme"
 import { issueTypeColorForName } from "../state/metadata-colors"
-import { highestLoadedAncestor } from "../state/selectors"
+import { highestLoadedAncestor, topLevelLoadedAncestor } from "../state/selectors"
 import type { IssueSummary } from "../state/app-state"
 
-export function ParentBadge(props: { issue: IssueSummary; width?: number }) {
+export function ParentBadge(props: { issue: IssueSummary; width?: number; topLevelOnly?: boolean }) {
   const { state } = useAppState()
   const theme = useTheme()
-  const parent = () => highestLoadedAncestor(state, props.issue)
+  const parent = () => props.topLevelOnly ? topLevelLoadedAncestor(state, props.issue) : highestLoadedAncestor(state, props.issue)
   const parentType = () => parent()?.type
   const parentTypeName = () => parent()?.typeName
   const color = () => {
@@ -22,7 +22,7 @@ export function ParentBadge(props: { issue: IssueSummary; width?: number }) {
   }
 
   return (
-    <Show when={props.issue.parentKey}>
+    <Show when={parent()}>
       <text fg={color()} width={props.width} wrapMode="none">
         <span style={{ fg: color() }}>◆ </span>{label()}
       </text>

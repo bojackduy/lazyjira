@@ -234,8 +234,8 @@ v PROJ-10 Auth
     unscheduled
 ```
 
-The date grid is enabled only when the main viewport can retain the issue
-identity column plus at least seven complete cells at the active zoom. Otherwise
+The date grid is enabled when the main viewport can retain the issue
+identity column plus at least three complete cells at the active zoom. Otherwise
 the textual layout is used for every row; it never renders a clipped bar that
 could imply different dates. Long row lists remain viewport-culled in both
 layouts.
@@ -267,7 +267,7 @@ Backlog rules:
 - Empty future sprint groups remain focusable so users can create or move work into them.
 - Rank preview and move actions preserve existing staged-write safety.
 - `L` loads the focused group when it has another Jira page.
-- Parent badge, estimate, assignee, and issue-type color are visible without opening detail.
+- Parent badges render only for loaded ancestors above Jira's standard issue hierarchy level; Story-level parents stay hidden in Backlog. Estimate, assignee, and issue-type color remain visible without opening detail.
 
 Backlog keyboard behavior:
 

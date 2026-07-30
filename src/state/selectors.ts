@@ -32,6 +32,11 @@ export type IssueGroup = {
   issueKeys: string[]
 }
 
+export type BacklogSelection = {
+  groupId?: string
+  issueKey?: string
+}
+
 export function activeSprint(state: AppState) {
   return state.sprints.find((sprint) => sprint.id === state.activeSprintId && sprint.state === "active") ?? state.sprints.find((sprint) => sprint.state === "active")
 }
@@ -111,6 +116,13 @@ export function highestLoadedAncestor(state: AppState, issue: IssueSummary): Iss
   return highest
 }
 
+export function topLevelLoadedAncestor(state: AppState, issue: IssueSummary): IssueSummary | ParentIssueSummary | undefined {
+  const ancestor = highestLoadedAncestor(state, issue)
+  if (!ancestor?.type) return undefined
+  const issueType = configuredIssueTypes(state).find((type) => type.id === ancestor.type || type.name === ancestor.type || type.name === ancestor.typeName)
+  return (issueType?.hierarchyLevel ?? 0) > 0 ? ancestor : undefined
+}
+
 export function highestLevelIssueType(state: AppState) {
   return configuredIssueTypes(state)
     .filter((type) => !type.subtask)
@@ -181,6 +193,14 @@ export function groupBacklogIssues(state: AppState, groupBy: BacklogGroupBy): Is
   }
   groups.push({ id: "backlog", label: "Backlog", issueKeys: issues.filter((issue) => !issue.sprintId).map((issue) => issue.key) })
   return groups
+}
+
+export function resolvedBacklogSelection(groups: IssueGroup[], selectedGroupId: string, selectedIssueKey: string): BacklogSelection {
+  const issueGroup = groups.find((group) => group.issueKeys.includes(selectedIssueKey))
+  if (issueGroup) return { groupId: issueGroup.id, issueKey: selectedIssueKey }
+  const currentGroup = groups.find((group) => group.id === selectedGroupId)
+  const targetGroup = currentGroup?.issueKeys.length ? currentGroup : groups.find((group) => group.issueKeys.length) ?? currentGroup ?? groups[0]
+  return { groupId: targetGroup?.id, issueKey: targetGroup?.issueKeys[0] }
 }
 
 export function issuesForSource(state: AppState, sourceId: string) {

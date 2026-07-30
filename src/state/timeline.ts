@@ -184,7 +184,7 @@ export function timelineLayout(terminalWidth: number, zoom: TimelineZoom): Timel
   const identityWidth = Math.min(40, Math.max(26, Math.floor(viewportWidth * 0.45)))
   const cellWidth = zoom === "day" ? 2 : zoom === "week" ? 5 : 8
   const cellCount = Math.max(0, Math.floor((viewportWidth - identityWidth) / cellWidth))
-  return { wide: cellCount >= 7, viewportWidth, identityWidth, cellWidth, cellCount: Math.max(1, cellCount) }
+  return { wide: cellCount >= 3, viewportWidth, identityWidth, cellWidth, cellCount: Math.max(1, cellCount) }
 }
 
 export function timelineCells(windowStart: string, zoom: TimelineZoom, count: number, today: string): TimelineCell[] {

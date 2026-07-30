@@ -221,7 +221,7 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: bo
         <text fg={statusColor(state, props.issue)} wrapMode="none">
           {statusName(state, props.issue)} · {props.issue.priority} · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
         </text>
-        <ParentBadge issue={props.issue} />
+        <ParentBadge issue={props.issue} topLevelOnly />
       </box>
     )
   }
@@ -235,7 +235,7 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: bo
           <span style={{ fg: theme.textSubtle }}> {issueTypeName(state, props.issue)}</span>
           <span> {props.issue.title}</span>
         </text>
-        <box width={28} flexShrink={0}><ParentBadge issue={props.issue} width={28} /></box>
+        <box width={28} flexShrink={0}><ParentBadge issue={props.issue} width={28} topLevelOnly /></box>
         <text fg={statusColor(state, props.issue)} wrapMode="none" width={34} flexShrink={0}>
           {statusName(state, props.issue)} · {props.issue.priority} · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
         </text>

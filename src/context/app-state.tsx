@@ -26,6 +26,7 @@ import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from ".
 import { workspaceCurrentResults, workspaceItems, workspaceSelectedItem } from "../state/workspace"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, projectListIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
 import { planJiraWrites, writePlanCounts } from "../state/jira-write-plan"
+import { groupBacklogIssues, resolvedBacklogSelection } from "../state/selectors"
 import { markdownToAdf } from "../jira/adf"
 import { useToast } from "./toast"
 
@@ -557,12 +558,16 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       }
     },
     setRoute(route) {
+      const previousRoute = state.route
       setState("route", route)
+      setState("focusedPane", "main")
+      if (route === "backlog" && previousRoute !== "backlog") {
+        const selection = resolvedBacklogSelection(groupBacklogIssues(state, state.backlogGroupBy), state.selectedBacklogGroupId, state.selectedIssueKey)
+        if (selection.groupId) setState("selectedBacklogGroupId", selection.groupId)
+        if (selection.issueKey) setState("selectedIssueKey", selection.issueKey)
+      }
       const index = sidebarRoutesForBoard(state.board).findIndex((candidate) => candidate.id === route)
       if (index !== -1) setState("sidebarSelectedIndex", index)
-      if (route === "issue-detail") setState("focusedPane", "main")
-      if (route === "workspace") setState("focusedPane", "main")
-      if (route === "config") setState("focusedPane", "main")
       if (route !== "workspace") setState("workspaceFocusedArea", "cards")
       if (route !== "issue-detail") setState("previousRoute", undefined)
       if ((route === "list" || route === "timeline") && !state.issuePageStateBySource[projectListIssuePageSourceId]) void context.loadIssuePage(projectListIssuePageSourceId)

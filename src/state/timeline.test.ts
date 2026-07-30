@@ -128,9 +128,9 @@ describe("timeline data model", () => {
     expect(timelineSchedule({ startDate: "2026-08-06", dueDate: "2026-08-05" }, cells)).toEqual({ kind: "text", text: "invalid range · Start Aug 06 · Due Aug 05" })
   })
 
-  test("uses a textual narrow fallback until identity plus seven cells fit", () => {
+  test("uses a textual narrow fallback until identity plus three cells fit", () => {
     expect(timelineLayout(80, "day")).toMatchObject({ wide: true, viewportWidth: 76, cellWidth: 2 })
-    expect(timelineLayout(120, "week")).toMatchObject({ wide: false, viewportWidth: 50, cellWidth: 5 })
+    expect(timelineLayout(120, "week")).toMatchObject({ wide: true, viewportWidth: 50, cellWidth: 5 })
     expect(timelineLayout(160, "week").wide).toBe(true)
     expect(timelineLayout(200, "month").wide).toBe(true)
   })

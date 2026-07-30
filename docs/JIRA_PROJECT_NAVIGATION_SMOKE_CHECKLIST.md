@@ -13,13 +13,13 @@ Before starting:
 
 - [ ] Select a Scrum project and board through `P`; confirm the sidebar shows `Global > Workspace` and `Project > Timeline, Backlog, List, Active sprints`, with no separate Kanban or Config project destination.
 - [ ] Press `2` for Timeline; confirm project identity, loaded/total completeness, date window, and zoom are visible.
-- [ ] In Timeline, verify scheduled bars or exact narrow-layout dates match Jira Start/Due fields, one-date rows identify which date exists, and missing dates say `unscheduled` without inferred dates.
+- [ ] In Timeline, verify colored scheduled lines or exact narrow-layout dates match Jira Start/Due fields, one-date rows identify which date exists, and dated sprint fallback lines remain visually distinct from issue dates.
 - [ ] Verify hierarchy indentation against Jira parents. Confirm missing-parent hydration/notice and invalid-hierarchy notice behavior when corresponding data exists; record `not represented in test data` rather than passing an untested notice.
 - [ ] Use `Space`, `h/l`, `[/]`, `z`, and `t`; confirm collapse and date-window state survive opening an issue with `Enter` and returning with `Esc`.
 - [ ] Apply `/` to Timeline and confirm only loaded rows change. Clear it, press `S`, and confirm remote results do not replace Timeline membership or its paging cursor.
 - [ ] Press `L` in Timeline when another project page exists; confirm loaded count increases, existing rows dedupe, selection remains stable, and Backlog/Active sprints membership does not change.
-- [ ] Press `3` for Backlog; confirm active, future, and backlog groups are present as Jira data permits, groups collapse with `Space`, and empty planning groups remain focusable.
-- [ ] Verify `h/l`, `j/k`, `g/G`, `Ctrl-u/d`, and focused `L` paging. Confirm loading another Backlog/future-sprint page does not add issues to List or Timeline until their own project page is loaded.
+- [ ] Press `3` for Backlog; confirm active, future, and backlog groups are present as Jira data permits, groups collapse with `Space`, empty planning groups remain focusable, and normal Story parents do not render as top-level parent badges.
+- [ ] Verify `h/l`, `j/k`, `g/G`, `Ctrl-u/d`, and focused `L` paging. Leave Backlog, change selection in another project tab, return, and confirm focus/cursor movement works before another load. Confirm loading another Backlog/future-sprint page does not add issues to List or Timeline until their own project page is loaded.
 - [ ] Press `4` for List; confirm it represents project-wide issues rather than only the active sprint/backlog cache, and Key/Summary remain visible at a narrow terminal width.
 - [ ] Verify List `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, independent `Space` hierarchy collapse, `/`, clear-filter behavior, and `L` paging. Confirm `S` remote search remains isolated from List membership and cursor state.
 - [ ] Open detail from Timeline, Backlog, List, and Active sprints, then return with `Esc`; confirm each originating row/card, group/column, Timeline window, and List horizontal offset are preserved.

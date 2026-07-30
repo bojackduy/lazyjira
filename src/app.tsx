@@ -736,7 +736,13 @@ export function App() {
     const groups = groupBacklogIssues(state, state.backlogGroupBy)
     const focusedGroup = groups.find((group) => group.id === state.selectedBacklogGroupId)
     const keys = focusedGroup?.issueKeys ?? groups.flatMap((group) => group.issueKeys)
-    if (!keys.length) return
+    if (!keys.length) {
+      const fallbackGroup = groups.find((group) => group.issueKeys.length && !state.collapsedBacklogGroupIds.includes(group.id))
+      const fallbackIssueKey = delta > 0 ? fallbackGroup?.issueKeys[0] : fallbackGroup?.issueKeys.at(-1)
+      if (fallbackGroup) appState.setSelectedBacklogGroup(fallbackGroup.id)
+      if (fallbackIssueKey) appState.selectIssue(fallbackIssueKey)
+      return
+    }
     const currentIndex = keys.indexOf(state.selectedIssueKey)
     const startIndex = currentIndex === -1 ? 0 : currentIndex
     appState.selectIssue(keys[(startIndex + delta + keys.length) % keys.length] ?? keys[0]!)

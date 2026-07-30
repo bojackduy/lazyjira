@@ -17,6 +17,39 @@ afterEach(() => {
 })
 
 describe("app state project picker", () => {
+  test("focuses the main pane when changing project routes", () => {
+    const appState = createTestAppState()
+    appState.setFocusedPane("inspector")
+    appState.setSelectedBacklogGroup("sprint-26")
+    appState.selectIssue("LIST-ONLY")
+
+    appState.setRoute("backlog")
+
+    expect(appState.state.route).toBe("backlog")
+    expect(appState.state.focusedPane).toBe("main")
+    expect(appState.state.selectedBacklogGroupId).not.toBe("sprint-26")
+    expect(appState.state.selectedIssueKey).not.toBe("LIST-ONLY")
+  })
+
+  test("allows route changes while a Backlog page is loading", async () => {
+    const backlogPage = deferred<Awaited<ReturnType<WorkspaceSource["loadIssuePage"]>>>()
+    const appState = createTestAppState({
+      async loadIssuePage(sourceId) {
+        if (sourceId === backlogIssuePageSourceId) return backlogPage.promise
+        return { sourceId, issues: [], pageState: { sourceId, startAt: 0, maxResults: 50, total: 0, isLast: true, loading: false } }
+      },
+    })
+    const load = appState.loadIssuePage(backlogIssuePageSourceId)
+
+    appState.setRoute("timeline")
+
+    expect(appState.state.route).toBe("timeline")
+    expect(appState.state.focusedPane).toBe("main")
+    backlogPage.resolve({ sourceId: backlogIssuePageSourceId, issues: [], pageState: { sourceId: backlogIssuePageSourceId, startAt: 0, maxResults: 100, total: 0, isLast: true, loading: false } })
+    await load
+    expect(appState.state.route).toBe("timeline")
+  })
+
   test("loads project List when it is the persisted initial route", async () => {
     let listLoads = 0
     createTestAppState({

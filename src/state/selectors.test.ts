@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { loadDevWorkspaceState } from "./dev"
-import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, highestLevelIssueType, highestLoadedAncestor, issueTypeName, kanbanIssues, matchesQuickFilters, sprintDateRange, visibleStatusesForBoard } from "./selectors"
+import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, highestLevelIssueType, highestLoadedAncestor, issueTypeName, kanbanIssues, matchesQuickFilters, resolvedBacklogSelection, sprintDateRange, topLevelLoadedAncestor, visibleStatusesForBoard } from "./selectors"
 
 describe("board selectors", () => {
   test("shows all statuses when the board is wide enough", () => {
@@ -135,6 +135,21 @@ describe("board selectors", () => {
     const issue = { ...state.issues[state.selectedIssueKey]!, parentKey: "PARENT", parent: { key: "PARENT", title: "Middle epic", type: "Epic" } }
 
     expect(highestLoadedAncestor(state, issue)?.title).toBe("Top initiative")
+    expect(topLevelLoadedAncestor(state, issue)?.title).toBe("Top initiative")
     expect(highestLevelIssueType(state)?.name).toBe("Initiative")
+
+    state.issues.PARENT = { ...state.issues.PARENT!, type: "Story", parentKey: undefined }
+    expect(topLevelLoadedAncestor(state, issue)).toBeUndefined()
+  })
+
+  test("repairs Backlog focus after another route leaves an empty group selected", () => {
+    const groups = [
+      { id: "future", label: "Future", issueKeys: [] },
+      { id: "active", label: "Active", issueKeys: ["PROJ-1", "PROJ-2"] },
+      { id: "backlog", label: "Backlog", issueKeys: ["PROJ-3"] },
+    ]
+
+    expect(resolvedBacklogSelection(groups, "future", "LIST-ONLY")).toEqual({ groupId: "active", issueKey: "PROJ-1" })
+    expect(resolvedBacklogSelection(groups, "future", "PROJ-3")).toEqual({ groupId: "backlog", issueKey: "PROJ-3" })
   })
 })

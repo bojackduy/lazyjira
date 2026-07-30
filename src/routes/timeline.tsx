@@ -125,7 +125,7 @@ function WideTimelineRow(props: { row: TimelineProjectedRow; previousGroup?: Tim
   const sprint = () => state.sprints.find((candidate) => candidate.id === props.row.issue.sprintId)
   const schedule = () => timelineSchedule(props.row.issue, props.cells, sprint())
   const done = () => statusById(state, props.row.issue.statusId)?.category === "done"
-  const scheduleColor = () => schedule().kind === "sprint" ? theme.textSubtle : props.row.issue.blocked ? theme.warning : done() ? theme.success : issueTypeColor(state, props.row.issue)
+  const scheduleColor = () => props.row.issue.blocked ? theme.warning : done() ? theme.success : issueTypeColor(state, props.row.issue)
 
   return (
     <>
@@ -140,7 +140,7 @@ function WideTimelineRow(props: { row: TimelineProjectedRow; previousGroup?: Tim
           <span>{fit(`${props.row.issue.key} ${props.row.issue.title}`, Math.max(1, props.identityWidth - props.row.depth * 2 - 4))}</span>
         </text>
         <Show when={schedule().kind !== "text"} fallback={<text fg={scheduleColor()} wrapMode="none">{fit(timelineRowCopy(props.row, sprint()), props.cells.length * props.cellWidth)}</text>}>
-          <For each={schedule().cells}>{(cell) => <text fg={scheduleColor()} width={props.cellWidth} wrapMode="none">{cell === "bar" ? "█".repeat(props.cellWidth) : cell === "sprint" ? "▒".repeat(props.cellWidth) : cell === "marker" ? fit("◆", props.cellWidth) : cell === "before" ? fit("<", props.cellWidth) : cell === "after" ? fit(">", props.cellWidth) : " ".repeat(props.cellWidth)}</text>}</For>
+          <For each={schedule().cells}>{(cell) => <text fg={scheduleColor()} width={props.cellWidth} wrapMode="none">{cell === "bar" ? "━".repeat(props.cellWidth) : cell === "sprint" ? "┄".repeat(props.cellWidth) : cell === "marker" ? fit("◆", props.cellWidth) : cell === "before" ? fit("<", props.cellWidth) : cell === "after" ? fit(">", props.cellWidth) : " ".repeat(props.cellWidth)}</text>}</For>
         </Show>
       </box>
     </>
@@ -167,13 +167,24 @@ function NarrowTimeline(props: { rows: TimelineProjectedRow[] }) {
             <text fg={state.timelineSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selectedText : theme.text} wrapMode="none">
               {state.timelineSelectedIssueKey === row.issue.key ? ">" : " "} <span style={{ fg: issueTypeColor(state, row.issue) }}>{disclosure(row)}</span> {row.issue.key} {row.issue.title}
             </text>
-            <text fg={row.issue.blocked ? theme.warning : row.group === "invalid-hierarchy" ? theme.danger : theme.textMuted} wrapMode="none">  {timelineRowCopy(row, state.sprints.find((sprint) => sprint.id === row.issue.sprintId))}</text>
+            <NarrowTimelineSchedule row={row} />
           </box>
         </>
       )}</For>
       <NarrowTimelineCreateRow />
     </scrollbox>
   )
+}
+
+function NarrowTimelineSchedule(props: { row: TimelineProjectedRow }) {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const sprint = () => state.sprints.find((candidate) => candidate.id === props.row.issue.sprintId)
+  const schedule = () => timelineSchedule(props.row.issue, [], sprint())
+  const done = () => statusById(state, props.row.issue.statusId)?.category === "done"
+  const color = () => props.row.group === "invalid-hierarchy" ? theme.danger : props.row.issue.blocked ? theme.warning : done() ? theme.success : issueTypeColor(state, props.row.issue)
+  const marker = () => schedule().kind === "bar" ? "━━" : schedule().kind === "sprint" ? "┄┄" : schedule().kind === "marker" ? "◆" : "·"
+  return <text fg={schedule().kind === "text" ? theme.textMuted : color()} wrapMode="none">  {marker()} {timelineRowCopy(props.row, sprint())}</text>
 }
 
 function WideTimelineCreateRow(props: { identityWidth: number; scheduleWidth: number }) {
