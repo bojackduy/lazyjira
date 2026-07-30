@@ -359,6 +359,48 @@ describe("app state project picker", () => {
     expect(appState.state.timelineParentHydrationError).toBe("Parent hydration failed: Jira 403")
   })
 
+  test("preserves Timeline selection and date window across project views and issue detail return", async () => {
+    const appState = createTestAppState()
+    appState.setRoute("timeline")
+    await flushPromises()
+    appState.setTimelineSelection("PROJ-301")
+    appState.setTimelineWindowStart("2026-08-03")
+    appState.setTimelineZoom("month")
+    appState.toggleTimelineParentCollapsed("PROJ-301")
+
+    appState.setRoute("list")
+    appState.setRoute("timeline")
+    appState.openIssueDetail("PROJ-301")
+    await flushPromises()
+    appState.closeIssueDetail()
+
+    expect(appState.state.route).toBe("timeline")
+    expect(appState.state.timelineSelectedIssueKey).toBe("PROJ-301")
+    expect(appState.state.selectedIssueKey).toBe("PROJ-301")
+    expect(appState.state.timelineWindowStart).toBe("2026-08-03")
+    expect(appState.state.timelineZoom).toBe("month")
+    expect(appState.state.collapsedTimelineParentKeys).toEqual(["PROJ-301"])
+  })
+
+  test("resets independent Timeline view state after switching projects", async () => {
+    const appState = createTestAppState()
+    appState.setTimelineSelection("PROJ-301")
+    appState.setTimelineWindowStart("2026-08-03")
+    appState.setTimelineZoom("month")
+    appState.toggleTimelineParentCollapsed("PROJ-301")
+
+    await appState.browseRemoteProjects()
+    appState.moveProjectPickerSelection(1)
+    await appState.selectProjectPickerItem()
+    await appState.selectProjectPickerItem()
+
+    expect(appState.state.project.key).toBe("MOB")
+    expect(appState.state.timelineSelectedIssueKey).toBeUndefined()
+    expect(appState.state.timelineZoom).toBe("week")
+    expect(appState.state.collapsedTimelineParentKeys).toEqual([])
+    expect(appState.state.timelineWindowStart).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
   test("refreshes project List from page one while retaining rows and staged overlays", async () => {
     const refresh = deferred<Awaited<ReturnType<WorkspaceSource["loadIssuePage"]>>>()
     const selected = loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!
@@ -781,7 +823,7 @@ describe("app state project picker", () => {
   })
 })
 
-function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> = async () => undefined, initialWorkspaceSelection?: WorkspaceSelection, initialWorkspaceReady = false, initialRoute?: "list") {
+function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> = async () => undefined, initialWorkspaceSelection?: WorkspaceSelection, initialWorkspaceReady = false, initialRoute?: "list" | "timeline") {
   let appState: AppStateContext | undefined
   let dispose: (() => void) | undefined
   createRoot((disposeRoot) => {

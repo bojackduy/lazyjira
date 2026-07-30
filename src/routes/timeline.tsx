@@ -46,7 +46,7 @@ export function TimelineRoute() {
       { name: "timeline.zoom", run: () => zoom() },
       { name: "timeline.today", run: () => returnToToday() },
     ],
-    bindings: state.route !== "timeline" || state.searchOpen || state.inspectorEditingFieldId || state.commandPaletteOpen || state.helpOpen || state.projectPicker.open ? [] : [
+    bindings: state.route !== "timeline" || state.searchOpen || state.inspectorEditingFieldId || state.commandPaletteOpen || state.helpOpen || state.projectPicker.open || state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.commentEditing || state.detailBodyEditing ? [] : [
       { key: { name: "d", ctrl: true }, cmd: "timeline.page.down", preventDefault: false },
       { key: { name: "u", ctrl: true }, cmd: "timeline.page.up", preventDefault: false },
       { key: "[", cmd: "timeline.pan.previous-viewport", preventDefault: false },

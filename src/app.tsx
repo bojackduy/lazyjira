@@ -2,7 +2,9 @@ import { useTerminalDimensions } from "@opentui/solid"
 import { createEffect } from "solid-js"
 import { useBindings } from "./context/keymap"
 import { useAppState } from "./context/app-state"
+import { useConfig } from "./context/config"
 import { useExit } from "./context/exit"
+import { useToast } from "./context/toast"
 import { AppShell } from "./ui/shell"
 import { configuredIssueTypes, configuredStatuses } from "./state/config-drafts"
 import { issueByKey } from "./state/issue-drafts"
@@ -12,6 +14,7 @@ import { boardCapabilities, boardModeForBoard, sidebarRoutesForBoard } from "./s
 import { searchPaletteCommands } from "./keymap/commands"
 import type { BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
 import { projectListIssues, projectListMaxHorizontalOffset, projectListSelection, projectListViewportWidth } from "./state/project-list"
+import { panTimelineWindow, projectTimelineRows, timelineModel, timelineSelection } from "./state/timeline"
 import {
   boardCellItems,
   boardCellIssueKeys,
@@ -38,11 +41,14 @@ export function App() {
   const { state } = appState
   const dimensions = useTerminalDimensions()
   const exit = useExit()
+  const config = useConfig()
+  const toast = useToast()
 
   createEffect(() => {
     if (state.route === "board") ensureSelectedIssue(visibleBoardIssueKeys(currentBoardMode()))
     if (state.route === "backlog") ensureSelectedIssue(groupBacklogIssues(state, state.backlogGroupBy).flatMap((group) => group.issueKeys))
     if (state.route === "list") ensureProjectListSelection()
+    if (state.route === "timeline") ensureTimelineSelection()
   })
 
   useBindings(() => ({
@@ -137,6 +143,9 @@ export function App() {
       { name: "workspace.refresh", run: () => refreshWorkspace() },
       { name: "issue.load-more", run: () => loadMoreIssues() },
       { name: "issue.comment", run: () => commentSelectedIssue() },
+      { name: "issue.assign", run: () => assignSelectedIssue() },
+      { name: "issue.status", run: () => editSelectedIssueStatus() },
+      { name: "issue.open-browser", run: () => openSelectedIssueInBrowser() },
       { name: "issue.priority", run: () => editSelectedIssuePriority() },
       { name: "issue.rank-down", run: () => rankSelectedBacklogIssue("after") },
       { name: "issue.rank-up", run: () => rankSelectedBacklogIssue("before") },
@@ -157,7 +166,6 @@ export function App() {
       { name: "pane.bottom", run: () => moveToBoundary("last") },
       { name: "issue.edit", run: () => editSelectedIssue() },
       { name: "issue.new", run: () => createIssueFromContext() },
-      { name: "config.add", run: () => addConfigRow() },
       { name: "config.color", run: () => colorConfigRow() },
       { name: "issue.apply", run: () => writeStagedRender() },
       { name: "issue.remote-apply", run: () => remoteApplyAction() },
@@ -202,7 +210,9 @@ export function App() {
       { key: { name: "g", shift: true }, cmd: "pane.bottom", preventDefault: false },
       { key: "e", cmd: "issue.edit", preventDefault: false },
       { key: "n", cmd: "issue.new", preventDefault: false },
-      { key: "a", cmd: "config.add", preventDefault: false },
+      { key: "a", cmd: "issue.assign", preventDefault: false },
+      { key: "s", cmd: "issue.status", preventDefault: false },
+      { key: "o", cmd: "issue.open-browser", preventDefault: false },
       { key: "c", cmd: "issue.comment", preventDefault: false },
       { key: "m", cmd: "issue.move", preventDefault: false },
       { key: { name: "j", shift: true }, cmd: "issue.rank-down", preventDefault: false },
@@ -272,6 +282,7 @@ export function App() {
     if (state.route === "board") moveBoardVertical(currentBoardMode(), delta)
     if (state.route === "backlog") moveBacklogSelection(delta)
     if (state.route === "list") moveProjectList(delta)
+    if (state.route === "timeline") moveTimeline(delta)
   }
 
   function moveHorizontal(delta: number) {
@@ -294,6 +305,7 @@ export function App() {
     if (state.route === "board") moveBoardHorizontal(currentBoardMode(), delta)
     if (state.route === "backlog") moveBacklogGroup(delta)
     if (state.route === "list") moveProjectListHorizontal(delta)
+    if (state.route === "timeline") appState.setTimelineWindowStart(panTimelineWindow(state.timelineWindowStart, state.timelineZoom, delta))
   }
 
   function openFocusedItem() {
@@ -343,12 +355,17 @@ export function App() {
       return
     }
     if (state.route === "list" && state.projectListSelectedIssueKey) appState.openIssueDetail(state.projectListSelectedIssueKey)
+    if (state.route === "timeline" && state.timelineSelectedIssueKey) appState.openIssueDetail(state.timelineSelectedIssueKey)
   }
 
   function cycleGroup() {
     if (!canRunGlobalShortcut()) return false
     if (state.focusedPane !== "main") return
     if (state.route === "list") {
+      moveToBoundary("first")
+      return
+    }
+    if (state.route === "timeline") {
       moveToBoundary("first")
       return
     }
@@ -383,12 +400,43 @@ export function App() {
   }
 
   function editSelectedIssuePriority() {
+    return editSelectedIssueField("priority")
+  }
+
+  function assignSelectedIssue() {
+    if (state.route === "config") {
+      appState.startConfigAdd()
+      return
+    }
+    return editSelectedIssueField("assignee")
+  }
+
+  function editSelectedIssueStatus() {
+    return editSelectedIssueField("statusId")
+  }
+
+  function editSelectedIssueField(fieldId: "assignee" | "priority" | "statusId") {
     if (isPlainTextEditing() || isPopupOpen() || state.route === "workspace" || state.route === "config" || !state.selectedIssueKey) return false
-    const priorityIndex = issueFields.findIndex((field) => field.id === "priority")
-    if (priorityIndex < 0) return false
-    appState.moveInspectorSelection(priorityIndex - state.inspectorSelectedFieldIndex)
+    const fieldIndex = issueFields.findIndex((field) => field.id === fieldId)
+    if (fieldIndex < 0) return false
+    appState.moveInspectorSelection(fieldIndex - state.inspectorSelectedFieldIndex)
     appState.setFocusedPane("inspector")
     appState.startInspectorEdit()
+  }
+
+  function openSelectedIssueInBrowser() {
+    if (!canRunGlobalShortcut() || state.route === "workspace" || state.route === "config" || !state.selectedIssueKey) return false
+    if (!config.jira?.baseUrl) {
+      toast.show("Open in browser requires a configured Jira site URL")
+      return false
+    }
+    const url = `${config.jira.baseUrl.replace(/\/$/, "")}/browse/${encodeURIComponent(state.selectedIssueKey)}`
+    try {
+      Bun.spawn(browserOpenCommand(url), { stdout: "ignore", stderr: "ignore" }).unref()
+      toast.show(`Opening ${state.selectedIssueKey} in Jira`)
+    } catch (error) {
+      toast.show(`Could not open Jira: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   function createIssueFromContext() {
@@ -468,6 +516,10 @@ export function App() {
       return
     }
     if (state.focusedPane === "main" && state.route === "backlog") appState.toggleBacklogGroupCollapsed(state.selectedBacklogGroupId)
+    if (state.focusedPane === "main" && state.route === "timeline") {
+      const row = visibleTimelineRows().find((candidate) => candidate.issue.key === state.timelineSelectedIssueKey)
+      if (row?.hasChildren) appState.toggleTimelineParentCollapsed(row.issue.key)
+    }
   }
 
   function stageCurrentEdit() {
@@ -541,7 +593,7 @@ export function App() {
 
   function refreshSelectedIssueDetail() {
     if (!canRunGlobalShortcut()) return false
-    if (state.route === "list") {
+    if (state.route === "list" || state.route === "timeline") {
       void appState.loadIssuePage(projectListIssuePageSourceId, true)
       return
     }
@@ -571,7 +623,7 @@ export function App() {
   }
 
   function loadMoreSourceId() {
-    if (state.route === "list") return issuePageCanLoadMore(state.issuePageStateBySource[projectListIssuePageSourceId]) ? projectListIssuePageSourceId : undefined
+    if (state.route === "list" || state.route === "timeline") return issuePageCanLoadMore(state.issuePageStateBySource[projectListIssuePageSourceId]) ? projectListIssuePageSourceId : undefined
     if (state.route === "board" && currentBoardMode() === "kanban") return boardIssuePageSourceId
     if (state.route !== "backlog") return undefined
     if (!boardCapabilities(state.board).supportsSprintBacklog) return issuePageCanLoadMore(state.issuePageStateBySource[backlogIssuePageSourceId]) ? backlogIssuePageSourceId : undefined
@@ -698,8 +750,16 @@ export function App() {
     appState.setProjectListSelection(projectListSelection(keys, state.projectListSelectedIssueKey, delta))
   }
 
+  function moveTimeline(delta: number) {
+    appState.setTimelineSelection(timelineSelection(visibleTimelineRows(), state.timelineSelectedIssueKey, delta))
+  }
+
   function moveToBoundary(boundary: "first" | "last") {
-    if (!canRunGlobalShortcut() || state.focusedPane !== "main" || state.route !== "list") return false
+    if (!canRunGlobalShortcut() || state.focusedPane !== "main" || (state.route !== "list" && state.route !== "timeline")) return false
+    if (state.route === "timeline") {
+      appState.setTimelineSelection(timelineSelection(visibleTimelineRows(), state.timelineSelectedIssueKey, boundary))
+      return
+    }
     const keys = projectListIssues(state).map((issue) => issue.key)
     appState.setProjectListSelection(projectListSelection(keys, state.projectListSelectedIssueKey, boundary))
   }
@@ -713,6 +773,17 @@ export function App() {
     const keys = projectListIssues(state).map((issue) => issue.key)
     const selected = keys.includes(state.projectListSelectedIssueKey ?? "") ? state.projectListSelectedIssueKey : keys[0]
     if (selected !== state.projectListSelectedIssueKey || (selected && selected !== state.selectedIssueKey)) appState.setProjectListSelection(selected)
+  }
+
+  function visibleTimelineRows() {
+    return projectTimelineRows(timelineModel(state).rows, state.collapsedTimelineParentKeys)
+  }
+
+  function ensureTimelineSelection() {
+    const rows = visibleTimelineRows()
+    const keys = rows.map((row) => row.issue.key)
+    const selected = keys.includes(state.timelineSelectedIssueKey ?? "") ? state.timelineSelectedIssueKey : keys[0]
+    if (selected !== state.timelineSelectedIssueKey || (selected && selected !== state.selectedIssueKey)) appState.setTimelineSelection(selected)
   }
 
   function visibleBoardIssueKeys(mode: BoardMode) {
@@ -761,4 +832,10 @@ export function App() {
   }
 
   return <AppShell />
+}
+
+export function browserOpenCommand(url: string, platform: NodeJS.Platform = process.platform) {
+  if (platform === "darwin") return ["open", url]
+  if (platform === "win32") return ["cmd", "/c", "start", "", url]
+  return ["xdg-open", url]
 }

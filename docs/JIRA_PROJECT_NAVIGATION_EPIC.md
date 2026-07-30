@@ -164,16 +164,25 @@ Quick filters apply to Timeline rows, Backlog issues, List rows, and board cards
 Wide layout:
 
 ```text
-Timeline · Jul 27-Aug 23 · Week
-                   Jul 27     Aug 03     Aug 10     Aug 17
-  Work             M T W T F  M T W T F  M T W T F  M T W T F
-> v PROJ-10 Auth    ███████████████████
-    PROJ-21 Login       ███████
-    PROJ-22 OAuth          █████████
-  > PROJ-30 Billing                         █████████████
-  ? PROJ-44 Cleanup   unscheduled
+Timeline · PROJ Product Platform · Jul 27-Aug 23 · Week
+j/k row · g/G ends · Ctrl-u/d half page · h/l pan · [/] viewport · Space collapse · z zoom · t today
+100/482 project issues loaded · partial · L load more
+Start date field unavailable; showing Due-only and unscheduled rows.
+ Work                    Jul 27    |Aug 03    Aug 10     Aug 17
+> v PROJ-10 Auth         ███████████████████
+    · PROJ-21 Login           ███████
+    · PROJ-22 OAuth              ◆             Start Aug 05 only
+  > PROJ-30 Billing                              █████████████
+    · PROJ-44 Cleanup      unscheduled
 
-j/k row  h/l pan  space collapse  z zoom  enter detail  r refresh
+Parent not loaded
+  ? PROJ-55 Imported      parent not loaded: EXT-4 · Due Aug 21 only
+
+Invalid hierarchy
+  ! PROJ-60 Cycle         invalid hierarchy · unscheduled
+
+`|` marks the date cell containing today. Bars and markers are clipped only at
+the fixed window boundary; issue identity and schedule meaning remain visible.
 ```
 
 Timeline row rules:
@@ -185,8 +194,10 @@ Timeline row rules:
 - Missing both dates renders `unscheduled`; no synthetic date is derived from sprint, creation time, or rank.
 - A missing parent appears in a `Parent not loaded` group until hydrated.
 - Cycles or invalid parent chains are cut at the first repeated key and marked `invalid hierarchy` instead of recursing.
+- Collapsing a parent changes only the visible row projection. Loaded issue entities and project-list membership are unchanged.
 - Completed issues use a subdued success tone; blocked issues retain the warning marker.
 - Timeline is read-only in Wave 5. Issue fields can still be staged through the inspector, but bars cannot be dragged or resized.
+- The header always names the project, loaded/total completeness, zoom, and inclusive date window. Start-field discovery and parent-hydration failures are nonfatal notice lines.
 
 Timeline keyboard behavior:
 
@@ -205,6 +216,12 @@ Timeline keyboard behavior:
 | `L` | Load the next project issue page when available |
 | `r` | Refresh Timeline/List project issue data |
 
+Timeline row navigation updates the shared selected issue, so the inspector
+tracks the row immediately. Modal, search, editor, and inspector-choice bindings
+retain precedence over Timeline printable keys. Opening detail records Timeline
+as the originating route; `Esc` restores the same selected key, collapsed
+projection, zoom, and date-window start.
+
 Narrow layout removes the horizontal grid and renders schedule text without losing hierarchy:
 
 ```text
@@ -215,6 +232,12 @@ v PROJ-10 Auth
   PROJ-22 OAuth
     unscheduled
 ```
+
+The date grid is enabled only when the main viewport can retain the issue
+identity column plus at least seven complete cells at the active zoom. Otherwise
+the textual layout is used for every row; it never renders a clipped bar that
+could imply different dates. Long row lists remain viewport-culled in both
+layouts.
 
 ### Backlog
 
@@ -532,6 +555,12 @@ Components consume capabilities and route definitions; they must not repeatedly 
 
 Timeline switches to textual date ranges when the date grid cannot retain both issue identity and at least seven time cells. List drops optional columns in this order: Updated, Sprint, Parent, Due; Key and Summary never disappear. Board reuses its existing status-window behavior.
 
+Timeline computes its main viewport from the same shell reservation used by the
+other overview surfaces. Day, Week, and Month use fixed cell widths, so resize
+decisions are deterministic and do not depend on issue dates. Wide rendering is
+bounded to the calculated cell count; narrow rendering keeps hierarchy,
+selection, group warnings, and exact Jira date copy.
+
 ## Loading, Empty, Error, And Partial States
 
 Every project view must implement these states explicitly:
@@ -547,6 +576,24 @@ Every project view must implement these states explicitly:
 | Missing Timeline dates | Render `unscheduled`, not an API error |
 | Missing Timeline field | Explain that Start date is unavailable and continue with Due-only/unscheduled rows |
 | No active sprint | Active sprints shows a clear no-active-sprint state and directs users to Backlog |
+
+Timeline lifecycle copy is more specific:
+
+| Timeline state | Presentation |
+|---|---|
+| Initial loading | `Loading <PROJECT> Timeline project issues...`; no empty-roadmap claim |
+| Refreshing with rows | Retained hierarchy plus `Refreshing Timeline · <loaded>/<total> retained...` |
+| Partial page | `<loaded>/<total> project issues loaded · partial · L load more` |
+| Filtered empty | States that loaded issues remain and active filters hide every Timeline row |
+| Jira empty | States that Jira returned no issues for the selected project |
+| Permission/error before data | Names Timeline and project; permission copy requires Browse Projects and issue access |
+| Append error | Retains rows and cursor, names `L retry`, and shows the Jira error |
+| Start field unavailable | Nonfatal notice; Due-only markers and unscheduled rows continue rendering |
+| Parent hydration failure | Nonfatal notice plus `Parent not loaded` grouping for unresolved chains |
+| Missing dates | `unscheduled`; no synthetic date or milestone |
+| One date | `Start <date> only` or `Due <date> only` plus one marker cell in wide mode |
+| Invalid date order | Exact Start/Due copy labeled `invalid range`; no bar is rendered |
+| Invalid hierarchy | Separate section and `invalid hierarchy`; traversal never recurses through the cycle |
 
 ## Command And Focus Architecture
 

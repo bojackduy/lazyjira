@@ -10,6 +10,9 @@ describe("command palette registry", () => {
       "route.board",
       "search.remote-open",
       "workspace.refresh",
+      "issue.assign",
+      "issue.status",
+      "issue.open-browser",
     ]))
   })
 
@@ -24,6 +27,7 @@ describe("command palette registry", () => {
     expect(paletteCommandsForBoard("kanban").find((command) => command.name === "route.board")?.label).toBe("Board")
     expect(paletteCommandsForBoard().find((command) => command.name === "command-palette.open")?.keys).toBe("; · :")
     expect(paletteCommandsForBoard().find((command) => command.name === "issue.priority")?.keys).toBe("p")
+    expect(paletteCommandsForBoard().find((command) => command.name === "issue.assign")?.keys).toBe("a")
   })
 
   test("requires every search term to match", () => {
