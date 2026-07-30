@@ -139,7 +139,7 @@ function WideTimelineRow(props: { row: TimelineProjectedRow; previousGroup?: Tim
           <span>{fit(`${props.row.issue.key} ${props.row.issue.title}`, Math.max(1, props.identityWidth - props.row.depth * 2 - 4))}</span>
         </text>
         <Show when={schedule().kind !== "text"} fallback={<text fg={scheduleColor()} wrapMode="none">{fit(timelineRowCopy(props.row), props.cells.length * props.cellWidth)}</text>}>
-          <For each={schedule().cells}>{(cell) => <text fg={scheduleColor()} width={props.cellWidth} wrapMode="none">{cell === "bar" ? "█".repeat(props.cellWidth) : cell === "marker" ? fit("◆", props.cellWidth) : " ".repeat(props.cellWidth)}</text>}</For>
+          <For each={schedule().cells}>{(cell) => <text fg={scheduleColor()} width={props.cellWidth} wrapMode="none">{cell === "bar" ? "█".repeat(props.cellWidth) : cell === "marker" ? fit("◆", props.cellWidth) : cell === "before" ? fit("<", props.cellWidth) : cell === "after" ? fit(">", props.cellWidth) : " ".repeat(props.cellWidth)}</text>}</For>
         </Show>
       </box>
     </>

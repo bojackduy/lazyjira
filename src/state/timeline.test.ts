@@ -118,6 +118,8 @@ describe("timeline data model", () => {
     expect(timelineSchedule({ startDate: "2026-08-03", dueDate: "2026-08-05" }, cells)).toEqual({ kind: "bar", cells: ["bar", "bar", "bar", "empty", "empty"], text: "Aug 03 -> Aug 05" })
     expect(timelineSchedule({ startDate: "2026-08-04" }, cells)).toEqual({ kind: "marker", cells: ["empty", "marker", "empty", "empty", "empty"], text: "Start Aug 04 only" })
     expect(timelineSchedule({ dueDate: "2026-08-05" }, cells)).toEqual({ kind: "marker", cells: ["empty", "empty", "marker", "empty", "empty"], text: "Due Aug 05 only" })
+    expect(timelineSchedule({ startDate: "2026-07-01", dueDate: "2026-07-10" }, cells)).toEqual({ kind: "bar", cells: ["before", "empty", "empty", "empty", "empty"], text: "Jul 01 -> Jul 10" })
+    expect(timelineSchedule({ dueDate: "2026-09-01" }, cells)).toEqual({ kind: "marker", cells: ["empty", "empty", "empty", "empty", "after"], text: "Due Sep 01 only" })
     expect(timelineSchedule({}, cells)).toEqual({ kind: "text", text: "unscheduled" })
     expect(timelineSchedule({ startDate: "2026-08-06", dueDate: "2026-08-05" }, cells)).toEqual({ kind: "text", text: "invalid range · Start Aug 06 · Due Aug 05" })
   })

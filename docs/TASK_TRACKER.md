@@ -135,13 +135,13 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 
 ### N5: Timeline Surface
 
-- [ ] `N5.1` Add Timeline route composition with project context, loaded/total completeness, zoom, and date-window header.
-- [ ] `N5.2` Render colored parent disclosure rows, indented descendants, schedule bars, milestones, and explicit unscheduled rows.
-- [ ] `N5.3` Add collapse state that hides descendants without changing the underlying issue cache.
-- [ ] `N5.4` Implement Timeline `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, `[`/`]`, `Space`, `z`, `t`, `L`, `Enter`, and issue action commands.
-- [ ] `N5.5` Preserve selected row and date window across project-view switches in the same workspace.
-- [ ] `N5.6` Add the narrow textual-date layout and avoid clipped or misleading schedule bars.
-- [ ] `N5.7` Add scheduled, one-date, unscheduled, partial, missing-field, missing-parent, cycle, empty, loading, error, and narrow render tests.
+- [x] `N5.1` Add Timeline route composition with project context, loaded/total completeness, zoom, and date-window header.
+- [x] `N5.2` Render colored parent disclosure rows, indented descendants, schedule bars, milestones, and explicit unscheduled rows.
+- [x] `N5.3` Add collapse state that hides descendants without changing the underlying issue cache.
+- [x] `N5.4` Implement Timeline `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, `[`/`]`, `Space`, `z`, `t`, `L`, `Enter`, and issue action commands.
+- [x] `N5.5` Preserve selected row and date window across project-view switches in the same workspace.
+- [x] `N5.6` Add the narrow textual-date layout and avoid clipped or misleading schedule bars.
+- [x] `N5.7` Add scheduled, one-date, unscheduled, partial, missing-field, missing-parent, cycle, empty, loading, error, and narrow render tests.
 
 ### N6: Rollout, Documentation, And Smoke Checks
 

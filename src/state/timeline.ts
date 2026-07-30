@@ -198,19 +198,28 @@ export function timelineSchedule(issue: Pick<IssueSummary, "startDate" | "dueDat
   if (!start && !due) return { kind: "text", text: "unscheduled" }
   if (start && due && compareDates(start, due) > 0) return { kind: "text", text: `invalid range · Start ${formatTimelineDate(start)} · Due ${formatTimelineDate(due)}` }
   if (!cells.length) return { kind: start && due ? "bar" : "marker", cells: [], text: timelineScheduleText(issue) }
+  const first = cells[0]!
+  const last = cells[cells.length - 1]!
+  const outsideWindow = (date: string) => compareDates(date, first.start) < 0 ? "before" : compareDates(date, last.end) > 0 ? "after" : undefined
   if (start && due) {
+    const outside = compareDates(due, first.start) < 0 ? "before" : compareDates(start, last.end) > 0 ? "after" : undefined
     return {
       kind: "bar",
-      cells: cells.map((cell) => rangesOverlap(start, due, cell.start, cell.end) ? "bar" : "empty"),
+      cells: outside ? edgeCells(cells.length, outside) : cells.map((cell) => rangesOverlap(start, due, cell.start, cell.end) ? "bar" : "empty"),
       text: timelineScheduleText(issue),
     }
   }
   const date = start ?? due!
+  const outside = outsideWindow(date)
   return {
     kind: "marker",
-    cells: cells.map((cell) => compareDates(date, cell.start) >= 0 && compareDates(date, cell.end) <= 0 ? "marker" : "empty"),
+    cells: outside ? edgeCells(cells.length, outside) : cells.map((cell) => compareDates(date, cell.start) >= 0 && compareDates(date, cell.end) <= 0 ? "marker" : "empty"),
     text: timelineScheduleText(issue),
   }
+}
+
+function edgeCells(length: number, edge: "before" | "after") {
+  return Array.from({ length }, (_, index) => edge === "before" && index === 0 ? "before" : edge === "after" && index === length - 1 ? "after" : "empty")
 }
 
 export function timelineScheduleText(issue: Pick<IssueSummary, "startDate" | "dueDate">) {
