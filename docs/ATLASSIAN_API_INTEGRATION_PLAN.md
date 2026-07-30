@@ -18,6 +18,7 @@ Success means a configured user can choose a Jira-backed project/board in `prod`
 - Prod startup with a saved workspace renders a local placeholder shell first, then loads board metadata, active/future sprint metadata, all active sprint issues, Jira field IDs for sprint/points/rank, and one bounded backlog page after mount.
 - Opening or refreshing an issue detail view now loads full Jira issue detail and comments with stale-response protection.
 - Future sprint, backlog, and board issue load-more pages are wired. Explicit remote Jira search is wired through `S`; `W` previews planned and blocked Jira write operations, and its final confirmation posts planned comments only.
+- Wave 5 project List and Timeline loading is specified in `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`; it must reuse public issue search and field APIs rather than private Jira web Timeline endpoints.
 
 ## Non-Negotiables
 
@@ -88,6 +89,9 @@ Use Jira Cloud endpoints first. Data Center support can be added later behind co
 | Issue detail | `GET /rest/api/3/issue/{issueKey}` |
 | Comments | `GET /rest/api/3/issue/{issueKey}/comment` |
 | Remote search | `GET /rest/api/3/search/jql` |
+| Project List | `GET /rest/api/3/search/jql` with escaped project-scoped JQL |
+| Timeline base issues | Reuse paginated Project List issue pages |
+| Missing Timeline parents | `GET /rest/api/3/search/jql` with escaped batched `key IN (...)` JQL |
 
 Issue list/detail reads should request only fields the current domain model can use first:
 
@@ -96,6 +100,7 @@ Issue list/detail reads should request only fields the current domain model can 
 - `description`, `comment`, `issuelinks`, `subtasks`, `attachment`
 - sprint/rank/story-points fields once field IDs are discovered from board metadata
 - `created`, `updated`, `duedate`, `resolution`
+- discovered Start date field ID for Timeline when the tenant exposes one
 
 ## Loading Model
 

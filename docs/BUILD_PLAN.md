@@ -153,10 +153,22 @@ Pass when:
 - Network/auth/Jira validation errors are actionable.
 - Demo mode still works.
 
+### Checkpoint E: Jira Project Navigation Is Coherent
+
+Pass when:
+
+- The terminal sidebar retains a global Workspace destination and Jira-ordered project destinations.
+- Scrum shows Timeline, Backlog, List, and Active sprints; Kanban shows Timeline, Backlog, List, and Board.
+- Config is available through settings/palette but is not presented as a daily project view.
+- List pages project issues independently from board/backlog/search sources and reports partial completeness.
+- Timeline uses public Jira issue/field data, reports partial completeness, and never fabricates dates or hierarchy.
+- Every project view supports consistent pane focus, `j/k`, `g/G`, `Ctrl-u/d`, `/`, `S`, `Enter`, `Esc`, `?`, and staged-write behavior.
+- Wide and narrow terminals preserve issue identity, selection, and actionable loading/error states.
+
 ## Non-Negotiables
 
 - Overview screens come before deep document reading.
-- Active Sprint, Backlog, and Kanban Board are first-class routes.
+- Jira project navigation follows Timeline, Backlog, List, and board-aware Active sprints/Board while retaining the terminal sidebar.
 - Rendering components must not call Jira directly.
 - Keyboard behavior must preserve lazy/vim muscle memory.
 - Help and command palette must derive from command/keymap metadata where practical.

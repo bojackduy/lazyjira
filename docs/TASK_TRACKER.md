@@ -88,12 +88,69 @@ Scope and architecture: `docs/RICH_TEXT_EPIC.md`.
 
 Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 
-- [ ] `N1` Route/sidebar foundation: global versus project sections, board-aware labels, legacy route migration, help, palette, and footer updates.
-- [ ] `N2` Align board/backlog behavior behind the Jira-style project navigation model for Scrum and Kanban.
-- [ ] `N3` Add paginated project List loading, state, keyboard navigation, render surface, and tests.
-- [ ] `N4` Add timeline hierarchy/date normalization, selectors, fixtures, eligibility states, and tests.
-- [ ] `N5` Add read-only Timeline rendering, date-window navigation, narrow-terminal fallback, and tests.
-- [ ] `N6` Remove migrated legacy navigation, update user-facing docs, and run Scrum/Kanban non-production Jira smoke checks.
+### N1: Route And Sidebar Foundation
+
+- [ ] `N1.1` Add route scope metadata for global, project, internal, and settings destinations.
+- [ ] `N1.2` Add board capabilities that resolve Scrum to Active sprints and Kanban to Board.
+- [ ] `N1.3` Split the sidebar into Global, Project, Quick Filters, and Pending sections without changing its terminal-first layout.
+- [ ] `N1.4` Add Timeline, Backlog, List, and board-aware board entries in Jira order.
+- [ ] `N1.5` Remove Config from primary project destinations while retaining command-palette access.
+- [ ] `N1.6` Migrate persisted `active-sprint` and `kanban` route values safely to the unified board destination.
+- [ ] `N1.7` Rebind numeric navigation to `1` Workspace, `2` Timeline, `3` Backlog, `4` List, `5` Active sprints/Board.
+- [ ] `N1.8` Keep `;`/`:` for command palette, restore `p` to issue Priority, and update context help, footer hints, and route labels from shared command metadata.
+- [ ] `N1.9` Add route/sidebar tests for Scrum, Kanban, legacy persistence, quick-filter indexing, and selection preservation.
+
+### N2: Existing Board And Backlog Alignment
+
+- [ ] `N2.1` Unify Active Sprint and Kanban route composition behind one board route without merging their API loading policies.
+- [ ] `N2.2` Preserve Scrum active sprint goal, dates, complete active-sprint loading, board navigation, grouping, and draft creation.
+- [ ] `N2.3` Preserve Kanban bounded board paging, load-more, grouping, board navigation, and draft creation.
+- [ ] `N2.4` Make Backlog sprint-aware for Scrum and non-sprint-aware for Kanban.
+- [ ] `N2.5` Add collapse/expand behavior for backlog groups while keeping empty planning groups focusable.
+- [ ] `N2.6` Preserve `J/K` rank staging, move picker behavior, parent badges, inspector integration, and safe writes.
+- [ ] `N2.7` Add board/backlog regression tests for wide, narrow, empty, loading, partial, and error states.
+
+### N3: Project List Data And Surface
+
+- [ ] `N3.1` Add `project-list` as an independent issue page source with selection and horizontal-scroll state.
+- [ ] `N3.2` Add escaped project JQL generation with Rank ordering and `updated DESC, key DESC` fallback.
+- [ ] `N3.3` Load Project List pages through `GET /rest/api/3/search/jql` using Jira's cursor and bounded `maxResults`.
+- [ ] `N3.4` Request and normalize List fields: key, summary, type, status, assignee, priority, parent, due date, sprint, points, and updated.
+- [ ] `N3.5` Append/dedupe pages without losing staged overlays, selection, local filters, or prior successful pages on failure.
+- [ ] `N3.6` Add the dense List table and shared inspector/detail integration.
+- [ ] `N3.7` Implement List `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, `Enter`, `/`, `S`, `L`, `r`, and `n` commands.
+- [ ] `N3.8` Add responsive column degradation that never hides Key or Summary.
+- [ ] `N3.9` Add API/state/render tests for initial load, append, dedupe, refresh, partial counts, empty, permission, failure, and narrow terminals.
+
+### N4: Timeline Data Model
+
+- [ ] `N4.1` Discover a tenant Start date field through Jira field metadata without hardcoded custom field IDs.
+- [ ] `N4.2` Add `startDate` normalization and preserve Jira Due date and parent key/title/type metadata.
+- [ ] `N4.3` Reuse the `project-list` issue cache as Timeline's base data without sharing view selection/scroll state.
+- [ ] `N4.4` Batch hydrate missing parents with escaped `key IN (...)` JQL; prohibit per-row N+1 parent calls.
+- [ ] `N4.5` Build hierarchy selectors with stable ordering, arbitrary depth, missing-parent grouping, and cycle protection.
+- [ ] `N4.6` Classify rows as scheduled, one-date, unscheduled, missing-parent, or invalid-hierarchy without inventing dates.
+- [ ] `N4.7` Add dev fixtures for team-managed hierarchy levels, missing parents, cycles, partial pages, and date combinations.
+- [ ] `N4.8` Add normalization, JQL, hierarchy, date-window, cycle, and partial-completeness tests.
+
+### N5: Timeline Surface
+
+- [ ] `N5.1` Add Timeline route composition with project context, loaded/total completeness, zoom, and date-window header.
+- [ ] `N5.2` Render colored parent disclosure rows, indented descendants, schedule bars, milestones, and explicit unscheduled rows.
+- [ ] `N5.3` Add collapse state that hides descendants without changing the underlying issue cache.
+- [ ] `N5.4` Implement Timeline `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, `[`/`]`, `Space`, `z`, `t`, `L`, `Enter`, and issue action commands.
+- [ ] `N5.5` Preserve selected row and date window across project-view switches in the same workspace.
+- [ ] `N5.6` Add the narrow textual-date layout and avoid clipped or misleading schedule bars.
+- [ ] `N5.7` Add scheduled, one-date, unscheduled, partial, missing-field, missing-parent, cycle, empty, loading, error, and narrow render tests.
+
+### N6: Rollout, Documentation, And Smoke Checks
+
+- [ ] `N6.1` Remove retired route aliases only after persisted-route migration tests pass.
+- [ ] `N6.2` Update README screenshots/examples and user-facing descriptions to the Jira-style sidebar model.
+- [ ] `N6.3` Update Scope Roadmap, Implementation Status, API plan, command help, and footer documentation.
+- [ ] `N6.4` Add a Scrum smoke checklist covering Timeline, Backlog, List, Active sprints, detail return, filters, paging, and staged writes.
+- [ ] `N6.5` Add a Kanban smoke checklist covering Timeline, Backlog, List, Board, detail return, filters, paging, and staged writes.
+- [ ] `N6.6` Run `bun run typecheck`, full `bun test`, `git diff --check`, narrow-terminal smoke, and non-production Jira smoke.
 
 ## Cross-Track Reviews
 
