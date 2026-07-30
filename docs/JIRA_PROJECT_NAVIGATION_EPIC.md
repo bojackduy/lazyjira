@@ -189,6 +189,7 @@ the fixed window boundary; issue identity and schedule meaning remain visible.
 Timeline row rules:
 
 - Parent rows use the configured parent issue-type color and a disclosure marker.
+- The first loaded Timeline projection defaults to Month zoom with loaded parent rows collapsed; later user zoom and expansion choices are preserved for the workspace.
 - Child rows are indented by hierarchy depth; depth is derived from actual parent links, not hardcoded issue type names.
 - A bar begins at Start date and ends at Due date, inclusive.
 - A one-date issue renders a one-cell milestone marker only when Jira provides exactly one scheduling date; the UI labels which date is present.

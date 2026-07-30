@@ -275,7 +275,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("timelineParentHydrationError", workspace.timelineParentHydrationError)
     setState("timelineSelectedIssueKey", undefined)
     setState("timelineWindowStart", utcToday())
-    setState("timelineZoom", "week")
+    setState("timelineZoom", "month")
     setState("collapsedTimelineParentKeys", [])
     setState("pendingDeleteIssueKey", undefined)
     setState("inspectorSelectedFieldIndex", 1)
@@ -869,6 +869,12 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           if (loaded.sort) setState("projectListSort", loaded.sort)
           if (loaded.timelineStartDateField) setState("timelineStartDateField", loaded.timelineStartDateField)
           setState("timelineParentHydrationError", loaded.parentHydrationError)
+          if (!state.timelineSelectedIssueKey && !state.collapsedTimelineParentKeys.length) {
+            setState("collapsedTimelineParentKeys", uniqueStrings(nextSourceKeys.flatMap((issueKey) => {
+              const parentKey = nextIssues[issueKey]?.parentKey
+              return parentKey && nextIssues[parentKey] ? [parentKey] : []
+            })))
+          }
           const selected = state.projectListSelectedIssueKey
           if (!selected || !nextSourceKeys.includes(selected)) setState("projectListSelectedIssueKey", nextSourceKeys[0])
         }

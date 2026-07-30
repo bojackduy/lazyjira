@@ -388,6 +388,7 @@ describe("app state project picker", () => {
 
     expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toEqual([child.key])
     expect(appState.state.issues[parent.key]?.title).toBe("Hydrated parent")
+    expect(appState.state.collapsedTimelineParentKeys).toContain(parent.key)
     expect(appState.state.timelineStartDateField).toMatchObject({ status: "unavailable", reason: "ambiguous" })
     expect(appState.state.timelineParentHydrationError).toBe("Parent hydration failed: Jira 403")
   })
@@ -399,6 +400,7 @@ describe("app state project picker", () => {
     appState.setTimelineSelection("PROJ-301")
     appState.setTimelineWindowStart("2026-08-03")
     appState.setTimelineZoom("month")
+    expect(appState.state.collapsedTimelineParentKeys).toContain("PROJ-301")
     appState.toggleTimelineParentCollapsed("PROJ-301")
 
     appState.setRoute("list")
@@ -412,7 +414,7 @@ describe("app state project picker", () => {
     expect(appState.state.selectedIssueKey).toBe("PROJ-301")
     expect(appState.state.timelineWindowStart).toBe("2026-08-03")
     expect(appState.state.timelineZoom).toBe("month")
-    expect(appState.state.collapsedTimelineParentKeys).toEqual(["PROJ-301"])
+    expect(appState.state.collapsedTimelineParentKeys).not.toContain("PROJ-301")
   })
 
   test("resets independent Timeline view state after switching projects", async () => {
@@ -429,7 +431,7 @@ describe("app state project picker", () => {
 
     expect(appState.state.project.key).toBe("MOB")
     expect(appState.state.timelineSelectedIssueKey).toBeUndefined()
-    expect(appState.state.timelineZoom).toBe("week")
+    expect(appState.state.timelineZoom).toBe("month")
     expect(appState.state.collapsedTimelineParentKeys).toEqual([])
     expect(appState.state.timelineWindowStart).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })

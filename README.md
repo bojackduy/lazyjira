@@ -93,7 +93,7 @@ The global dashboard shows jump targets, attention queues, recent issues, loaded
 
 ### 2. Timeline
 
-Timeline projects the independently paged project issue source into a read-only hierarchy and schedule. It shows loaded/total completeness, discovered Start and Due dates, missing-parent or invalid-hierarchy notices, explicit unscheduled rows, collapse state, zoom, and a textual narrow-terminal fallback. Dated sprint windows may appear as distinct fallback bars, never as invented issue Start or Due dates. A final create row starts the highest configured project hierarchy level.
+Timeline projects the independently paged project issue source into a read-only hierarchy and schedule. It opens at Month zoom with loaded parent rows collapsed, then preserves user expansion and zoom choices. It shows loaded/total completeness, discovered Start and Due dates, missing-parent or invalid-hierarchy notices, explicit unscheduled rows, and a textual narrow-terminal fallback. Dated sprint windows may appear as distinct fallback bars, never as invented issue Start or Due dates. A final create row starts the highest configured project hierarchy level.
 
 ### 3. Backlog
 

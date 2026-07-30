@@ -103,7 +103,7 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     timelineParentHydrationError: workspace.timelineParentHydrationError,
     timelineSelectedIssueKey: undefined,
     timelineWindowStart: utcToday(),
-    timelineZoom: "week",
+    timelineZoom: "month",
     collapsedTimelineParentKeys: [],
     pendingDeleteIssueKey: undefined,
     remoteApplyOpen: false,
