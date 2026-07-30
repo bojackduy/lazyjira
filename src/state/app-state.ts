@@ -360,6 +360,7 @@ export type AppState = {
   projectListSelectedIssueKey?: string
   projectListHorizontalOffset: number
   projectListSort: ProjectListSort
+  collapsedProjectListParentKeys: string[]
   timelineStartDateField: TimelineStartDateField
   timelineParentHydrationError?: string
   timelineSelectedIssueKey?: string

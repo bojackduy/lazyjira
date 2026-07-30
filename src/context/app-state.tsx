@@ -84,6 +84,7 @@ export type AppStateContext = {
   loadIssuePage: (sourceId: string, refresh?: boolean) => Promise<void>
   setProjectListSelection: (issueKey: string | undefined) => void
   setProjectListHorizontalOffset: (offset: number) => void
+  toggleProjectListParentCollapsed: (issueKey: string) => void
   setTimelineSelection: (issueKey: string | undefined) => void
   setTimelineWindowStart: (date: string) => void
   setTimelineZoom: (zoom: TimelineZoom) => void
@@ -268,6 +269,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("projectListSelectedIssueKey", undefined)
     setState("projectListHorizontalOffset", 0)
     setState("projectListSort", "rank")
+    setState("collapsedProjectListParentKeys", [])
     setState("timelineStartDateField", workspace.timelineStartDateField)
     setState("timelineParentHydrationError", workspace.timelineParentHydrationError)
     setState("timelineSelectedIssueKey", undefined)
@@ -880,6 +882,9 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setProjectListHorizontalOffset(offset) {
       setState("projectListHorizontalOffset", Math.max(0, offset))
     },
+    toggleProjectListParentCollapsed(issueKey) {
+      setState("collapsedProjectListParentKeys", (keys) => keys.includes(issueKey) ? keys.filter((key) => key !== issueKey) : [...keys, issueKey])
+    },
     setTimelineSelection(issueKey) {
       setState("timelineSelectedIssueKey", issueKey)
       if (issueKey) setState("selectedIssueKey", issueKey)
@@ -1353,6 +1358,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const sourceId = draftIssueSourceId(state, issue)
       if (sourceId) setState("issueKeysBySource", sourceId, uniqueStrings([...(state.issueKeysBySource[sourceId] ?? []), issue.key]))
       if (sourceId === projectListIssuePageSourceId) setState("projectListSelectedIssueKey", issue.key)
+      if (state.route === "timeline") setState("timelineSelectedIssueKey", issue.key)
       setState("selectedIssueKey", issue.key)
       setState("focusedPane", "inspector")
       setState("draftIssueCounter", state.draftIssueCounter + 1)
@@ -1417,7 +1423,7 @@ function uniqueStrings(values: string[]) {
 }
 
 function draftIssueSourceId(state: AppState, issue: IssueSummary) {
-  if (state.route === "list") return projectListIssuePageSourceId
+  if (state.route === "list" || state.route === "timeline") return projectListIssuePageSourceId
   if (state.board.type === "kanban") {
     if (state.route === "backlog") return backlogIssuePageSourceId
     if (state.route === "board") return boardIssuePageSourceId

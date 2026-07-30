@@ -118,7 +118,7 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 - [x] `N3.4` Request and normalize List fields: key, summary, type, status, assignee, priority, parent, due date, sprint, points, and updated.
 - [x] `N3.5` Append/dedupe pages without losing staged overlays, selection, local filters, or prior successful pages on failure.
 - [x] `N3.6` Add the dense List table and shared inspector/detail integration.
-- [x] `N3.7` Implement List `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, `Enter`, `/`, `S`, `L`, `r`, and `n` commands.
+- [x] `N3.7` Implement List `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, `Space`, `Enter`, `/`, `S`, `L`, `r`, and `n` commands.
 - [x] `N3.8` Add responsive column degradation that never hides Key or Summary.
 - [x] `N3.9` Add API/state/render tests for initial load, append, dedupe, refresh, partial counts, empty, permission, failure, and narrow terminals.
 

@@ -21,7 +21,7 @@ Before starting:
 - [ ] Press `3` for Backlog; confirm active, future, and backlog groups are present as Jira data permits, groups collapse with `Space`, and empty planning groups remain focusable.
 - [ ] Verify `h/l`, `j/k`, `g/G`, `Ctrl-u/d`, and focused `L` paging. Confirm loading another Backlog/future-sprint page does not add issues to List or Timeline until their own project page is loaded.
 - [ ] Press `4` for List; confirm it represents project-wide issues rather than only the active sprint/backlog cache, and Key/Summary remain visible at a narrow terminal width.
-- [ ] Verify List `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, `/`, clear-filter behavior, and `L` paging. Confirm `S` remote search remains isolated from List membership and cursor state.
+- [ ] Verify List `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, independent `Space` hierarchy collapse, `/`, clear-filter behavior, and `L` paging. Confirm `S` remote search remains isolated from List membership and cursor state.
 - [ ] Open detail from Timeline, Backlog, List, and Active sprints, then return with `Esc`; confirm each originating row/card, group/column, Timeline window, and List horizontal offset are preserved.
 - [ ] Press `5` for Active sprints; confirm sprint name, dates, goal, complete active-sprint issue set, status columns, create cards, and no Kanban `L` paging claim.
 - [ ] Apply and clear a quick filter from the sidebar on every project view; confirm it filters loaded data only and preserves the selected issue when still visible.

@@ -98,6 +98,7 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     projectListSelectedIssueKey: undefined,
     projectListHorizontalOffset: 0,
     projectListSort: "rank",
+    collapsedProjectListParentKeys: [],
     timelineStartDateField: workspace.timelineStartDateField,
     timelineParentHydrationError: workspace.timelineParentHydrationError,
     timelineSelectedIssueKey: undefined,

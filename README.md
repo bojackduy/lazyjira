@@ -93,7 +93,7 @@ The global dashboard shows jump targets, attention queues, recent issues, loaded
 
 ### 2. Timeline
 
-Timeline projects the independently paged project issue source into a read-only hierarchy and schedule. It shows loaded/total completeness, discovered Start and Due dates, missing-parent or invalid-hierarchy notices, explicit unscheduled rows, collapse state, zoom, and a textual narrow-terminal fallback. It never invents dates or hierarchy.
+Timeline projects the independently paged project issue source into a read-only hierarchy and schedule. It shows loaded/total completeness, discovered Start and Due dates, missing-parent or invalid-hierarchy notices, explicit unscheduled rows, collapse state, zoom, and a textual narrow-terminal fallback. Dated sprint windows may appear as distinct fallback bars, never as invented issue Start or Due dates. A final create row starts the highest configured project hierarchy level.
 
 ### 3. Backlog
 
@@ -101,7 +101,7 @@ Scrum Backlog shows collapsible active sprint, future sprint, and backlog groups
 
 ### 4. List
 
-List is a dense, project-wide paginated issue table independent from board, backlog, and remote search sources. Key and Summary remain visible as the terminal narrows; selection drives the shared inspector and `Enter` opens detail.
+List is a dense, project-wide paginated issue table independent from board, backlog, and remote search sources. Key and Summary remain visible as the terminal narrows; selection drives the shared inspector, `Space` independently collapses parent rows, and `Enter` opens detail.
 
 ### 5. Active Sprints / Board
 

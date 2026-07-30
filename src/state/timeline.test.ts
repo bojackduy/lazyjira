@@ -11,6 +11,7 @@ import {
   panTimelineWindow,
   projectTimelineRows,
   timelineCells,
+  timelineCreateRowKey,
   timelineDateBounds,
   timelineLayout,
   timelineNotices,
@@ -85,9 +86,11 @@ describe("timeline data model", () => {
     ])
     expect(model.rows.map((row) => row.issue.key)).toEqual(["ROOT", "CHILD", "LEAF", "OTHER"])
     expect(timelineSelection(projected, "ROOT", 1)).toBe("OTHER")
-    expect(timelineSelection(projected, "OTHER", 1)).toBe("OTHER")
+    expect(timelineSelection(projected, "OTHER", 1)).toBe(timelineCreateRowKey)
+    expect(timelineSelection(projected, timelineCreateRowKey, 1)).toBe(timelineCreateRowKey)
     expect(timelineSelection(projected, "OTHER", "first")).toBe("ROOT")
-    expect(timelineSelection(projected, "ROOT", "last")).toBe("OTHER")
+    expect(timelineSelection(projected, "ROOT", "last")).toBe(timelineCreateRowKey)
+    expect(timelineSelection([], undefined, "first")).toBe(timelineCreateRowKey)
   })
 
   test("uses deterministic UTC zoom, pan, today, and inclusive window math", () => {
@@ -121,6 +124,7 @@ describe("timeline data model", () => {
     expect(timelineSchedule({ startDate: "2026-07-01", dueDate: "2026-07-10" }, cells)).toEqual({ kind: "bar", cells: ["before", "empty", "empty", "empty", "empty"], text: "Jul 01 -> Jul 10" })
     expect(timelineSchedule({ dueDate: "2026-09-01" }, cells)).toEqual({ kind: "marker", cells: ["empty", "empty", "empty", "empty", "after"], text: "Due Sep 01 only" })
     expect(timelineSchedule({}, cells)).toEqual({ kind: "text", text: "unscheduled" })
+    expect(timelineSchedule({}, cells, { id: "sprint-1", name: "Sprint 1", goal: "", state: "active", startDate: "2026-08-03T00:00:00.000Z", endDate: "2026-08-05T00:00:00.000Z" })).toEqual({ kind: "sprint", cells: ["sprint", "sprint", "sprint", "empty", "empty"], text: "Sprint 1 window Aug 03 -> Aug 05" })
     expect(timelineSchedule({ startDate: "2026-08-06", dueDate: "2026-08-05" }, cells)).toEqual({ kind: "text", text: "invalid range · Start Aug 06 · Due Aug 05" })
   })
 
@@ -148,6 +152,9 @@ describe("timeline data model", () => {
     state.issueKeysBySource[projectListIssuePageSourceId] = ["PROJ-300"]
     state.issuePageStateBySource[projectListIssuePageSourceId] = page(1, 10, false)
     expect(timelineStateText(state)).toBe("1/10 project issues loaded · partial · L load more")
+    state.issuePageStateBySource[projectListIssuePageSourceId]!.loading = true
+    expect(timelineStateText(state)).toBe("Loading more Timeline issues · 1/10 retained...")
+    state.issuePageStateBySource[projectListIssuePageSourceId]!.loading = false
     state.issuePageStateBySource[projectListIssuePageSourceId]!.refreshing = true
     expect(timelineStateText(state)).toBe("Refreshing Timeline · 1/10 retained...")
     state.issuePageStateBySource[projectListIssuePageSourceId]!.refreshing = false
@@ -169,7 +176,7 @@ describe("timeline data model", () => {
   test("reports missing Start date and parent hydration as nonfatal notices", () => {
     const model = buildTimelineHierarchy(issueMap([issue("ONE", { dueDate: "2026-08-02" })]), ["ONE"], page(1, 1, true), { status: "unavailable", reason: "ambiguous", candidateIds: ["a", "b"] }, "Jira 403")
     expect(timelineNotices(model)).toEqual([
-      "Start date unavailable: multiple Jira date fields matched; showing Due-only and unscheduled rows.",
+      "Start date unavailable: multiple Jira date fields matched; showing Due-only, sprint-window, and unscheduled rows.",
       "Parent hydration incomplete: Jira 403",
     ])
   })

@@ -221,7 +221,7 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: bo
         <text fg={statusColor(state, props.issue)} wrapMode="none">
           {statusName(state, props.issue)} · {props.issue.priority} · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
         </text>
-        <ParentBadge issue={props.issue} compact />
+        <ParentBadge issue={props.issue} />
       </box>
     )
   }

@@ -1,4 +1,4 @@
-import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, StatusDefinition } from "./app-state"
+import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, IssueTypeDefinition, ParentIssueSummary, StatusDefinition } from "./app-state"
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { issueWithDraft } from "./issue-drafts"
 import { matchesIssueSearch } from "./issue-search"
@@ -95,6 +95,29 @@ export function issueTypeColor(state: AppState, issue: IssueSummary) {
 
 export function issueTypeName(state: AppState, issue: IssueSummary) {
   return configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type || type.name === issue.typeName)?.name ?? issue.typeName ?? issue.type
+}
+
+export function highestLoadedAncestor(state: AppState, issue: IssueSummary): IssueSummary | ParentIssueSummary | undefined {
+  let highest = issue.parent
+  let parentKey = issue.parentKey
+  const visited = new Set([issue.key])
+  while (parentKey && !visited.has(parentKey)) {
+    visited.add(parentKey)
+    const parent = state.issues[parentKey]
+    if (!parent) break
+    highest = parent
+    parentKey = parent.parentKey
+  }
+  return highest
+}
+
+export function highestLevelIssueType(state: AppState) {
+  return configuredIssueTypes(state)
+    .filter((type) => !type.subtask)
+    .reduce<IssueTypeDefinition | undefined>((highest, type) => {
+      if (!highest) return type
+      return (type.hierarchyLevel ?? Number.NEGATIVE_INFINITY) > (highest.hierarchyLevel ?? Number.NEGATIVE_INFINITY) ? type : highest
+    }, undefined)
 }
 
 export function isAssignedToCurrentUser(state: AppState, issue: IssueSummary) {

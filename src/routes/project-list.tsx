@@ -43,7 +43,7 @@ export function ProjectListRoute() {
     <box flexDirection="column" gap={1} flexGrow={1} minHeight={0} overflow="hidden">
       <box flexDirection="column" flexShrink={0}>
         <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">List · {state.project.key} · {state.projectListSort === "rank" ? "Rank asc" : "Updated desc"}</text>
-        <text fg={theme.textMuted} wrapMode="none">j/k row · g/G ends · Ctrl-u/d half page · h/l columns · Enter detail · / filter · S Jira search · L load more · r refresh</text>
+        <text fg={theme.textMuted} wrapMode="none">j/k row · g/G ends · Ctrl-u/d half page · h/l columns · Space collapse · Enter detail · / filter · S Jira search · L load more · r refresh</text>
         <text fg={state.issuePageStateBySource["project-list"]?.error ? theme.danger : state.issuePageStateBySource["project-list"]?.loading ? theme.warning : theme.textSubtle} wrapMode="none">{projectListStateText(state)}</text>
       </box>
 
@@ -57,7 +57,7 @@ export function ProjectListRoute() {
                   <text fg={state.projectListSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selectedText : theme.text} wrapMode="none">
                     <span>{state.projectListSelectedIssueKey === row.issue.key ? ">" : " "}</span>
                     <For each={columns()}>
-                      {(column) => <span style={{ fg: column.id === "type" ? issueTypeColor(state, row.issue) : column.id === "status" ? statusColor(state, row.issue) : undefined }}>{formatCell(column.id === "summary" ? `${"  ".repeat(row.depth)}${row.hasChildren ? "v" : "·"} ${row.issue.title}` : projectListCell(row.issue, column.id, state), column)}</span>}
+                      {(column) => <span style={{ fg: column.id === "type" ? issueTypeColor(state, row.issue) : column.id === "status" ? statusColor(state, row.issue) : undefined }}>{formatCell(column.id === "summary" ? `${"  ".repeat(row.depth)}${row.hasChildren ? row.collapsed ? ">" : "v" : "·"} ${row.issue.title}` : projectListCell(row.issue, column.id, state), column)}</span>}
                     </For>
                   </text>
                 </box>

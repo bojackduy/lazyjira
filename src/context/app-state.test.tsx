@@ -401,6 +401,21 @@ describe("app state project picker", () => {
     expect(appState.state.timelineWindowStart).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 
+  test("keeps List collapse independent and resets it after switching projects", async () => {
+    const appState = createTestAppState()
+    appState.toggleProjectListParentCollapsed("PROJ-300")
+
+    expect(appState.state.collapsedProjectListParentKeys).toEqual(["PROJ-300"])
+    expect(appState.state.collapsedTimelineParentKeys).toEqual([])
+
+    await appState.browseRemoteProjects()
+    appState.moveProjectPickerSelection(1)
+    await appState.selectProjectPickerItem()
+    await appState.selectProjectPickerItem()
+
+    expect(appState.state.collapsedProjectListParentKeys).toEqual([])
+  })
+
   test("refreshes project List from page one while retaining rows and staged overlays", async () => {
     const refresh = deferred<Awaited<ReturnType<WorkspaceSource["loadIssuePage"]>>>()
     const selected = loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!
@@ -463,6 +478,19 @@ describe("app state project picker", () => {
     expect(appState.state.issueKeysBySource[boardIssuePageSourceId]).not.toContain("DRAFT-1")
     expect(appState.state.issues["DRAFT-1"]?.sprintId).toBeUndefined()
     expect(appState.state.projectListSelectedIssueKey).toBe("DRAFT-1")
+  })
+
+  test("adds Timeline drafts to project-list membership and selects the created row", async () => {
+    const appState = createTestAppState()
+    appState.setRoute("timeline")
+    await flushPromises()
+    const draft = { ...loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!, key: "DRAFT-1", sprintId: undefined, isDraft: true }
+
+    appState.createDraftIssue(draft)
+
+    expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toContain("DRAFT-1")
+    expect(appState.state.timelineSelectedIssueKey).toBe("DRAFT-1")
+    expect(appState.state.issues["DRAFT-1"]?.sprintId).toBeUndefined()
   })
 
   test("stages comments and backlog rank operations", () => {

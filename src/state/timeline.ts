@@ -1,4 +1,4 @@
-import type { AppState, IssuePageState, IssueSummary, TimelineStartDateField, TimelineZoom } from "./app-state"
+import type { AppState, IssuePageState, IssueSummary, SprintSummary, TimelineStartDateField, TimelineZoom } from "./app-state"
 import { projectListIssuePageSourceId } from "./issue-pages"
 import { issuesForSource } from "./selectors"
 
@@ -42,12 +42,13 @@ export type TimelineCell = {
 }
 
 export type TimelineSchedule = {
-  kind: "bar" | "marker" | "text"
+  kind: "bar" | "marker" | "sprint" | "text"
   cells?: string[]
   text: string
 }
 
 const millisecondsPerDay = 86_400_000
+export const timelineCreateRowKey = "__timeline-create__"
 
 export function timelineModel(state: AppState): TimelineHierarchyModel {
   const projectKeys = state.issueKeysBySource[projectListIssuePageSourceId] ?? []
@@ -151,12 +152,15 @@ export function projectTimelineRows(rows: TimelineHierarchyRow[], collapsedKeys:
 }
 
 export function timelineSelection(rows: readonly Pick<TimelineHierarchyRow, "issue">[], selectedKey: string | undefined, delta: number | "first" | "last") {
-  const keys = rows.map((row) => row.issue.key)
-  if (!keys.length) return undefined
+  const keys = timelineSelectionKeys(rows)
   if (delta === "first") return keys[0]
   if (delta === "last") return keys.at(-1)
   const current = Math.max(0, keys.indexOf(selectedKey ?? ""))
   return keys[Math.max(0, Math.min(keys.length - 1, current + delta))]
+}
+
+export function timelineSelectionKeys(rows: readonly Pick<TimelineHierarchyRow, "issue">[]) {
+  return [...rows.map((row) => row.issue.key), timelineCreateRowKey]
 }
 
 export function classifyTimelineIssue(issue: Pick<IssueSummary, "startDate" | "dueDate">, group: TimelineRowGroup = "hierarchy"): TimelineRowClassification {
@@ -192,9 +196,15 @@ export function timelineCells(windowStart: string, zoom: TimelineZoom, count: nu
   })
 }
 
-export function timelineSchedule(issue: Pick<IssueSummary, "startDate" | "dueDate">, cells: TimelineCell[]): TimelineSchedule {
+export function timelineSchedule(issue: Pick<IssueSummary, "startDate" | "dueDate">, cells: TimelineCell[], sprint?: SprintSummary): TimelineSchedule {
   const start = isJiraDate(issue.startDate) ? issue.startDate : undefined
   const due = isJiraDate(issue.dueDate) ? issue.dueDate : undefined
+  const sprintRange = validSprintRange(sprint)
+  if (!start && !due && sprintRange) return {
+    kind: "sprint",
+    cells: rangeCells(sprintRange.start, sprintRange.end, cells, "sprint"),
+    text: `${sprint!.name} window ${formatTimelineDate(sprintRange.start)} -> ${formatTimelineDate(sprintRange.end)}`,
+  }
   if (!start && !due) return { kind: "text", text: "unscheduled" }
   if (start && due && compareDates(start, due) > 0) return { kind: "text", text: `invalid range · Start ${formatTimelineDate(start)} · Due ${formatTimelineDate(due)}` }
   if (!cells.length) return { kind: start && due ? "bar" : "marker", cells: [], text: timelineScheduleText(issue) }
@@ -205,7 +215,7 @@ export function timelineSchedule(issue: Pick<IssueSummary, "startDate" | "dueDat
     const outside = compareDates(due, first.start) < 0 ? "before" : compareDates(start, last.end) > 0 ? "after" : undefined
     return {
       kind: "bar",
-      cells: outside ? edgeCells(cells.length, outside) : cells.map((cell) => rangesOverlap(start, due, cell.start, cell.end) ? "bar" : "empty"),
+      cells: outside ? edgeCells(cells.length, outside) : rangeCells(start, due, cells, "bar"),
       text: timelineScheduleText(issue),
     }
   }
@@ -218,11 +228,17 @@ export function timelineSchedule(issue: Pick<IssueSummary, "startDate" | "dueDat
   }
 }
 
+function rangeCells(start: string, end: string, cells: TimelineCell[], fill: "bar" | "sprint") {
+  if (!cells.length) return []
+  const outside = compareDates(end, cells[0]!.start) < 0 ? "before" : compareDates(start, cells.at(-1)!.end) > 0 ? "after" : undefined
+  return outside ? edgeCells(cells.length, outside) : cells.map((cell) => rangesOverlap(start, end, cell.start, cell.end) ? fill : "empty")
+}
+
 function edgeCells(length: number, edge: "before" | "after") {
   return Array.from({ length }, (_, index) => edge === "before" && index === 0 ? "before" : edge === "after" && index === length - 1 ? "after" : "empty")
 }
 
-export function timelineScheduleText(issue: Pick<IssueSummary, "startDate" | "dueDate">) {
+export function timelineScheduleText(issue: Pick<IssueSummary, "startDate" | "dueDate">, sprint?: SprintSummary) {
   const start = isJiraDate(issue.startDate) ? issue.startDate : undefined
   const due = isJiraDate(issue.dueDate) ? issue.dueDate : undefined
   if (start && due) return compareDates(start, due) <= 0
@@ -230,13 +246,15 @@ export function timelineScheduleText(issue: Pick<IssueSummary, "startDate" | "du
     : `invalid range · Start ${formatTimelineDate(start)} · Due ${formatTimelineDate(due)}`
   if (start) return `Start ${formatTimelineDate(start)} only`
   if (due) return `Due ${formatTimelineDate(due)} only`
+  const sprintRange = validSprintRange(sprint)
+  if (sprintRange) return `${sprint!.name} window ${formatTimelineDate(sprintRange.start)} -> ${formatTimelineDate(sprintRange.end)}`
   return "unscheduled"
 }
 
-export function timelineRowCopy(row: TimelineHierarchyRow) {
-  if (row.group === "missing-parent") return `parent not loaded: ${row.issue.parentKey ?? "unknown"} · ${timelineScheduleText(row.issue)}`
-  if (row.group === "invalid-hierarchy") return `invalid hierarchy · ${timelineScheduleText(row.issue)}`
-  return timelineScheduleText(row.issue)
+export function timelineRowCopy(row: TimelineHierarchyRow, sprint?: SprintSummary) {
+  if (row.group === "missing-parent") return `parent not loaded: ${row.issue.parentKey ?? "unknown"} · ${timelineScheduleText(row.issue, sprint)}`
+  if (row.group === "invalid-hierarchy") return `invalid hierarchy · ${timelineScheduleText(row.issue, sprint)}`
+  return timelineScheduleText(row.issue, sprint)
 }
 
 export function timelineStateText(state: AppState, model = timelineModel(state)) {
@@ -246,17 +264,18 @@ export function timelineStateText(state: AppState, model = timelineModel(state))
   if (page.error && !model.loaded && /Jira 403|permission|access denied/i.test(page.error)) return `Timeline for ${state.project.key} requires Browse Projects and issue access. ${page.error}`
   if (page.error && !model.loaded) return `Timeline for ${state.project.key} failed: ${page.error}`
   if (page.refreshing) return `Refreshing Timeline · ${completeness(model)} retained...`
+  if (page.loading) return `Loading more Timeline issues · ${completeness(model)} retained...`
   if (page.error) return `Timeline append failed; ${model.loaded} rows retained · L retry: ${page.error}`
   if (!model.rows.length && model.loaded) return `No loaded Timeline issues match the active filters. ${model.loaded} project issues remain loaded.`
   if (!model.loaded && page.isLast) return `Jira returned no issues for project ${state.project.key}.`
   return model.partial ? `${completeness(model)} project issues loaded · partial · L load more` : `${completeness(model)} project issues loaded · complete`
 }
 
-export function timelineNotices(model: TimelineHierarchyModel) {
+export function timelineNotices(model: TimelineHierarchyModel, sprints: SprintSummary[] = []) {
   const notices: string[] = []
-  if (model.startDateField.status === "unavailable") notices.push(model.startDateField.reason === "ambiguous" ? "Start date unavailable: multiple Jira date fields matched; showing Due-only and unscheduled rows." : "Start date field unavailable; showing Due-only and unscheduled rows.")
+  if (model.startDateField.status === "unavailable") notices.push(model.startDateField.reason === "ambiguous" ? "Start date unavailable: multiple Jira date fields matched; showing Due-only, sprint-window, and unscheduled rows." : "Start date field unavailable; showing Due-only, sprint-window, and unscheduled rows.")
   if (model.parentHydrationError) notices.push(`Parent hydration incomplete: ${model.parentHydrationError}`)
-  if (model.rows.length && !model.rows.some((row) => isJiraDate(row.issue.startDate) || isJiraDate(row.issue.dueDate))) notices.push("No loaded issues have Start or Due dates, so Jira provides no schedule bars to draw.")
+  if (model.rows.length && !model.rows.some((row) => isJiraDate(row.issue.startDate) || isJiraDate(row.issue.dueDate) || validSprintRange(sprints.find((sprint) => sprint.id === row.issue.sprintId)))) notices.push("No loaded issues have Start or Due dates, and no dated sprint window applies, so there are no schedule bars to draw.")
   return notices
 }
 
@@ -367,6 +386,17 @@ function isJiraDate(value: string | undefined): value is string {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const date = new Date(`${value}T00:00:00Z`)
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value
+}
+
+function validSprintRange(sprint: SprintSummary | undefined) {
+  const start = sprintDate(sprint?.startDate)
+  const end = sprintDate(sprint?.endDate)
+  return start && end && compareDates(start, end) <= 0 ? { start, end } : undefined
+}
+
+function sprintDate(value: string | undefined) {
+  const date = value?.slice(0, 10)
+  return isJiraDate(date) ? date : undefined
 }
 
 function unique(values: string[]) {

@@ -39,6 +39,9 @@ describe("project list state", () => {
       ["PROJ-302", 2],
       ["PROJ-303", 3],
     ])
+
+    state.collapsedProjectListParentKeys = ["PROJ-300"]
+    expect(projectListRows(state).map((row) => row.issue.key)).toEqual(["PROJ-300"])
   })
 
   test("distinguishes loading, partial, filtered empty, append failure, permission, and empty copy", () => {
@@ -48,6 +51,9 @@ describe("project list state", () => {
     state.issueKeysBySource[projectListIssuePageSourceId] = ["PROJ-121"]
     state.issuePageStateBySource[projectListIssuePageSourceId] = page({ startAt: 1, total: 5 })
     expect(projectListStateText(state)).toBe("1/5 project issues loaded · L load more")
+    state.issuePageStateBySource[projectListIssuePageSourceId]!.loading = true
+    expect(projectListStateText(state)).toBe("Loading more project issues · 1/5 retained...")
+    state.issuePageStateBySource[projectListIssuePageSourceId]!.loading = false
 
     state.searchQuery = "no-match"
     expect(projectListStateText(state)).toContain("No loaded project issues match")

@@ -172,7 +172,7 @@ function IssueCard(props: { issue: IssueSummary; selected: boolean; id: string }
       <text fg={theme.textSubtle} wrapMode="none">
         {issueTypeName(state, props.issue)} · {props.issue.priority}{signal()}
       </text>
-      <ParentBadge issue={props.issue} compact />
+      <ParentBadge issue={props.issue} />
     </box>
   )
 }

@@ -33,7 +33,7 @@ export function projectListIssues(state: AppState) {
 
 export function projectListRows(state: AppState) {
   if (!issuesForSource(state, projectListIssuePageSourceId).length) return []
-  return projectTimelineRows(timelineModel(state).rows, [])
+  return projectTimelineRows(timelineModel(state).rows, state.collapsedProjectListParentKeys)
 }
 
 export function projectListColumns(width: number, horizontalOffset = 0) {
@@ -68,6 +68,7 @@ export function projectListStateText(state: AppState) {
   if (page.error && !loaded && /Jira 403|permission|access denied/i.test(page.error)) return `Project List for ${state.project.key} requires Browse Projects and issue access. ${page.error}`
   if (page.error && !loaded) return `Project List for ${state.project.key} failed: ${page.error}`
   if (page.refreshing) return `Refreshing project issues · ${loaded}${typeof page.total === "number" ? `/${page.total}` : ""} retained...`
+  if (page.loading) return `Loading more project issues · ${loaded}${typeof page.total === "number" ? `/${page.total}` : ""} retained...`
   if (page.error) return `Project List append failed; ${loaded} rows retained · L retry: ${page.error}`
   if (!visible && loaded) return `No loaded project issues match the active filters. ${loaded} rows remain loaded.`
   if (!loaded && page.isLast) return `Jira returned no issues for project ${state.project.key}.`

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { loadDevWorkspaceState } from "./dev"
-import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, issueTypeName, kanbanIssues, matchesQuickFilters, sprintDateRange, visibleStatusesForBoard } from "./selectors"
+import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, highestLevelIssueType, highestLoadedAncestor, issueTypeName, kanbanIssues, matchesQuickFilters, sprintDateRange, visibleStatusesForBoard } from "./selectors"
 
 describe("board selectors", () => {
   test("shows all statuses when the board is wide enough", () => {
@@ -126,5 +126,15 @@ describe("board selectors", () => {
     state.issueTypes = []
 
     expect(issueTypeName(state, issue)).toBe("Story")
+  })
+
+  test("resolves the highest loaded ancestor and highest configured create level", () => {
+    const state = loadDevWorkspaceState()
+    state.issues.ROOT = { ...state.issues[state.selectedIssueKey]!, key: "ROOT", title: "Top initiative", type: "Initiative", parentKey: undefined }
+    state.issues.PARENT = { ...state.issues[state.selectedIssueKey]!, key: "PARENT", title: "Middle epic", type: "Epic", parentKey: "ROOT" }
+    const issue = { ...state.issues[state.selectedIssueKey]!, parentKey: "PARENT", parent: { key: "PARENT", title: "Middle epic", type: "Epic" } }
+
+    expect(highestLoadedAncestor(state, issue)?.title).toBe("Top initiative")
+    expect(highestLevelIssueType(state)?.name).toBe("Initiative")
   })
 })

@@ -167,13 +167,14 @@ Wide layout:
 Timeline · PROJ Product Platform · Jul 27-Aug 23 · Week
 j/k row · g/G ends · Ctrl-u/d half page · h/l pan · [/] viewport · Space collapse · z zoom · t today
 100/482 project issues loaded · partial · L load more
-Start date field unavailable; showing Due-only and unscheduled rows.
+Start date field unavailable; showing Due-only, sprint-window, and unscheduled rows.
  Work                    Jul 27    |Aug 03    Aug 10     Aug 17
 > v PROJ-10 Auth         ███████████████████
     · PROJ-21 Login           ███████
     · PROJ-22 OAuth              ◆             Start Aug 05 only
   > PROJ-30 Billing                              █████████████
-    · PROJ-44 Cleanup      unscheduled
+    · PROJ-44 Cleanup      ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒  Sprint 24 window Jul 27 -> Aug 07
+  + New initiative
 
 Parent not loaded
   ? PROJ-55 Imported      parent not loaded: EXT-4 · Due Aug 21 only
@@ -191,7 +192,7 @@ Timeline row rules:
 - Child rows are indented by hierarchy depth; depth is derived from actual parent links, not hardcoded issue type names.
 - A bar begins at Start date and ends at Due date, inclusive.
 - A one-date issue renders a one-cell milestone marker only when Jira provides exactly one scheduling date; the UI labels which date is present.
-- Missing both dates renders `unscheduled`; no synthetic date is derived from sprint, creation time, or rank.
+- Missing both dates uses a visibly distinct sprint-window bar only when the issue belongs to a sprint with both dates; this is contextual fallback, not a synthetic issue Start or Due date. Otherwise it renders `unscheduled`.
 - A missing parent appears in a `Parent not loaded` group until hydrated.
 - Cycles or invalid parent chains are cut at the first repeated key and marked `invalid hierarchy` instead of recursing.
 - Collapsing a parent changes only the visible row projection. Loaded issue entities and project-list membership are unchanged.
@@ -211,7 +212,7 @@ Timeline keyboard behavior:
 | `Space` | Collapse/expand a parent row |
 | `z` | Cycle Day, Week, and Month zoom |
 | `t` | Return the date window to today |
-| `Enter` | Open selected issue detail |
+| `Enter` | Open selected issue detail; on the final create row, create the highest configured non-subtask hierarchy level |
 | `e`, `a`, `s`, `c`, `p`, `o` | Existing issue edit, assign, transition, comment, priority, and browser actions |
 | `L` | Load the next project issue page when available |
 | `r` | Refresh Timeline/List project issue data |
@@ -308,6 +309,7 @@ List rules:
 - `/` filters only loaded rows and preserves the remote paging cursor.
 - `S` remains the separate explicit Jira search surface and must not alter List's base query.
 - Appended pages dedupe by issue key and preserve the currently selected row.
+- Parent rows follow Jira's loaded parent links and use List-specific collapse state; collapsing List never changes Timeline collapse state.
 
 List keyboard behavior:
 
@@ -317,6 +319,7 @@ List keyboard behavior:
 | `g` / `G` | First/last loaded row |
 | `Ctrl-d` / `Ctrl-u` | Half-page down/up |
 | `h` / `l` | Horizontal table scroll when columns overflow |
+| `Space` | Collapse/expand the selected parent row |
 | `Enter` | Open selected issue detail |
 | `/` | Filter loaded rows |
 | `S` | Open explicit remote Jira search |

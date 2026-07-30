@@ -13,8 +13,8 @@ import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageCanLoadMore,
 import { boardCapabilities, boardModeForBoard, sidebarRoutesForBoard } from "./state/routes"
 import { searchPaletteCommands } from "./keymap/commands"
 import type { BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
-import { projectListIssues, projectListMaxHorizontalOffset, projectListSelection, projectListViewportWidth } from "./state/project-list"
-import { panTimelineWindow, projectTimelineRows, timelineModel, timelineSelection } from "./state/timeline"
+import { projectListIssues, projectListMaxHorizontalOffset, projectListRows, projectListSelection, projectListViewportWidth } from "./state/project-list"
+import { panTimelineWindow, projectTimelineRows, timelineCreateRowKey, timelineModel, timelineSelection, timelineSelectionKeys } from "./state/timeline"
 import {
   boardCellItems,
   boardCellIssueKeys,
@@ -31,6 +31,7 @@ import {
   boardStatusWindowSize,
   backlogCreateSprintId,
   groupBacklogIssues,
+  highestLevelIssueType,
   nextBacklogGroupBy,
   nextBoardGroupBy,
   visibleStatusesForBoard,
@@ -355,7 +356,8 @@ export function App() {
       return
     }
     if (state.route === "list" && state.projectListSelectedIssueKey) appState.openIssueDetail(state.projectListSelectedIssueKey)
-    if (state.route === "timeline" && state.timelineSelectedIssueKey) appState.openIssueDetail(state.timelineSelectedIssueKey)
+    if (state.route === "timeline" && state.timelineSelectedIssueKey === timelineCreateRowKey) createIssueFromContext()
+    else if (state.route === "timeline" && state.timelineSelectedIssueKey) appState.openIssueDetail(state.timelineSelectedIssueKey)
   }
 
   function cycleGroup() {
@@ -391,6 +393,7 @@ export function App() {
       appState.startDetailBodyEdit()
       return
     }
+    if (!state.issues[state.selectedIssueKey]) return false
     if (state.focusedPane !== "inspector") {
       appState.setFocusedPane("inspector")
       appState.startInspectorEdit()
@@ -416,7 +419,7 @@ export function App() {
   }
 
   function editSelectedIssueField(fieldId: "assignee" | "priority" | "statusId") {
-    if (isPlainTextEditing() || isPopupOpen() || state.route === "workspace" || state.route === "config" || !state.selectedIssueKey) return false
+    if (isPlainTextEditing() || isPopupOpen() || state.route === "workspace" || state.route === "config" || !state.issues[state.selectedIssueKey]) return false
     const fieldIndex = issueFields.findIndex((field) => field.id === fieldId)
     if (fieldIndex < 0) return false
     appState.moveInspectorSelection(fieldIndex - state.inspectorSelectedFieldIndex)
@@ -425,7 +428,7 @@ export function App() {
   }
 
   function openSelectedIssueInBrowser() {
-    if (!canRunGlobalShortcut() || state.route === "workspace" || state.route === "config" || !state.selectedIssueKey) return false
+    if (!canRunGlobalShortcut() || state.route === "workspace" || state.route === "config" || !state.issues[state.selectedIssueKey]) return false
     if (!config.jira?.baseUrl) {
       toast.show("Open in browser requires a configured Jira site URL")
       return false
@@ -460,10 +463,13 @@ export function App() {
     const statusId = location ? statuses[location.statusIndex]?.id : current?.statusId
     const key = `DRAFT-${state.draftIssueCounter}`
     const groupDefaults = defaultSource && boardMode ? defaultsFromBoardGroup(defaultSource, boardGroupByForMode(state, boardMode)) : {}
+    const defaultType = state.route === "timeline" && state.timelineSelectedIssueKey === timelineCreateRowKey ? highestLevelIssueType(state) : configuredIssueTypes(state).find((type) => !type.subtask) ?? configuredIssueTypes(state)[0]
+    const type = groupDefaults.type ?? defaultType?.id ?? "Task"
     const issue: IssueSummary = {
       key,
       title: "New issue",
-      type: groupDefaults.type ?? defaultCreateIssueType(),
+      type,
+      typeName: configuredIssueTypes(state).find((candidate) => candidate.id === type || candidate.name === type)?.name,
       priority: groupDefaults.priority ?? defaultSource?.priority ?? "Medium",
       statusId: statusId ?? statuses[0]?.id ?? "todo",
       assignee: groupDefaults.assignee ?? defaultSource?.assignee ?? state.currentUser,
@@ -471,7 +477,7 @@ export function App() {
       epic: groupDefaults.epic ?? defaultSource?.epic,
       feature: groupDefaults.feature ?? defaultSource?.feature,
       space: groupDefaults.space ?? defaultSource?.space,
-      sprintId: state.route === "list" ? undefined : boardMode === "active-sprint" ? state.activeSprintId : state.route === "backlog" || boardMode === "kanban" ? backlogCreateSprintId(state) : defaultSource?.sprintId,
+      sprintId: state.route === "list" || state.route === "timeline" ? undefined : boardMode === "active-sprint" ? state.activeSprintId : state.route === "backlog" || boardMode === "kanban" ? backlogCreateSprintId(state) : defaultSource?.sprintId,
       storyPoints: 0,
       estimate: 0,
       dueDate: "",
@@ -498,10 +504,6 @@ export function App() {
       const issueKey = boardGroupsForMode(state, mode)[location.groupIndex]?.issueKeys[0]
       return issueKey ? state.issues[issueKey] : undefined
     }
-
-    function defaultCreateIssueType() {
-      return configuredIssueTypes(state).find((type) => !type.subtask)?.id ?? configuredIssueTypes(state)[0]?.id ?? "Task"
-    }
   }
 
   function toggleSpaceAction() {
@@ -516,6 +518,10 @@ export function App() {
       return
     }
     if (state.focusedPane === "main" && state.route === "backlog") appState.toggleBacklogGroupCollapsed(state.selectedBacklogGroupId)
+    if (state.focusedPane === "main" && state.route === "list") {
+      const row = projectListRows(state).find((candidate) => candidate.issue.key === state.projectListSelectedIssueKey)
+      if (row?.hasChildren) appState.toggleProjectListParentCollapsed(row.issue.key)
+    }
     if (state.focusedPane === "main" && state.route === "timeline") {
       const row = visibleTimelineRows().find((candidate) => candidate.issue.key === state.timelineSelectedIssueKey)
       if (row?.hasChildren) appState.toggleTimelineParentCollapsed(row.issue.key)
@@ -560,6 +566,7 @@ export function App() {
       appState.startConfigColor()
       return
     }
+    if (!state.issues[state.selectedIssueKey]) return false
     appState.startComment()
   }
 
@@ -668,6 +675,7 @@ export function App() {
       appState.stageConfigRemove()
       return
     }
+    if (!state.issues[state.selectedIssueKey]) return false
     appState.requestIssueDelete()
   }
 
@@ -781,7 +789,9 @@ export function App() {
 
   function ensureTimelineSelection() {
     const rows = visibleTimelineRows()
-    const keys = rows.map((row) => row.issue.key)
+    const model = timelineModel(state)
+    if (!rows.length && !model.loaded && !state.issuePageStateBySource[projectListIssuePageSourceId]?.isLast) return
+    const keys = timelineSelectionKeys(rows)
     const selected = keys.includes(state.timelineSelectedIssueKey ?? "") ? state.timelineSelectedIssueKey : keys[0]
     if (selected !== state.timelineSelectedIssueKey || (selected && selected !== state.selectedIssueKey)) appState.setTimelineSelection(selected)
   }
