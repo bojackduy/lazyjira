@@ -202,8 +202,8 @@ export async function fetchAccessibleProjects(auth: JiraAuthConfig, fetchImpl: F
 export async function fetchProjectBoards(auth: JiraAuthConfig, projectKeyOrId: string, fetchImpl: FetchLike = fetch): Promise<JiraBoardOption[]> {
   const boards = await fetchJiraPages<BoardSearchBoard>(auth, `/rest/agile/1.0/board?projectKeyOrId=${encodeURIComponent(projectKeyOrId)}`, { endpoint: "board search" }, fetchImpl)
   return boards.flatMap((board) => {
-    if (!board.id || !board.name || (board.type !== "scrum" && board.type !== "kanban")) return []
-    return [{ id: String(board.id), name: board.name, type: board.type }]
+    if (!board.id || !board.name || (board.type !== "scrum" && board.type !== "kanban" && board.type !== "simple")) return []
+    return [{ id: String(board.id), name: board.name, type: board.type === "scrum" ? "scrum" : "kanban" }]
   })
 }
 

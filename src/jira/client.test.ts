@@ -17,13 +17,16 @@ describe("Jira discovery client", () => {
     expect(projects).toEqual([{ id: "10000", key: "PROJ", name: "Product" }])
   })
 
-  test("fetches project-scoped scrum and kanban boards", async () => {
+  test("fetches project-scoped boards and treats simple boards as kanban", async () => {
     const boards = await fetchProjectBoards(auth, "PROJ", async (url) => {
       expect(url).toBe("https://team.atlassian.net/rest/agile/1.0/board?projectKeyOrId=PROJ&startAt=0&maxResults=50")
       return jsonResponse({ values: [{ id: 42, name: "Product Scrum", type: "scrum" }, { id: 77, name: "Ops", type: "simple" }] })
     })
 
-    expect(boards).toEqual([{ id: "42", name: "Product Scrum", type: "scrum" }])
+    expect(boards).toEqual([
+      { id: "42", name: "Product Scrum", type: "scrum" },
+      { id: "77", name: "Ops", type: "kanban" },
+    ])
   })
 
   test("fetches board configuration", async () => {
