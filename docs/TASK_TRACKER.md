@@ -112,26 +112,26 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 
 ### N3: Project List Data And Surface
 
-- [ ] `N3.1` Add `project-list` as an independent issue page source with selection and horizontal-scroll state.
-- [ ] `N3.2` Add escaped project JQL generation with Rank ordering and `updated DESC, key DESC` fallback.
-- [ ] `N3.3` Load Project List pages through `GET /rest/api/3/search/jql` using Jira's cursor and bounded `maxResults`.
-- [ ] `N3.4` Request and normalize List fields: key, summary, type, status, assignee, priority, parent, due date, sprint, points, and updated.
-- [ ] `N3.5` Append/dedupe pages without losing staged overlays, selection, local filters, or prior successful pages on failure.
-- [ ] `N3.6` Add the dense List table and shared inspector/detail integration.
-- [ ] `N3.7` Implement List `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, `Enter`, `/`, `S`, `L`, `r`, and `n` commands.
-- [ ] `N3.8` Add responsive column degradation that never hides Key or Summary.
-- [ ] `N3.9` Add API/state/render tests for initial load, append, dedupe, refresh, partial counts, empty, permission, failure, and narrow terminals.
+- [x] `N3.1` Add `project-list` as an independent issue page source with selection and horizontal-scroll state.
+- [x] `N3.2` Add escaped project JQL generation with Rank ordering and `updated DESC, key DESC` fallback.
+- [x] `N3.3` Load Project List pages through `GET /rest/api/3/search/jql` using Jira's cursor and bounded `maxResults`.
+- [x] `N3.4` Request and normalize List fields: key, summary, type, status, assignee, priority, parent, due date, sprint, points, and updated.
+- [x] `N3.5` Append/dedupe pages without losing staged overlays, selection, local filters, or prior successful pages on failure.
+- [x] `N3.6` Add the dense List table and shared inspector/detail integration.
+- [x] `N3.7` Implement List `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, `Enter`, `/`, `S`, `L`, `r`, and `n` commands.
+- [x] `N3.8` Add responsive column degradation that never hides Key or Summary.
+- [x] `N3.9` Add API/state/render tests for initial load, append, dedupe, refresh, partial counts, empty, permission, failure, and narrow terminals.
 
 ### N4: Timeline Data Model
 
-- [ ] `N4.1` Discover a tenant Start date field through Jira field metadata without hardcoded custom field IDs.
-- [ ] `N4.2` Add `startDate` normalization and preserve Jira Due date and parent key/title/type metadata.
-- [ ] `N4.3` Reuse the `project-list` issue cache as Timeline's base data without sharing view selection/scroll state.
-- [ ] `N4.4` Batch hydrate missing parents with escaped `key IN (...)` JQL; prohibit per-row N+1 parent calls.
-- [ ] `N4.5` Build hierarchy selectors with stable ordering, arbitrary depth, missing-parent grouping, and cycle protection.
-- [ ] `N4.6` Classify rows as scheduled, one-date, unscheduled, missing-parent, or invalid-hierarchy without inventing dates.
-- [ ] `N4.7` Add dev fixtures for team-managed hierarchy levels, missing parents, cycles, partial pages, and date combinations.
-- [ ] `N4.8` Add normalization, JQL, hierarchy, date-window, cycle, and partial-completeness tests.
+- [x] `N4.1` Discover a tenant Start date field through Jira field metadata without hardcoded custom field IDs.
+- [x] `N4.2` Add `startDate` normalization and preserve Jira Due date and parent key/title/type metadata.
+- [x] `N4.3` Reuse the `project-list` issue cache as Timeline's base data without sharing view selection/scroll state.
+- [x] `N4.4` Batch hydrate missing parents with escaped `key IN (...)` JQL; prohibit per-row N+1 parent calls.
+- [x] `N4.5` Build hierarchy selectors with stable ordering, arbitrary depth, missing-parent grouping, and cycle protection.
+- [x] `N4.6` Classify rows as scheduled, one-date, unscheduled, missing-parent, or invalid-hierarchy without inventing dates.
+- [x] `N4.7` Add dev fixtures for team-managed hierarchy levels, missing parents, cycles, partial pages, and date combinations.
+- [x] `N4.8` Add normalization, JQL, hierarchy, date-window, cycle, and partial-completeness tests.
 
 ### N5: Timeline Surface
 

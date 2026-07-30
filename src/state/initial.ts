@@ -97,6 +97,12 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     projectListSelectedIssueKey: undefined,
     projectListHorizontalOffset: 0,
     projectListSort: "rank",
+    timelineStartDateField: workspace.timelineStartDateField,
+    timelineParentHydrationError: workspace.timelineParentHydrationError,
+    timelineSelectedIssueKey: undefined,
+    timelineWindowStart: utcToday(),
+    timelineZoom: "week",
+    collapsedTimelineParentKeys: [],
     pendingDeleteIssueKey: undefined,
     remoteApplyOpen: false,
     remoteApplyApplying: false,
@@ -109,4 +115,8 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     draftIssueCounter: 1,
     stats: workspace.stats,
   }
+}
+
+function utcToday() {
+  return new Date().toISOString().slice(0, 10)
 }

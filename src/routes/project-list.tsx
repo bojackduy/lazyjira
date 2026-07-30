@@ -4,7 +4,7 @@ import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
-import { projectListCell, projectListColumns, projectListIssues, projectListSelection, projectListStateText, type ProjectListColumn } from "../state/project-list"
+import { projectListCell, projectListColumns, projectListIssues, projectListSelection, projectListStateText, projectListViewportWidth, type ProjectListColumn } from "../state/project-list"
 import { issueTypeColor, statusColor } from "../state/selectors"
 
 export function ProjectListRoute() {
@@ -14,7 +14,7 @@ export function ProjectListRoute() {
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
   const rows = () => projectListIssues(state)
-  const columns = () => projectListColumns(dimensions().width, state.projectListHorizontalOffset)
+  const columns = () => projectListColumns(projectListViewportWidth(dimensions().width), state.projectListHorizontalOffset)
   const visibleRows = () => Math.max(1, dimensions().height - 13)
 
   useBindings(() => ({

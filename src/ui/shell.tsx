@@ -879,7 +879,7 @@ function footerItems(focusedPane: string, route: AppRoute, board: AppState["boar
   if (route === "issue-detail") return ["detail", "j/k line", "d/u half-page", "e edit body", "r refresh", "ctrl-enter stage", "W Jira"]
   if (route === "workspace") return ["workspace", "j/k choose", "d/u page", "enter open", "R refresh", "/ filter", "S Jira search", "W Jira"]
   if (route === "config") return ["config", "j/k choose", "d/u page", "h/l pane", "a add", "e rename", "c color", "R refresh", "W Jira"]
-  if (route === "timeline") return ["timeline", "planned N5", "3 backlog", `5 ${routeLabel("board", board).toLowerCase()}`, ";/: commands", "P project"]
+  if (route === "timeline") return ["timeline", "j/k row", "h/l pan", "[/] viewport", "space collapse", "z zoom", "t today", "enter detail", "L load more"]
   if (route === "list") return ["list", "j/k row", "g/G ends", "ctrl-u/d page", "h/l columns", "enter detail", "/ filter", "L load more"]
   if (route === "board") return boardCapabilities(board).supportsSprints
     ? ["active sprints", "j/k card", "h/l column", "enter open/new", "p priority", "R refresh", "/ filter", "W Jira"]

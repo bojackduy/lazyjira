@@ -1,8 +1,8 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
 import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
-import { discoverJiraIssueFieldIds, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
+import { discoverJiraIssueFieldIds, discoverJiraStartDateField, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
 import { markdownToAdf } from "../../jira/adf"
-import type { IssuePageState, IssueSummary, SprintSummary } from "../../state/app-state"
+import type { IssuePageState, IssueSummary, SprintSummary, TimelineStartDateField } from "../../state/app-state"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, projectListIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
 import { issueTypeColorForName, issueTypeColors, statusColorForCategory } from "../../state/metadata-colors"
 import type { IssueTypeDefinition } from "../../state/app-state"
@@ -19,12 +19,18 @@ const prodPlaceholderIssueTypes = [
   { id: "Bug", name: "Bug", color: issueTypeColors.bug },
 ]
 
-export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConfig | undefined> = loadJiraAuthConfig, fetchImpl: FetchLike = fetch): WorkspaceSource {
-  let cachedFieldIds: JiraIssueFieldIds | undefined
+const parentHydrationChunkSize = 25
+const maxHydratedParents = 200
 
-  async function issueFieldIds(auth: JiraAuthConfig) {
-    cachedFieldIds ??= discoverJiraIssueFieldIds(await fetchJiraFields(auth, fetchImpl))
-    return cachedFieldIds
+export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConfig | undefined> = loadJiraAuthConfig, fetchImpl: FetchLike = fetch): WorkspaceSource {
+  let cachedFields: { ids: JiraIssueFieldIds; startDate: TimelineStartDateField } | undefined
+
+  async function issueFields(auth: JiraAuthConfig) {
+    if (!cachedFields) {
+      const fields = await fetchJiraFields(auth, fetchImpl)
+      cachedFields = { ids: discoverJiraIssueFieldIds(fields), startDate: discoverJiraStartDateField(fields) }
+    }
+    return cachedFields
   }
 
   return {
@@ -43,7 +49,7 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
         fetchProjectStatuses(auth, selection.project.key, fetchImpl),
         fetchJiraCreateIssueTypes(auth, selection.project.key, fetchImpl),
         selection.board.type === "scrum" ? fetchBoardSprints(auth, selection.board.id, fetchImpl) : Promise.resolve([]),
-        issueFieldIds(auth),
+        issueFields(auth),
       ])
       const statusLookup = normalizeProjectStatuses(statusIssueTypes)
       const missingStatusIds = boardStatusIds(boardConfig).filter((statusId) => !statusLookup.has(statusId))
@@ -53,7 +59,7 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
       }
       const metadata = normalizeBoardConfiguration(boardConfig, statusLookup)
       const normalizedSprints = normalizeBoardSprints(sprints)
-      const fieldIds = jiraFields
+      const fieldIds = jiraFields.ids
       const customFields = issueCustomFieldIds(fieldIds)
       const activeSprints = normalizedSprints.filter((sprint) => sprint.state === "active")
       const [activeSprintIssuePages, boardPage, backlogLoad] = await Promise.all([
@@ -71,11 +77,11 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
         ...backlogIssues,
       ])
       const issueKeysBySource = initialIssueKeysBySource(normalizedSprints, activeSprintIssuePages, boardIssues, backlogIssues)
-      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, boardPage, backlogLoad), issueKeysBySource, normalizeCreateIssueTypes(createIssueTypes))
+      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, boardPage, backlogLoad), issueKeysBySource, normalizeCreateIssueTypes(createIssueTypes), jiraFields.startDate)
     },
     async loadIssueDetail(issueKey, context) {
       const auth = await requireJiraAuth(authLoader)
-      const fieldIds = await issueFieldIds(auth)
+      const fieldIds = (await issueFields(auth)).ids
       const [issue, comments] = await Promise.all([
         fetchIssueDetail(auth, issueKey, fetchImpl, issueCustomFieldIds(fieldIds)),
         fetchIssueComments(auth, issueKey, fetchImpl),
@@ -86,20 +92,34 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     },
     async loadIssuePage(sourceId, context) {
       const auth = await requireJiraAuth(authLoader)
-      const fieldIds = await issueFieldIds(auth)
+      const fields = await issueFields(auth)
+      const fieldIds = fields.ids
       const page = sourceId === projectListIssuePageSourceId
         ? await fetchJiraSearchIssuePage(auth, projectListJql(context.project.key, !!fieldIds.rank), fetchImpl, issueCustomFieldIds(fieldIds), context.pageState.startAt, context.pageState.maxResults, context.pageState.cursor)
         : await fetchIssuePage(auth, sourceId, context.board.id, context.pageState.startAt, context.pageState.maxResults, issueCustomFieldIds(fieldIds), fetchImpl)
+      const issues = normalizeJiraIssues(page.items, context.statuses, { fieldIds })
+      let relatedIssues: IssueSummary[] | undefined
+      let parentHydrationError: string | undefined
+      if (sourceId === projectListIssuePageSourceId) {
+        try {
+          relatedIssues = await hydrateMissingParents(auth, issues, context.knownIssueKeys ?? [], context.missingParentKeys ?? [], context.statuses, fieldIds, fetchImpl)
+        } catch (error) {
+          parentHydrationError = `Parent hydration failed: ${error instanceof Error ? error.message : String(error)}`
+        }
+      }
       return {
         sourceId,
-        issues: normalizeJiraIssues(page.items, context.statuses, { fieldIds }),
+        issues,
+        relatedIssues,
         pageState: pageStateFromJiraPage(sourceId, page),
         sort: sourceId === projectListIssuePageSourceId ? (fieldIds.rank ? "rank" : "updated") : undefined,
+        timelineStartDateField: sourceId === projectListIssuePageSourceId ? fields.startDate : undefined,
+        parentHydrationError,
       }
     },
     async searchIssues(query, context) {
       const auth = await requireJiraAuth(authLoader)
-      const fieldIds = await issueFieldIds(auth)
+      const fieldIds = (await issueFields(auth)).ids
       const page = await fetchJiraSearchIssuePage(auth, searchJql(context.project.key, query), fetchImpl, issueCustomFieldIds(fieldIds), context.pageState.startAt, context.pageState.maxResults, context.pageState.cursor)
       return {
         query,
@@ -124,7 +144,7 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     },
     async updateDiscoveredField(issueKey, field, value) {
       const auth = await requireJiraAuth(authLoader)
-      const fieldIds = await issueFieldIds(auth)
+      const fieldIds = (await issueFields(auth)).ids
       const fieldId = field === "storyPoints" ? fieldIds.storyPoints : fieldIds.storyPointEstimate
       if (!fieldId) throw new Error(`Jira does not expose a ${field === "storyPoints" ? "story points" : "estimate"} field for this project.`)
       const number = value.trim() ? Number(value) : null
@@ -201,7 +221,7 @@ function normalizeCreateIssueTypes(types: Awaited<ReturnType<typeof fetchJiraCre
   return normalized.length ? normalized : prodPlaceholderIssueTypes
 }
 
-function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnType<typeof normalizeBoardConfiguration>, sprints: ReturnType<typeof normalizeBoardSprints> = [], issues: ReturnType<typeof normalizeSprintIssues> = [], issuePageStateBySource: Record<string, IssuePageState> = {}, issueKeysBySource: Record<string, string[]> = {}, issueTypes: IssueTypeDefinition[] = prodPlaceholderIssueTypes) {
+function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnType<typeof normalizeBoardConfiguration>, sprints: ReturnType<typeof normalizeBoardSprints> = [], issues: ReturnType<typeof normalizeSprintIssues> = [], issuePageStateBySource: Record<string, IssuePageState> = {}, issueKeysBySource: Record<string, string[]> = {}, issueTypes: IssueTypeDefinition[] = prodPlaceholderIssueTypes, timelineStartDateField: TimelineStartDateField = { status: "unavailable", reason: "not-found" }) {
   const notice = selection.project.key === "JIRA"
     ? "Prod runtime is waiting for a Jira project selection. Tickets stay empty until a project is selected."
     : issues.length
@@ -224,6 +244,7 @@ function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnTyp
     issuePageStateBySource,
     issueKeysBySource,
     selectedIssueKey: "",
+    timelineStartDateField,
     notice,
   })
 }
@@ -290,6 +311,10 @@ export function projectListJql(projectKey: string, rankFieldUsable: boolean) {
   return `project = ${jqlString(projectKey)} ORDER BY ${rankFieldUsable ? "Rank ASC" : "updated DESC, key DESC"}`
 }
 
+export function parentHydrationJql(issueKeys: string[]) {
+  return `key IN (${issueKeys.map(jqlString).join(",")}) ORDER BY key ASC`
+}
+
 function jqlString(value: string) {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
 }
@@ -316,4 +341,29 @@ function uniqueIssues<T extends { key: string }>(issues: T[]): T[] {
     if (!byKey.has(issue.key)) byKey.set(issue.key, issue)
   }
   return [...byKey.values()]
+}
+
+async function hydrateMissingParents(auth: JiraAuthConfig, pageIssues: IssueSummary[], knownIssueKeys: string[], priorMissingParentKeys: string[], statuses: Parameters<typeof normalizeJiraIssues>[1], fieldIds: JiraIssueFieldIds, fetchImpl: FetchLike) {
+  const known = new Set([...knownIssueKeys, ...pageIssues.map((issue) => issue.key)])
+  const pending = uniqueStrings([...priorMissingParentKeys, ...pageIssues.flatMap((issue) => issue.parentKey ? [issue.parentKey] : [])]).filter((key) => !known.has(key))
+  const hydrated: IssueSummary[] = []
+  let attempted = 0
+
+  while (pending.length && attempted < maxHydratedParents) {
+    const batch = pending.splice(0, Math.min(parentHydrationChunkSize, maxHydratedParents - attempted))
+    attempted += batch.length
+    const page = await fetchJiraSearchIssuePage(auth, parentHydrationJql(batch), fetchImpl, issueCustomFieldIds(fieldIds), 0, batch.length)
+    const parents = normalizeJiraIssues(page.items, statuses, { fieldIds })
+    for (const parent of parents) {
+      if (known.has(parent.key)) continue
+      known.add(parent.key)
+      hydrated.push(parent)
+      if (parent.parentKey && !known.has(parent.parentKey) && !pending.includes(parent.parentKey)) pending.push(parent.parentKey)
+    }
+  }
+  return hydrated
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values)]
 }

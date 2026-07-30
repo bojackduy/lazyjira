@@ -24,12 +24,13 @@ export const devStatuses: StatusDefinition[] = [
 ]
 
 export const devIssueTypes: IssueTypeDefinition[] = [
-  { id: "Epic", name: "Epic", color: issueTypeColors.epic },
-  { id: "Feature", name: "Feature", color: issueTypeColors.feature },
-  { id: "Story", name: "Story", color: issueTypeColors.story },
-  { id: "Task", name: "Task", color: issueTypeColors.task },
-  { id: "Subtask", name: "Subtask", color: issueTypeColors.subtask },
-  { id: "Bug", name: "Bug", color: issueTypeColors.bug },
+  { id: "Initiative", name: "Initiative", color: issueTypeColors.epic, hierarchyLevel: 2 },
+  { id: "Epic", name: "Epic", color: issueTypeColors.epic, hierarchyLevel: 1 },
+  { id: "Feature", name: "Feature", color: issueTypeColors.feature, hierarchyLevel: 1 },
+  { id: "Story", name: "Story", color: issueTypeColors.story, hierarchyLevel: 0 },
+  { id: "Task", name: "Task", color: issueTypeColors.task, hierarchyLevel: 0 },
+  { id: "Subtask", name: "Subtask", color: issueTypeColors.subtask, hierarchyLevel: -1, subtask: true },
+  { id: "Bug", name: "Bug", color: issueTypeColors.bug, hierarchyLevel: 0 },
 ]
 
 const devSprints: SprintSummary[] = [
@@ -66,6 +67,8 @@ function issue(key: string, title: string, statusId: string, options: Partial<Is
     parentKey: options.parentKey,
     parent: options.parent,
     storyPoints: options.storyPoints,
+    startDate: options.startDate,
+    dueDate: options.dueDate,
     labels: options.labels ?? [],
     components: options.components ?? [],
     blocked: options.blocked ?? statusId === "blocked",
@@ -98,6 +101,14 @@ const devIssuesByProjectKey: Record<string, IssueSummary[]> = {
     issue("PROJ-201", "Expose blocked work queue", "done", { type: "Story", sprintId: "sprint-24", storyPoints: 3, feature: "Triage", space: "Product" }),
     issue("PROJ-205", "Move issue to future sprint", "todo", { type: "Task", priority: "Medium", storyPoints: 3, feature: "Planning", space: "Product" }),
     issue("PROJ-211", "Backfill owner for imported tickets", "todo", { type: "Task", priority: "Medium", assignee: "Unassigned", storyPoints: 0, feature: "Imports", space: "Operations", staleDays: 11 }),
+    issue("PROJ-300", "Workspace navigation program", "in-progress", { type: "Initiative", startDate: "2026-07-20", dueDate: "2026-09-30" }),
+    issue("PROJ-301", "Timeline foundation", "in-progress", { type: "Epic", parentKey: "PROJ-300", parent: { key: "PROJ-300", title: "Workspace navigation program", type: "Initiative" }, startDate: "2026-07-28", dueDate: "2026-08-28" }),
+    issue("PROJ-302", "Hierarchy selector", "todo", { type: "Story", parentKey: "PROJ-301", parent: { key: "PROJ-301", title: "Timeline foundation", type: "Epic" }, startDate: "2026-08-03" }),
+    issue("PROJ-303", "Cycle guard tests", "todo", { type: "Subtask", parentKey: "PROJ-302", parent: { key: "PROJ-302", title: "Hierarchy selector", type: "Story" }, dueDate: "2026-08-14" }),
+    issue("PROJ-304", "Unscheduled hierarchy note", "todo", { type: "Task", parentKey: "PROJ-301", parent: { key: "PROJ-301", title: "Timeline foundation", type: "Epic" } }),
+    issue("PROJ-305", "Imported child with unavailable parent", "todo", { type: "Story", parentKey: "EXT-404", parent: { key: "EXT-404", title: "Unavailable imported parent", type: "Epic" }, dueDate: "2026-08-21" }),
+    issue("PROJ-306", "Cycle alpha", "todo", { type: "Task", parentKey: "PROJ-307", parent: { key: "PROJ-307", title: "Cycle beta", type: "Task" }, startDate: "2026-08-01", dueDate: "2026-08-05" }),
+    issue("PROJ-307", "Cycle beta", "todo", { type: "Task", parentKey: "PROJ-306", parent: { key: "PROJ-306", title: "Cycle alpha", type: "Task" } }),
   ],
   MOB: [
     issue("MOB-22", "Crash on app resume from camera permission", "blocked", { type: "Bug", priority: "Critical", sprintId: "sprint-24", storyPoints: 8, feature: "Camera", space: "iOS", staleDays: 9, labels: ["mobile", "crash"] }),
@@ -105,6 +116,8 @@ const devIssuesByProjectKey: Record<string, IssueSummary[]> = {
     issue("MOB-39", "Android notification channel cleanup", "todo", { type: "Task", sprintId: "sprint-24", storyPoints: 2, feature: "Notifications", space: "Android" }),
     issue("MOB-44", "Tablet split view polish", "qa", { type: "Story", sprintId: "sprint-25", storyPoints: 3, feature: "Responsive UI", space: "iPad" }),
     issue("MOB-57", "Unassigned beta feedback triage", "todo", { type: "Task", assignee: "Unassigned", storyPoints: 0, feature: "Beta", space: "Research", staleDays: 12 }),
+    issue("MOB-70", "Mobile reliability", "in-progress", { type: "Epic", startDate: "2026-08-01", dueDate: "2026-09-01" }),
+    issue("MOB-71", "Resume crash telemetry", "todo", { type: "Story", parentKey: "MOB-70", parent: { key: "MOB-70", title: "Mobile reliability", type: "Epic" }, dueDate: "2026-08-18" }),
   ],
   OPS: [
     issue("OPS-7", "Rotate production API token", "in-progress", { type: "Task", priority: "Critical", sprintId: "sprint-24", storyPoints: 3, feature: "Security", space: "Platform Ops", labels: ["security"] }),

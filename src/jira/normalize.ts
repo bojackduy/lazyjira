@@ -1,4 +1,4 @@
-import type { IssueComment, IssuePriority, IssueSummary, SprintSummary, StatusCategory, StatusColumn, StatusDefinition } from "../state/app-state"
+import type { IssueComment, IssuePriority, IssueSummary, SprintSummary, StatusCategory, StatusColumn, StatusDefinition, TimelineStartDateField } from "../state/app-state"
 import { statusColorForStatus } from "../state/metadata-colors"
 import type { JiraBoardConfiguration, JiraComment, JiraField, JiraIssue, JiraProjectStatusesByIssueType, JiraSprint } from "./client"
 import { adfToRichText } from "./adf"
@@ -10,9 +10,10 @@ export type JiraIssueFieldIds = {
   storyPoints?: string
   storyPointEstimate?: string
   rank?: string
+  startDate?: string
 }
 
-export const fallbackJiraIssueFieldIds: Required<JiraIssueFieldIds> = {
+export const fallbackJiraIssueFieldIds: Required<Omit<JiraIssueFieldIds, "startDate">> = {
   sprint: "customfield_10020",
   storyPoints: "customfield_10036",
   storyPointEstimate: "customfield_10016",
@@ -83,16 +84,29 @@ export function normalizeBoardSprints(sprints: JiraSprint[]): SprintSummary[] {
 }
 
 export function discoverJiraIssueFieldIds(fields: JiraField[]): JiraIssueFieldIds {
+  const startDate = discoverJiraStartDateField(fields)
   return {
     sprint: fieldId(fields, isSprintField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.sprint),
     storyPoints: fieldId(fields, isStoryPointsField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.storyPoints),
     storyPointEstimate: fieldId(fields, isStoryPointEstimateField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.storyPointEstimate),
     rank: fieldId(fields, isRankField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.rank),
+    ...(startDate.status === "available" ? { startDate: startDate.fieldId } : {}),
   }
 }
 
+export function discoverJiraStartDateField(fields: JiraField[]): TimelineStartDateField {
+  const systemCandidates = fields.filter((field) => field.id && field.schema?.system?.trim().toLowerCase() === "startdate")
+  if (systemCandidates.length === 1) return { status: "available", fieldId: systemCandidates[0]!.id! }
+  if (systemCandidates.length > 1) return { status: "unavailable", reason: "ambiguous", candidateIds: systemCandidates.map((field) => field.id!) }
+
+  const namedCandidates = fields.filter((field) => field.id && normalizedFieldName(field) === "start date" && field.schema?.type?.trim().toLowerCase() === "date")
+  if (namedCandidates.length === 1) return { status: "available", fieldId: namedCandidates[0]!.id! }
+  if (namedCandidates.length > 1) return { status: "unavailable", reason: "ambiguous", candidateIds: namedCandidates.map((field) => field.id!) }
+  return { status: "unavailable", reason: "not-found" }
+}
+
 export function issueCustomFieldIds(fieldIds: JiraIssueFieldIds): string[] {
-  return [fieldIds.sprint, fieldIds.storyPoints, fieldIds.storyPointEstimate, fieldIds.rank].filter((fieldId): fieldId is string => !!fieldId)
+  return [fieldIds.sprint, fieldIds.storyPoints, fieldIds.storyPointEstimate, fieldIds.rank, fieldIds.startDate].filter((fieldId): fieldId is string => !!fieldId)
 }
 
 export function normalizeSprintIssues(issues: JiraIssue[], sprintId: string, statuses: StatusDefinition[], fieldIds: JiraIssueFieldIds = {}): IssueSummary[] {
@@ -127,6 +141,7 @@ export function normalizeJiraIssues(issues: JiraIssue[], statuses: StatusDefinit
       } : undefined,
       storyPoints: storyPointValue ?? estimateValue,
       estimate: estimateValue,
+      startDate: stringField(fields, fieldIds.startDate),
       dueDate: fields.duedate,
       createdAt: fields.created,
       updatedAt: fields.updated,

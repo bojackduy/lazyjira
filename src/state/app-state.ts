@@ -99,6 +99,12 @@ export type IssuePageState = {
 
 export type ProjectListSort = "rank" | "updated"
 
+export type TimelineZoom = "day" | "week" | "month"
+
+export type TimelineStartDateField =
+  | { status: "available"; fieldId: string }
+  | { status: "unavailable"; reason: "not-found" | "ambiguous"; candidateIds?: string[] }
+
 export type BoardGroupBy = "none" | "assignee" | "epic" | "feature" | "space" | "issueType" | "priority"
 
 export type BoardMode = "active-sprint" | "kanban"
@@ -234,6 +240,7 @@ export type IssueSummary = {
   parent?: ParentIssueSummary
   storyPoints?: number
   estimate?: number
+  startDate?: string
   dueDate?: string
   createdAt?: string
   updatedAt?: string
@@ -349,6 +356,12 @@ export type AppState = {
   projectListSelectedIssueKey?: string
   projectListHorizontalOffset: number
   projectListSort: ProjectListSort
+  timelineStartDateField: TimelineStartDateField
+  timelineParentHydrationError?: string
+  timelineSelectedIssueKey?: string
+  timelineWindowStart: string
+  timelineZoom: TimelineZoom
+  collapsedTimelineParentKeys: string[]
   pendingDeleteIssueKey?: string
   remoteApplyOpen: boolean
   remoteApplyApplying: boolean

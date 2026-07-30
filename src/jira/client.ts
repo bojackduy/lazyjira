@@ -58,6 +58,7 @@ export type JiraField = {
   name?: string
   schema?: {
     type?: string
+    system?: string
     custom?: string
     customId?: number
   }

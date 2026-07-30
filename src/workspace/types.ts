@@ -1,5 +1,5 @@
 import type { RuntimeEnv } from "../runtime/env"
-import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, JiraUserOption, ProjectListSort, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, WorkspaceStats } from "../state/app-state"
+import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, JiraUserOption, ProjectListSort, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, TimelineStartDateField, WorkspaceStats } from "../state/app-state"
 import { statusColorForCategory } from "../state/metadata-colors"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
 
@@ -8,9 +8,10 @@ export type WorkspaceSelection = {
   board: BoardSummary
 }
 
-export type LoadedWorkspace = WorkspaceSelection & Pick<AppState, "currentUser" | "quickFilters" | "activeSprintId" | "sprints" | "statuses" | "issueTypes" | "columns" | "stats" | "selectedIssueKey" | "issuePageStateBySource" | "issueKeysBySource"> & {
+export type LoadedWorkspace = WorkspaceSelection & Pick<AppState, "currentUser" | "quickFilters" | "activeSprintId" | "sprints" | "statuses" | "issueTypes" | "columns" | "stats" | "selectedIssueKey" | "issuePageStateBySource" | "issueKeysBySource" | "timelineStartDateField"> & {
   issues: Record<string, IssueSummary>
   notice?: string
+  timelineParentHydrationError?: string
 }
 
 export type IssueDetailContext = WorkspaceSelection & Pick<AppState, "statuses"> & {
@@ -23,6 +24,8 @@ export type LoadedIssueDetail = {
 
 export type IssuePageContext = WorkspaceSelection & Pick<AppState, "statuses"> & {
   pageState: IssuePageState
+  knownIssueKeys?: string[]
+  missingParentKeys?: string[]
 }
 
 export type LoadedIssuePage = {
@@ -30,6 +33,9 @@ export type LoadedIssuePage = {
   issues: IssueSummary[]
   pageState: IssuePageState
   sort?: ProjectListSort
+  relatedIssues?: IssueSummary[]
+  timelineStartDateField?: TimelineStartDateField
+  parentHydrationError?: string
 }
 
 export type RemoteSearchContext = WorkspaceSelection & Pick<AppState, "statuses"> & {
@@ -76,6 +82,8 @@ export type WorkspaceFixtureInput = WorkspaceSelection & {
   issuePageStateBySource?: Record<string, IssuePageState>
   issueKeysBySource?: Record<string, string[]>
   notice?: string
+  timelineStartDateField?: TimelineStartDateField
+  timelineParentHydrationError?: string
 }
 
 export function createLoadedWorkspace(input: WorkspaceFixtureInput): LoadedWorkspace {
@@ -105,6 +113,8 @@ export function createLoadedWorkspace(input: WorkspaceFixtureInput): LoadedWorks
     selectedIssueKey,
     issuePageStateBySource: input.issuePageStateBySource ?? {},
     issueKeysBySource: input.issueKeysBySource ?? inferredIssueKeysBySource(input.board.type, input.sprints, enrichedIssues),
+    timelineStartDateField: input.timelineStartDateField ?? { status: "available", fieldId: "dev-start-date" },
+    timelineParentHydrationError: input.timelineParentHydrationError,
     notice: input.notice,
   }
 }
@@ -127,11 +137,9 @@ export function defaultQuickFilters(): QuickFilterDefinition[] {
 }
 
 function enrichIssue(statuses: StatusDefinition[], issue: IssueSummary, index: number): IssueSummary {
-  const dueDay = String(8 + (index % 18)).padStart(2, "0")
   return {
     ...issue,
     estimate: issue.estimate ?? (issue.storyPoints ? issue.storyPoints * 2 : undefined),
-    dueDate: issue.dueDate ?? `2026-08-${dueDay}`,
     createdAt: issue.createdAt ?? `2026-07-${String(1 + (index % 12)).padStart(2, "0")}`,
     updatedAt: issue.updatedAt ?? `2026-07-${String(12 + (index % 10)).padStart(2, "0")}`,
     resolution: issue.resolution ?? (statuses.find((status) => status.id === issue.statusId)?.category === "done" ? "Done" : undefined),

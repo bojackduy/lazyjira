@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { deleteJiraIssue, fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
-import { discoverJiraIssueFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
+import { discoverJiraIssueFieldIds, discoverJiraStartDateField, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
 const auth: JiraAuthConfig = { baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }
@@ -354,6 +354,40 @@ describe("Jira discovery client", () => {
       storyPoints: 5,
       estimate: 13,
       rank: "1|hyfa07:",
+    })
+  })
+
+  test("discovers Start date by system schema precedence and rejects ambiguous named date fields", () => {
+    const fields = [
+      { id: "customfield_1", name: "Start date", schema: { type: "date" } },
+      { id: "startdate", name: "Target start", schema: { type: "date", system: "startdate" } },
+    ]
+    expect(discoverJiraStartDateField(fields)).toEqual({ status: "available", fieldId: "startdate" })
+    expect(discoverJiraIssueFieldIds(fields).startDate).toBe("startdate")
+    expect(discoverJiraStartDateField([
+      { id: "customfield_1", name: "Start Date", schema: { type: "date" } },
+      { id: "customfield_2", name: " start   date ", schema: { type: "date" } },
+    ])).toEqual({ status: "unavailable", reason: "ambiguous", candidateIds: ["customfield_1", "customfield_2"] })
+    expect(discoverJiraStartDateField([{ id: "customfield_3", name: "Start date", schema: { type: "string" } }])).toEqual({ status: "unavailable", reason: "not-found" })
+  })
+
+  test("normalizes Start date, Due date, and complete parent metadata", () => {
+    const issue = normalizeJiraIssues([{
+      key: "PROJ-9",
+      fields: {
+        summary: "Scheduled child",
+        status: { id: "todo" },
+        parent: { key: "PROJ-1", fields: { summary: "Parent initiative", issuetype: { id: "10000", name: "Initiative" } } },
+        duedate: "2026-09-30",
+        customfield_12345: "2026-08-01",
+      },
+    }], [{ id: "todo", name: "To Do", category: "todo", color: "#fff" }], { fieldIds: { startDate: "customfield_12345" } })[0]!
+
+    expect(issue).toMatchObject({
+      startDate: "2026-08-01",
+      dueDate: "2026-09-30",
+      parentKey: "PROJ-1",
+      parent: { key: "PROJ-1", title: "Parent initiative", type: "10000" },
     })
   })
 

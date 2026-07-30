@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { createInitialAppState } from "./initial"
 import { projectListIssuePageSourceId } from "./issue-pages"
-import { projectListColumns, projectListSelection, projectListStateText } from "./project-list"
+import { projectListColumns, projectListSelection, projectListStateText, projectListViewportWidth } from "./project-list"
 import { loadDevWorkspaceFixture } from "../workspace/dev/fixtures"
 import type { IssuePageState } from "./app-state"
 
@@ -14,6 +14,9 @@ describe("project list state", () => {
     expect(ids(90)).not.toContain("due")
     expect(ids(40)).toEqual(["key", "summary"])
     expect(projectListColumns(135, 1).map((column) => column.id)).toContain("updated")
+    expect(projectListViewportWidth(150)).toBe(80)
+    expect(projectListColumns(projectListViewportWidth(150)).map((column) => column.id)).toEqual(["key", "summary", "type", "status"])
+    expect(projectListViewportWidth(80)).toBe(76)
   })
 
   test("keeps row navigation within loaded bounds", () => {

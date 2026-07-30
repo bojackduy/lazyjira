@@ -31,6 +31,7 @@ export function createDevWorkspaceSource(): WorkspaceSource {
         issues: items,
         pageState: { sourceId, startAt: nextStartAt, maxResults, total: issues.length, isLast: nextStartAt >= issues.length, loading: false },
         sort: sourceId === projectListIssuePageSourceId ? "rank" : undefined,
+        timelineStartDateField: sourceId === projectListIssuePageSourceId ? { status: "available", fieldId: "dev-start-date" } : undefined,
       }
     },
     async searchIssues(query, context) {

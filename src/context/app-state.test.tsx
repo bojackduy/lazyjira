@@ -17,6 +17,20 @@ afterEach(() => {
 })
 
 describe("app state project picker", () => {
+  test("loads project List when it is the persisted initial route", async () => {
+    let listLoads = 0
+    createTestAppState({
+      async loadIssuePage(sourceId, context) {
+        listLoads += 1
+        return { sourceId, issues: [], pageState: { ...context.pageState, isLast: true, loading: false, total: 0 } }
+      },
+    }, async () => undefined, undefined, true, "list")
+
+    await flushPromises()
+
+    expect(listLoads).toBe(1)
+  })
+
   test("opens local workspace switcher without fetching remote projects", () => {
     let fetchProjectsCount = 0
     const appState = createTestAppState({
@@ -318,6 +332,31 @@ describe("app state project picker", () => {
     expect(appState.state.projectListSelectedIssueKey).toBe(issue.key)
     expect(appState.state.searchQuery).toBe("oauth")
     expect(appState.state.issuePageStateBySource[projectListIssuePageSourceId]).toMatchObject({ startAt: 1, cursor: "retry-cursor", error: "Jira 403: Project issue access denied", loading: false })
+  })
+
+  test("merges parent hydration without adding parents to List membership and keeps nonfatal metadata", async () => {
+    const child = { ...loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!, parentKey: "PROJ-500" }
+    const parent = { ...loadDevWorkspaceFixture("PROJ").issues["PROJ-101"]!, key: "PROJ-500", title: "Hydrated parent" }
+    const appState = createTestAppState({
+      async loadIssuePage(sourceId) {
+        return {
+          sourceId,
+          issues: [child],
+          relatedIssues: [parent],
+          pageState: { sourceId, startAt: 1, maxResults: 50, total: 1, isLast: true, loading: false },
+          timelineStartDateField: { status: "unavailable", reason: "ambiguous", candidateIds: ["a", "b"] },
+          parentHydrationError: "Parent hydration failed: Jira 403",
+        }
+      },
+    })
+
+    appState.setRoute("timeline")
+    await flushPromises()
+
+    expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toEqual([child.key])
+    expect(appState.state.issues[parent.key]?.title).toBe("Hydrated parent")
+    expect(appState.state.timelineStartDateField).toMatchObject({ status: "unavailable", reason: "ambiguous" })
+    expect(appState.state.timelineParentHydrationError).toBe("Parent hydration failed: Jira 403")
   })
 
   test("refreshes project List from page one while retaining rows and staged overlays", async () => {
@@ -742,7 +781,7 @@ describe("app state project picker", () => {
   })
 })
 
-function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> = async () => undefined, initialWorkspaceSelection?: WorkspaceSelection, initialWorkspaceReady = false) {
+function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> = async () => undefined, initialWorkspaceSelection?: WorkspaceSelection, initialWorkspaceReady = false, initialRoute?: "list") {
   let appState: AppStateContext | undefined
   let dispose: (() => void) | undefined
   createRoot((disposeRoot) => {
@@ -823,6 +862,7 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
     }
     const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
     initialState.jiraProjectReady = initialWorkspaceReady
+    if (initialRoute) initialState.route = initialRoute
     createComponent(ToastProvider, {
       get children() {
         return createComponent(AppStateProvider, {
@@ -852,6 +892,7 @@ function savedWorkspaceSelection(): WorkspaceSelection {
 }
 
 function issueInSource(sprintId: string | undefined, sourceId: string) {
+  if (sourceId === projectListIssuePageSourceId) return true
   if (sourceId === boardIssuePageSourceId) return !!sprintId
   if (sourceId === backlogIssuePageSourceId) return !sprintId
   if (sourceId.startsWith("sprint:")) return sourceId === sprintIssuePageSourceId(sprintId ?? "")

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { createProdWorkspaceSource, projectListJql } from "./source"
+import { createProdWorkspaceSource, parentHydrationJql, projectListJql } from "./source"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, projectListIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
 
 describe("prod workspace source", () => {
@@ -241,6 +241,10 @@ describe("prod workspace source", () => {
     expect(projectListJql("PROJ", false)).toBe('project = "PROJ" ORDER BY updated DESC, key DESC')
   })
 
+  test("escapes parent hydration JQL values", () => {
+    expect(parentHydrationJql(['PROJ-1', 'PR"OJ\\2'])).toBe('key IN ("PROJ-1","PR\\"OJ\\\\2") ORDER BY key ASC')
+  })
+
   test("loads project List through enhanced search with its independent cursor and fields", async () => {
     const requests: string[] = []
     const source = createProdWorkspaceSource(
@@ -270,6 +274,88 @@ describe("prod workspace source", () => {
     expect(result.issues[0]).toMatchObject({ key: "REAL-51", dueDate: "2026-08-03", sprintId: "7", storyPoints: 5 })
     expect(result.pageState).toMatchObject({ sourceId: projectListIssuePageSourceId, startAt: 51, cursor: "list-cursor-2", total: 80, isLast: false })
     expect(result.sort).toBe("rank")
+  })
+
+  test("hydrates missing parents in bounded batches without per-row requests", async () => {
+    const searchJqls: string[] = []
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url) => {
+        if (url.endsWith("/rest/api/3/field")) return jsonResponse([
+          { id: "customfield_start", name: "Start date", schema: { type: "date" } },
+        ])
+        const jql = new URL(url).searchParams.get("jql") ?? ""
+        searchJqls.push(jql)
+        if (jql.startsWith("project =")) {
+          return jsonResponse({ total: 51, isLast: true, issues: Array.from({ length: 51 }, (_, index) => ({
+            key: `REAL-C${index + 1}`,
+            fields: { summary: `Child ${index + 1}`, status: { id: "todo" }, parent: { key: `REAL-P${index + 1}` }, customfield_start: "2026-08-01" },
+          })) })
+        }
+        const keys = [...jql.matchAll(/"(REAL-P\d+)"/g)].map((match) => match[1]!)
+        return jsonResponse({ total: keys.length, isLast: true, issues: keys.map((key) => ({ key, fields: { summary: key, status: { id: "todo" } } })) })
+      },
+    )
+
+    const result = await source.loadIssuePage(projectListIssuePageSourceId, {
+      project: { key: "REAL", name: "Real" },
+      board: { id: "1", name: "Board", type: "kanban" },
+      statuses: [{ id: "todo", name: "To Do", category: "todo", color: "#fff" }],
+      pageState: { sourceId: projectListIssuePageSourceId, startAt: 0, maxResults: 51, isLast: false, loading: false },
+      knownIssueKeys: [],
+    })
+
+    expect(searchJqls.filter((jql) => jql.startsWith("key IN"))).toHaveLength(3)
+    expect(result.relatedIssues).toHaveLength(51)
+    expect(result.timelineStartDateField).toEqual({ status: "available", fieldId: "customfield_start" })
+    expect(result.issues[0]?.startDate).toBe("2026-08-01")
+  })
+
+  test("returns project List rows when parent hydration fails", async () => {
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url) => {
+        if (url.endsWith("/rest/api/3/field")) return jsonResponse([])
+        const jql = new URL(url).searchParams.get("jql") ?? ""
+        if (jql.startsWith("project =")) return jsonResponse({ total: 1, isLast: true, issues: [{ key: "REAL-2", fields: { summary: "Child", status: { id: "todo" }, parent: { key: "REAL-1" } } }] })
+        return jsonResponse({ errorMessages: ["No parent access"] }, 403)
+      },
+    )
+
+    const result = await source.loadIssuePage(projectListIssuePageSourceId, {
+      project: { key: "REAL", name: "Real" },
+      board: { id: "1", name: "Board", type: "kanban" },
+      statuses: [{ id: "todo", name: "To Do", category: "todo", color: "#fff" }],
+      pageState: { sourceId: projectListIssuePageSourceId, startAt: 0, maxResults: 50, isLast: false, loading: false },
+    })
+
+    expect(result.issues.map((issue) => issue.key)).toEqual(["REAL-2"])
+    expect(result.parentHydrationError).toContain("Parent hydration failed")
+  })
+
+  test("caps attempted parent hydration keys when Jira returns no parents", async () => {
+    let parentSearches = 0
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url) => {
+        if (url.endsWith("/rest/api/3/field")) return jsonResponse([])
+        const jql = new URL(url).searchParams.get("jql") ?? ""
+        if (jql.startsWith("project =")) return jsonResponse({ total: 225, isLast: true, issues: [] })
+        parentSearches += 1
+        return jsonResponse({ total: 0, isLast: true, issues: [] })
+      },
+    )
+
+    await source.loadIssuePage(projectListIssuePageSourceId, {
+      project: { key: "REAL", name: "Real" },
+      board: { id: "1", name: "Board", type: "kanban" },
+      statuses: [{ id: "todo", name: "To Do", category: "todo", color: "#fff" }],
+      pageState: { sourceId: projectListIssuePageSourceId, startAt: 0, maxResults: 50, isLast: false, loading: false },
+      knownIssueKeys: [],
+      missingParentKeys: Array.from({ length: 225 }, (_, index) => `REAL-P${index + 1}`),
+    })
+
+    expect(parentSearches).toBe(8)
   })
 })
 

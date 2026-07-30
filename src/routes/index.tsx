@@ -4,8 +4,8 @@ import { BacklogRoute } from "./backlog"
 import { BoardRoute } from "./board"
 import { ConfigRoute } from "./config"
 import { IssueDetailRoute } from "./issue-detail"
-import { PlannedProjectView } from "./planned-project-view"
 import { ProjectListRoute } from "./project-list"
+import { TimelineRoute } from "./timeline"
 import { WorkspaceRoute } from "./workspace"
 
 export function RouteSurface() {
@@ -17,7 +17,7 @@ export function RouteSurface() {
         <WorkspaceRoute />
       </Match>
       <Match when={state.route === "timeline"}>
-        <PlannedProjectView name="Timeline" plannedWave="N5" />
+        <TimelineRoute />
       </Match>
       <Match when={state.route === "backlog"}>
         <BacklogRoute />

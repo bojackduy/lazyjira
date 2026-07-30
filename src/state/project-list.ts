@@ -41,6 +41,10 @@ export function projectListMaxHorizontalOffset(width: number) {
   return Math.max(0, optionalColumns.length - (projectListColumns(width).length - fixedColumns.length))
 }
 
+export function projectListViewportWidth(terminalWidth: number) {
+  return Math.max(40, terminalWidth < 100 ? terminalWidth - 4 : terminalWidth - 70)
+}
+
 export function projectListSelection(keys: string[], selectedKey: string | undefined, delta: number | "first" | "last") {
   if (!keys.length) return undefined
   if (delta === "first") return keys[0]

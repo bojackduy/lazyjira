@@ -3,7 +3,7 @@ import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
 import { normalizeBaseUrl, saveJiraAuthConfig, type JiraWorkspaceConfig } from "../auth/config"
 import { workspaceStats, type WorkspaceSelection, type WorkspaceSource, type LoadedWorkspace } from "../workspace/types"
-import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueEditableField, IssueSummary, JiraUserOption, ProjectOption, QuickFilterId, StatusCategory, WorkspaceOption } from "../state/app-state"
+import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueEditableField, IssueSummary, JiraUserOption, ProjectOption, QuickFilterId, StatusCategory, TimelineZoom, WorkspaceOption } from "../state/app-state"
 import {
   colorableConfigSection,
   configuredColumns,
@@ -84,6 +84,10 @@ export type AppStateContext = {
   loadIssuePage: (sourceId: string, refresh?: boolean) => Promise<void>
   setProjectListSelection: (issueKey: string | undefined) => void
   setProjectListHorizontalOffset: (offset: number) => void
+  setTimelineSelection: (issueKey: string | undefined) => void
+  setTimelineWindowStart: (date: string) => void
+  setTimelineZoom: (zoom: TimelineZoom) => void
+  toggleTimelineParentCollapsed: (issueKey: string) => void
   closeIssueDetail: () => void
   moveInspectorSelection: (delta: number) => void
   moveInspectorChoice: (delta: number) => void
@@ -157,9 +161,12 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     }
   }
 
-  onMount(() => {
-    if (props.initialWorkspaceSelection) void loadWorkspace(props.initialWorkspaceSelection, true)
-  })
+  onMount(() => void loadInitialRoute())
+
+  async function loadInitialRoute() {
+    if (props.initialWorkspaceSelection) await loadWorkspace(props.initialWorkspaceSelection, true)
+    if ((state.route === "list" || state.route === "timeline") && state.jiraProjectReady && !state.workspaceLoadError && !state.issuePageStateBySource[projectListIssuePageSourceId]) await context.loadIssuePage(projectListIssuePageSourceId)
+  }
 
   async function saveSelectedWorkspaceContext(workspace: WorkspaceOption) {
     await saveSelectedProjectContext(
@@ -260,6 +267,12 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("projectListSelectedIssueKey", undefined)
     setState("projectListHorizontalOffset", 0)
     setState("projectListSort", "rank")
+    setState("timelineStartDateField", workspace.timelineStartDateField)
+    setState("timelineParentHydrationError", workspace.timelineParentHydrationError)
+    setState("timelineSelectedIssueKey", undefined)
+    setState("timelineWindowStart", utcToday())
+    setState("timelineZoom", "week")
+    setState("collapsedTimelineParentKeys", [])
     setState("pendingDeleteIssueKey", undefined)
     setState("inspectorSelectedFieldIndex", 1)
     setState("inspectorEditingFieldId", undefined)
@@ -549,7 +562,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       if (route === "config") setState("focusedPane", "main")
       if (route !== "workspace") setState("workspaceFocusedArea", "cards")
       if (route !== "issue-detail") setState("previousRoute", undefined)
-      if (route === "list" && !state.issuePageStateBySource[projectListIssuePageSourceId]) void context.loadIssuePage(projectListIssuePageSourceId)
+      if ((route === "list" || route === "timeline") && !state.issuePageStateBySource[projectListIssuePageSourceId]) void context.loadIssuePage(projectListIssuePageSourceId)
     },
     setFocusedPane(pane) {
       setState("focusedPane", pane)
@@ -827,10 +840,18 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           board: state.board,
           statuses: state.statuses,
           pageState: currentPage,
+          knownIssueKeys: Object.keys(state.issues),
+          missingParentKeys: sourceId === projectListIssuePageSourceId
+            ? (state.issueKeysBySource[sourceId] ?? []).flatMap((issueKey) => {
+                const parentKey = state.issues[issueKey]?.parentKey
+                return parentKey && !state.issues[parentKey] ? [parentKey] : []
+              })
+            : undefined,
         })
         if (state.issuePageRequestIdBySource[sourceId] !== requestId || state.workspaceRequestId !== workspaceGeneration || state.project.key !== projectKey || state.board.id !== boardId) return
         const nextIssues = { ...state.issues }
         for (const issue of loaded.issues) nextIssues[issue.key] = mergeLoadedPageIssue(nextIssues[issue.key], issue)
+        for (const issue of loaded.relatedIssues ?? []) nextIssues[issue.key] = mergeLoadedPageIssue(nextIssues[issue.key], issue)
         const nextSourceKeys = uniqueStrings([...(refresh ? [] : state.issueKeysBySource[sourceId] ?? []), ...loaded.issues.map((issue) => issue.key)])
         setState("issues", reconcile(nextIssues))
         setState("issueKeysBySource", sourceId, nextSourceKeys)
@@ -838,6 +859,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         setState("issuePageStateBySource", sourceId, reconcile({ ...loaded.pageState, loading: false, refreshing: false, error: undefined }))
         if (sourceId === projectListIssuePageSourceId) {
           if (loaded.sort) setState("projectListSort", loaded.sort)
+          if (loaded.timelineStartDateField) setState("timelineStartDateField", loaded.timelineStartDateField)
+          setState("timelineParentHydrationError", loaded.parentHydrationError)
           const selected = state.projectListSelectedIssueKey
           if (!selected || !nextSourceKeys.includes(selected)) setState("projectListSelectedIssueKey", nextSourceKeys[0])
         }
@@ -855,6 +878,19 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     setProjectListHorizontalOffset(offset) {
       setState("projectListHorizontalOffset", Math.max(0, offset))
+    },
+    setTimelineSelection(issueKey) {
+      setState("timelineSelectedIssueKey", issueKey)
+      if (issueKey) setState("selectedIssueKey", issueKey)
+    },
+    setTimelineWindowStart(date) {
+      setState("timelineWindowStart", date)
+    },
+    setTimelineZoom(zoom) {
+      setState("timelineZoom", zoom)
+    },
+    toggleTimelineParentCollapsed(issueKey) {
+      setState("collapsedTimelineParentKeys", (keys) => keys.includes(issueKey) ? keys.filter((key) => key !== issueKey) : [...keys, issueKey])
     },
     closeIssueDetail() {
       if (state.route !== "issue-detail") return
@@ -1350,6 +1386,10 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
   }
 
   return <AppStateContextProvider value={context}>{props.children}</AppStateContextProvider>
+}
+
+function utcToday() {
+  return new Date().toISOString().slice(0, 10)
 }
 
 function clampOffset(offset: number, statusCount: number) {

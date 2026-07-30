@@ -11,7 +11,7 @@ import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageCanLoadMore,
 import { boardCapabilities, boardModeForBoard, sidebarRoutesForBoard } from "./state/routes"
 import { searchPaletteCommands } from "./keymap/commands"
 import type { BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
-import { projectListIssues, projectListMaxHorizontalOffset, projectListSelection } from "./state/project-list"
+import { projectListIssues, projectListMaxHorizontalOffset, projectListSelection, projectListViewportWidth } from "./state/project-list"
 import {
   boardCellItems,
   boardCellIssueKeys,
@@ -574,7 +574,7 @@ export function App() {
     if (state.route === "list") return issuePageCanLoadMore(state.issuePageStateBySource[projectListIssuePageSourceId]) ? projectListIssuePageSourceId : undefined
     if (state.route === "board" && currentBoardMode() === "kanban") return boardIssuePageSourceId
     if (state.route !== "backlog") return undefined
-    if (!boardCapabilities(state.board).supportsSprintBacklog) return issuePageCanLoadMore(state.issuePageStateBySource[boardIssuePageSourceId]) ? boardIssuePageSourceId : undefined
+    if (!boardCapabilities(state.board).supportsSprintBacklog) return issuePageCanLoadMore(state.issuePageStateBySource[backlogIssuePageSourceId]) ? backlogIssuePageSourceId : undefined
     if (state.backlogGroupBy === "sprint") {
       const focusedSourceId = state.selectedBacklogGroupId === "backlog" ? backlogIssuePageSourceId : sprintIssuePageSourceId(state.selectedBacklogGroupId)
       if (issuePageCanLoadMore(state.issuePageStateBySource[focusedSourceId])) return focusedSourceId
@@ -705,7 +705,7 @@ export function App() {
   }
 
   function moveProjectListHorizontal(delta: number) {
-    const maxOffset = projectListMaxHorizontalOffset(dimensions().width)
+    const maxOffset = projectListMaxHorizontalOffset(projectListViewportWidth(dimensions().width))
     appState.setProjectListHorizontalOffset(Math.max(0, Math.min(maxOffset, state.projectListHorizontalOffset + delta)))
   }
 

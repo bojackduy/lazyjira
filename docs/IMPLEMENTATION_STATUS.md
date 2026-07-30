@@ -59,7 +59,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 - [x] A7.11 Draft creation resolves an allowed project issue type through Jira create metadata before posting.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.
-- [~] Wave 5 Jira-style project navigation is in progress: N1 and N2 are complete; N3 project List is next. Scope remains in `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
+- [~] Wave 5 Jira-style project navigation is in progress: N1-N4 are complete; N5 Timeline surface is next. Scope remains in `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 
 ## Verification Standard
 

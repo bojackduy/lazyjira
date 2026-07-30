@@ -15,7 +15,7 @@ export function paletteCommandsForBoard(board: BoardType | { type: BoardType } =
     command("help.open", "Keyboard help", "Show available actions and shortcuts.", "?", "Global"),
     command("command-palette.open", "Command palette", "Search and run an action.", "; · :", "Global"),
     command("route.workspace", "Workspace", "Open the workspace dashboard.", "1", "Navigation"),
-    command("route.timeline", "Timeline", "Open the planned project timeline surface.", "2", "Navigation"),
+    command("route.timeline", "Timeline", "Open the project hierarchy and schedule timeline.", "2", "Navigation"),
     command("route.backlog", "Backlog", "Open the backlog.", "3", "Navigation"),
     command("route.list", "List", "Open the paginated project issue list.", "4", "Navigation"),
     command("route.board", routeLabel("board", boardType), `Open the ${routeLabel("board", boardType).toLowerCase()} view.`, "5", "Navigation"),
