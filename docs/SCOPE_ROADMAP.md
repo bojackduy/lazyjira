@@ -40,8 +40,11 @@ This document tells contributors where each feature area lives, what it owns, wh
 | Domain State | Active | `src/state/app-state.ts`, `src/workspace/types.ts`, `src/state/selectors.ts` |
 | Dev Fixtures | Active | `src/workspace/dev/*` |
 | Workspace Home | Active | `src/routes/workspace.tsx`, `src/state/workspace.ts` |
+| Jira Project Navigation | Planned | `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`, `src/state/routes.ts`, `src/ui/shell.tsx` |
 | Boards | Active | `src/routes/active-sprint.tsx`, `src/routes/kanban.tsx`, `src/ui/board.tsx` |
 | Backlog | Active | `src/routes/backlog.tsx`, `src/state/selectors.ts` |
+| Project List | Planned | future `src/routes/list.tsx`, project issue paging/state |
+| Timeline | Planned | future `src/routes/timeline.tsx`, hierarchy/date selectors |
 | Inspector And Detail | Active | `src/ui/issue-inspector.tsx`, `src/routes/issue-detail.tsx` |
 | Rich Jira Text | Planned | `docs/RICH_TEXT_EPIC.md`, future `src/jira/adf.ts`, shared rich reader |
 | Staged Changes | Active | `src/state/issue-drafts.ts`, `src/state/staged-changes.ts` |

@@ -84,6 +84,17 @@ Scope and architecture: `docs/RICH_TEXT_EPIC.md`.
 - [~] `R4` Add shared OpenTUI Markdown rendering for descriptions, comments, and readable rich fields.
 - [~] `R5` Add rich dev fixtures, conversion/API/render tests, narrow-terminal checks, and Jira smoke steps.
 
+## Wave 5: Jira-Style Project Navigation
+
+Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
+
+- [ ] `N1` Route/sidebar foundation: global versus project sections, board-aware labels, legacy route migration, help, palette, and footer updates.
+- [ ] `N2` Align board/backlog behavior behind the Jira-style project navigation model for Scrum and Kanban.
+- [ ] `N3` Add paginated project List loading, state, keyboard navigation, render surface, and tests.
+- [ ] `N4` Add timeline hierarchy/date normalization, selectors, fixtures, eligibility states, and tests.
+- [ ] `N5` Add read-only Timeline rendering, date-window navigation, narrow-terminal fallback, and tests.
+- [ ] `N6` Remove migrated legacy navigation, update user-facing docs, and run Scrum/Kanban non-production Jira smoke checks.
+
 ## Cross-Track Reviews
 
 - [ ] All screens use the shared domain/state model.

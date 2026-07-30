@@ -83,6 +83,19 @@ Outputs:
 - Strict blocked-write behavior for unsupported ADF.
 - Rich-text fixtures, conversion tests, payload tests, and a Jira smoke checklist.
 
+### Wave 5: Jira-Style Project Navigation
+
+Goal: align selected-project navigation with Jira Software while keeping lazyjira's terminal sidebar and overview-first workflow.
+
+Owner brief: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
+
+Outputs:
+
+- Sidebar sections for global and project destinations.
+- Jira-shaped project views: Timeline, Backlog, List, and board-aware Active sprints/Board.
+- A project-wide paginated List and read-only hierarchy/schedule Timeline.
+- Route/keymap migration, narrow-terminal coverage, and Scrum/Kanban Jira smoke checks.
+
 ## Parallelization Map
 
 | Workstream | Can Start | Depends On | Main Files/Areas |
@@ -96,6 +109,7 @@ Outputs:
 | Read-only Jira API | After domain model stabilizes | Domain/demo data | api client, normalization, effects |
 | Quality integration | Any time after foundation | All tracks for final pass | tests, fixtures, docs |
 | Rich Jira text | After read/write foundations | Jira read loading, staged writes, inspector/detail | `docs/RICH_TEXT_EPIC.md`, Jira ADF mapper, rich reader |
+| Jira-style project navigation | After Jira board/read foundations | Routes, sidebar, project issue paging, hierarchy/date normalization | `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`, routes, sidebar, list, timeline |
 
 ## Integration Checkpoints
 

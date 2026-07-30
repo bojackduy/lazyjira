@@ -58,6 +58,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 - [x] A7.11 Draft creation resolves an allowed project issue type through Jira create metadata before posting.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.
+- [ ] Wave 5 Jira-style project navigation is planned in `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`: retain the terminal sidebar, add Timeline/Backlog/List/board-aware project destinations, and move Config out of normal project navigation.
 
 ## Verification Standard
 
