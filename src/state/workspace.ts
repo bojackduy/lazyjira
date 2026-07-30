@@ -2,7 +2,7 @@ import type { AppRoute } from "./routes"
 import type { AppState, IssueSummary } from "./app-state"
 import { effectiveIssueSearchQuery } from "./issue-search"
 import { loadedIssueCount } from "./issue-pages"
-import { allIssues, activeSprint, groupModeLabel, issueList, statusName } from "./selectors"
+import { allIssues, activeSprint, groupModeLabel, isAssignedToCurrentUser, issueList, statusName } from "./selectors"
 import { stagedChanges } from "./staged-changes"
 import { boardCapabilities } from "./routes"
 
@@ -40,7 +40,7 @@ export function workspaceJumpTargets(state: AppState): WorkspaceItem[] {
   const sprint = activeSprint(state)
   const activeSprintIssues = issues.filter((issue) => issue.sprintId === state.activeSprintId)
   const backlogIssues = issues.filter((issue) => issue.sprintId !== state.activeSprintId)
-  const myIssues = issues.filter((issue) => issue.assignee === state.currentUser)
+  const myIssues = issues.filter((issue) => isAssignedToCurrentUser(state, issue))
   const board = boardCapabilities(state.board)
 
   return [

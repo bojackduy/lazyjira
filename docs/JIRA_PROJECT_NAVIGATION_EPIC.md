@@ -42,7 +42,7 @@ Project
   Active sprints
 
 Quick Filters
-  [ ] Only my issues
+  [ ] Assignee: me
   [ ] Blocked
 ```
 
@@ -132,7 +132,7 @@ Project
 > Active sprints
 
 Quick Filters
-  [x] Only my issues
+  [x] Assignee: me
   [ ] Blocked
   [ ] Stale
   [ ] Unassigned

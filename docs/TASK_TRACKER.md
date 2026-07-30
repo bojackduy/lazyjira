@@ -145,12 +145,12 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 
 ### N6: Rollout, Documentation, And Smoke Checks
 
-- [ ] `N6.1` Remove retired route aliases only after persisted-route migration tests pass.
-- [ ] `N6.2` Update README screenshots/examples and user-facing descriptions to the Jira-style sidebar model.
-- [ ] `N6.3` Update Scope Roadmap, Implementation Status, API plan, command help, and footer documentation.
-- [ ] `N6.4` Add a Scrum smoke checklist covering Timeline, Backlog, List, Active sprints, detail return, filters, paging, and staged writes.
-- [ ] `N6.5` Add a Kanban smoke checklist covering Timeline, Backlog, List, Board, detail return, filters, paging, and staged writes.
-- [ ] `N6.6` Run `bun run typecheck`, full `bun test`, `git diff --check`, narrow-terminal smoke, and non-production Jira smoke.
+- [x] `N6.1` Remove retired route aliases only after persisted-route migration tests pass.
+- [x] `N6.2` Update README screenshots/examples and user-facing descriptions to the Jira-style sidebar model.
+- [x] `N6.3` Update Scope Roadmap, Implementation Status, API plan, command help, and footer documentation.
+- [x] `N6.4` Add a Scrum smoke checklist covering Timeline, Backlog, List, Active sprints, detail return, filters, paging, and staged writes.
+- [x] `N6.5` Add a Kanban smoke checklist covering Timeline, Backlog, List, Board, detail return, filters, paging, and staged writes.
+- [!] `N6.6` Automated typecheck/tests/diff and narrow-layout helper coverage pass; non-production Scrum/Kanban Jira smoke remains manual in `docs/JIRA_PROJECT_NAVIGATION_SMOKE_CHECKLIST.md`.
 
 ## Cross-Track Reviews
 

@@ -82,6 +82,7 @@ Use Jira Cloud endpoints first. Data Center support can be added later behind co
 | Purpose | Endpoint |
 |---|---|
 | Projects | `GET /rest/api/3/project/search` |
+| Current user identity | `GET /rest/api/3/myself` |
 | Project boards | `GET /rest/agile/1.0/board?projectKeyOrId={projectKey}` |
 | Board config/status columns | `GET /rest/agile/1.0/board/{boardId}/configuration` |
 | Sprints | `GET /rest/agile/1.0/board/{boardId}/sprint?state=active,future` |

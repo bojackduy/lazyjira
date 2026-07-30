@@ -28,6 +28,7 @@ describe("prod workspace source", () => {
       async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
       async (url) => {
         requests.push(url)
+        if (url.endsWith("/rest/api/3/myself")) return jsonResponse({ accountId: "me-1", displayName: "Duy Trinh" })
         if (url.includes("/project/REAL/statuses")) return jsonResponse([{ name: "Task", statuses: [{ id: "10000", name: "Selected for Work" }] }])
         if (url.includes("/issue/createmeta/REAL/issuetypes")) return jsonResponse({ values: [
           { id: "10001", name: "Story", hierarchyLevel: 0 },
@@ -63,12 +64,14 @@ describe("prod workspace source", () => {
       "https://team.atlassian.net/rest/agile/1.0/board/100/sprint?state=active%2Cfuture&startAt=0&maxResults=50",
       "https://team.atlassian.net/rest/api/3/field",
     ])
-    expect(requests[5]).toBe("https://team.atlassian.net/rest/api/2/status/10001")
-    expect(requests[6]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/12/issue?fields=")).toBe(true)
-    expect(requests[6]).toContain("customfield_10020%2Ccustomfield_10036%2Ccustomfield_10016%2Ccustomfield_10019")
-    expect(requests[7]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/13/issue?fields=")).toBe(true)
-    expect(requests[8]?.startsWith("https://team.atlassian.net/rest/agile/1.0/board/100/backlog?fields=")).toBe(true)
+    expect(requests[5]).toBe("https://team.atlassian.net/rest/api/3/myself")
+    expect(requests[6]).toBe("https://team.atlassian.net/rest/api/2/status/10001")
+    expect(requests[7]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/12/issue?fields=")).toBe(true)
+    expect(requests[7]).toContain("customfield_10020%2Ccustomfield_10036%2Ccustomfield_10016%2Ccustomfield_10019")
+    expect(requests[8]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/13/issue?fields=")).toBe(true)
+    expect(requests[9]?.startsWith("https://team.atlassian.net/rest/agile/1.0/board/100/backlog?fields=")).toBe(true)
     expect(workspace.project.key).toBe("REAL")
+    expect(workspace).toMatchObject({ currentUser: "Duy Trinh", currentUserAccountId: "me-1" })
     expect(workspace.statuses.map((status) => status.name)).toEqual(["Selected for Work", "Released"])
     expect(workspace.issueTypes).toMatchObject([{ id: "10001", name: "Story", hierarchyLevel: 0 }, { id: "10002", name: "Sub-task", subtask: true }])
     expect(workspace.columns.map((column) => ({ name: column.name, statusIds: column.statusIds }))).toEqual([

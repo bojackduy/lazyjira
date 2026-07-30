@@ -256,6 +256,7 @@ export function timelineNotices(model: TimelineHierarchyModel) {
   const notices: string[] = []
   if (model.startDateField.status === "unavailable") notices.push(model.startDateField.reason === "ambiguous" ? "Start date unavailable: multiple Jira date fields matched; showing Due-only and unscheduled rows." : "Start date field unavailable; showing Due-only and unscheduled rows.")
   if (model.parentHydrationError) notices.push(`Parent hydration incomplete: ${model.parentHydrationError}`)
+  if (model.rows.length && !model.rows.some((row) => isJiraDate(row.issue.startDate) || isJiraDate(row.issue.dueDate))) notices.push("No loaded issues have Start or Due dates, so Jira provides no schedule bars to draw.")
   return notices
 }
 
@@ -341,7 +342,7 @@ function addDays(value: string, days: number) {
 function timelineCellLabel(value: string, zoom: TimelineZoom) {
   const date = parseDate(value)
   if (zoom === "day") return String(date.getUTCDate()).padStart(2, "0")
-  if (zoom === "week") return `${monthNames[date.getUTCMonth()]} ${String(date.getUTCDate()).padStart(2, "0")}`
+  if (zoom === "week") return `${String(date.getUTCMonth() + 1).padStart(2, "0")}/${String(date.getUTCDate()).padStart(2, "0")}`
   return `${monthNames[date.getUTCMonth()]} ${String(date.getUTCFullYear()).slice(2)}`
 }
 

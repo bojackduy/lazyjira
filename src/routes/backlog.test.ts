@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { backlogUsesCompactLayout, packLegendRows } from "./backlog"
+import { backlogScrollTarget, backlogUsesCompactLayout, packLegendRows } from "./backlog"
 
 describe("backlog legend rows", () => {
   test("caps long status legends so the issue list starts below a fixed row count", () => {
@@ -29,7 +29,12 @@ describe("backlog legend rows", () => {
   })
 
   test("switches to the stacked issue layout on narrow terminals", () => {
-    expect(backlogUsesCompactLayout(129)).toBe(true)
-    expect(backlogUsesCompactLayout(130)).toBe(false)
+    expect(backlogUsesCompactLayout(169)).toBe(true)
+    expect(backlogUsesCompactLayout(170)).toBe(false)
+  })
+
+  test("scrolls to the selected issue unless its group is collapsed", () => {
+    expect(backlogScrollTarget("sprint-1", "PROJ-2", false, ["PROJ-1", "PROJ-2"])).toBe("issue-PROJ-2")
+    expect(backlogScrollTarget("sprint-1", "PROJ-2", true, ["PROJ-1", "PROJ-2"])).toBe("backlog-group-sprint-1")
   })
 })

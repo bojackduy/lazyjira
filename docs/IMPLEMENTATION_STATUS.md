@@ -61,7 +61,7 @@ Current project navigation uses `Workspace`, `Timeline`, `Backlog`, `List`, and 
 - [x] A7.11 Draft creation resolves an allowed project issue type through Jira create metadata before posting.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.
-- [~] Wave 5 Jira-style project navigation is in progress: N1-N5 are complete; N6 cleanup, docs, and Jira smoke checks remain. Scope remains in `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
+- [!] Wave 5 Jira-style project navigation implementation and documentation are complete through N6.5. N6.6 remains blocked on manual Scrum/Kanban validation against a non-production Jira Cloud site using `docs/JIRA_PROJECT_NAVIGATION_SMOKE_CHECKLIST.md`.
 
 ## Verification Standard
 

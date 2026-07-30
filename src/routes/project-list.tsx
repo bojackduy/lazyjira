@@ -4,7 +4,7 @@ import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
-import { projectListCell, projectListColumns, projectListIssues, projectListSelection, projectListStateText, projectListViewportWidth, type ProjectListColumn } from "../state/project-list"
+import { projectListCell, projectListColumns, projectListRows, projectListSelection, projectListStateText, projectListViewportWidth, type ProjectListColumn } from "../state/project-list"
 import { issueTypeColor, statusColor } from "../state/selectors"
 
 export function ProjectListRoute() {
@@ -13,7 +13,7 @@ export function ProjectListRoute() {
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
-  const rows = () => projectListIssues(state)
+  const rows = () => projectListRows(state)
   const columns = () => projectListColumns(projectListViewportWidth(dimensions().width), state.projectListHorizontalOffset)
   const visibleRows = () => Math.max(1, dimensions().height - 13)
 
@@ -35,7 +35,7 @@ export function ProjectListRoute() {
 
   function moveHalfPage(delta: 1 | -1) {
     if (state.focusedPane !== "main" || state.route !== "list") return false
-    const keys = rows().map((issue) => issue.key)
+    const keys = rows().map((row) => row.issue.key)
     appState.setProjectListSelection(projectListSelection(keys, state.projectListSelectedIssueKey, delta * Math.max(1, Math.floor(visibleRows() / 2))))
   }
 
@@ -52,12 +52,12 @@ export function ProjectListRoute() {
           <ListRow columns={columns()} />
           <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} flexGrow={1} minHeight={0} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }} verticalScrollbarOptions={{ visible: true, trackOptions: { backgroundColor: theme.panel, foregroundColor: theme.border } }}>
             <For each={rows()}>
-              {(issue) => (
-                <box id={`project-list-${issue.key}`} height={1} flexShrink={0} backgroundColor={state.projectListSelectedIssueKey === issue.key && state.focusedPane === "main" ? theme.selected : undefined}>
-                  <text fg={state.projectListSelectedIssueKey === issue.key && state.focusedPane === "main" ? theme.selectedText : theme.text} wrapMode="none">
-                    <span>{state.projectListSelectedIssueKey === issue.key ? ">" : " "}</span>
+              {(row) => (
+                <box id={`project-list-${row.issue.key}`} height={1} flexShrink={0} backgroundColor={state.projectListSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selected : undefined}>
+                  <text fg={state.projectListSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selectedText : theme.text} wrapMode="none">
+                    <span>{state.projectListSelectedIssueKey === row.issue.key ? ">" : " "}</span>
                     <For each={columns()}>
-                      {(column) => <span style={{ fg: column.id === "type" ? issueTypeColor(state, issue) : column.id === "status" ? statusColor(state, issue) : undefined }}>{formatCell(projectListCell(issue, column.id, state), column)}</span>}
+                      {(column) => <span style={{ fg: column.id === "type" ? issueTypeColor(state, row.issue) : column.id === "status" ? statusColor(state, row.issue) : undefined }}>{formatCell(column.id === "summary" ? `${"  ".repeat(row.depth)}${row.hasChildren ? "v" : "·"} ${row.issue.title}` : projectListCell(row.issue, column.id, state), column)}</span>}
                     </For>
                   </text>
                 </box>

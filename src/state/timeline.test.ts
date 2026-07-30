@@ -106,10 +106,10 @@ describe("timeline data model", () => {
   test("builds bounded date cells with explicit today semantics", () => {
     const cells = timelineCells("2026-07-30", "week", 4, "2026-08-03")
     expect(cells).toEqual([
-      { start: "2026-07-27", end: "2026-08-02", label: "Jul 27", today: false },
-      { start: "2026-08-03", end: "2026-08-09", label: "Aug 03", today: true },
-      { start: "2026-08-10", end: "2026-08-16", label: "Aug 10", today: false },
-      { start: "2026-08-17", end: "2026-08-23", label: "Aug 17", today: false },
+      { start: "2026-07-27", end: "2026-08-02", label: "07/27", today: false },
+      { start: "2026-08-03", end: "2026-08-09", label: "08/03", today: true },
+      { start: "2026-08-10", end: "2026-08-16", label: "08/10", today: false },
+      { start: "2026-08-17", end: "2026-08-23", label: "08/17", today: false },
     ])
   })
 

@@ -8,7 +8,7 @@ export type WorkspaceSelection = {
   board: BoardSummary
 }
 
-export type LoadedWorkspace = WorkspaceSelection & Pick<AppState, "currentUser" | "quickFilters" | "activeSprintId" | "sprints" | "statuses" | "issueTypes" | "columns" | "stats" | "selectedIssueKey" | "issuePageStateBySource" | "issueKeysBySource" | "timelineStartDateField"> & {
+export type LoadedWorkspace = WorkspaceSelection & Pick<AppState, "currentUser" | "currentUserAccountId" | "quickFilters" | "activeSprintId" | "sprints" | "statuses" | "issueTypes" | "columns" | "stats" | "selectedIssueKey" | "issuePageStateBySource" | "issueKeysBySource" | "timelineStartDateField"> & {
   issues: Record<string, IssueSummary>
   notice?: string
   timelineParentHydrationError?: string
@@ -71,6 +71,7 @@ export type WorkspaceSource = {
 
 export type WorkspaceFixtureInput = WorkspaceSelection & {
   currentUser?: string
+  currentUserAccountId?: string
   activeSprintId?: string
   sprints: SprintSummary[]
   statuses: StatusDefinition[]
@@ -95,6 +96,7 @@ export function createLoadedWorkspace(input: WorkspaceFixtureInput): LoadedWorks
     project: input.project,
     board: input.board,
     currentUser: input.currentUser ?? "Duy",
+    currentUserAccountId: input.currentUserAccountId,
     quickFilters: input.quickFilters ?? defaultQuickFilters(),
     activeSprintId,
     sprints: input.sprints,
@@ -129,7 +131,7 @@ function inferredIssueKeysBySource(boardType: BoardSummary["type"], sprints: Spr
 
 export function defaultQuickFilters(): QuickFilterDefinition[] {
   return [
-    { id: "mine", label: "Only My Issues" },
+    { id: "mine", label: "Assignee: me" },
     { id: "blocked", label: "Blocked" },
     { id: "stale", label: "Stale" },
     { id: "unassigned", label: "Unassigned" },

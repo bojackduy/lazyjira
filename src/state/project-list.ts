@@ -1,6 +1,7 @@
 import type { AppState, IssueSummary } from "./app-state"
 import { projectListIssuePageSourceId } from "./issue-pages"
 import { issuesForSource } from "./selectors"
+import { projectTimelineRows, timelineModel } from "./timeline"
 
 export type ProjectListColumnId = "key" | "summary" | "type" | "status" | "assignee" | "priority" | "parent" | "due" | "sprint" | "updated"
 
@@ -27,7 +28,12 @@ const optionalColumns: ProjectListColumn[] = [
 ]
 
 export function projectListIssues(state: AppState) {
-  return issuesForSource(state, projectListIssuePageSourceId)
+  return projectListRows(state).map((row) => row.issue)
+}
+
+export function projectListRows(state: AppState) {
+  if (!issuesForSource(state, projectListIssuePageSourceId).length) return []
+  return projectTimelineRows(timelineModel(state).rows, [])
 }
 
 export function projectListColumns(width: number, horizontalOffset = 0) {
@@ -72,7 +78,7 @@ export function projectListStateText(state: AppState) {
 export function projectListCell(issue: IssueSummary, column: ProjectListColumnId, state: AppState) {
   if (column === "key") return issue.key
   if (column === "summary") return issue.title
-  if (column === "type") return state.issueTypes.find((type) => type.id === issue.type)?.name ?? issue.type
+  if (column === "type") return state.issueTypes.find((type) => type.id === issue.type || type.name === issue.type || type.name === issue.typeName)?.name ?? issue.typeName ?? issue.type
   if (column === "status") return state.statuses.find((status) => status.id === issue.statusId)?.name ?? issue.statusId
   if (column === "assignee") return issue.assignee
   if (column === "priority") return issue.priority

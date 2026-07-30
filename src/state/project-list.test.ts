@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { createInitialAppState } from "./initial"
 import { projectListIssuePageSourceId } from "./issue-pages"
-import { projectListColumns, projectListSelection, projectListStateText, projectListViewportWidth } from "./project-list"
+import { projectListColumns, projectListRows, projectListSelection, projectListStateText, projectListViewportWidth } from "./project-list"
 import { loadDevWorkspaceFixture } from "../workspace/dev/fixtures"
 import type { IssuePageState } from "./app-state"
 
@@ -26,6 +26,19 @@ describe("project list state", () => {
     expect(projectListSelection(keys, "PROJ-2", "first")).toBe("PROJ-1")
     expect(projectListSelection(keys, "PROJ-2", "last")).toBe("PROJ-3")
     expect(projectListSelection([], undefined, 1)).toBeUndefined()
+  })
+
+  test("orders List rows by parent hierarchy and exposes indentation depth", () => {
+    const state = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    state.issueKeysBySource[projectListIssuePageSourceId] = ["PROJ-303", "PROJ-302", "PROJ-301", "PROJ-300"]
+    state.issuePageStateBySource[projectListIssuePageSourceId] = page({ startAt: 4, total: 4, isLast: true })
+
+    expect(projectListRows(state).map((row) => [row.issue.key, row.depth])).toEqual([
+      ["PROJ-300", 0],
+      ["PROJ-301", 1],
+      ["PROJ-302", 2],
+      ["PROJ-303", 3],
+    ])
   })
 
   test("distinguishes loading, partial, filtered empty, append failure, permission, and empty copy", () => {

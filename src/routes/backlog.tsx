@@ -9,7 +9,7 @@ import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts
 import { issueByKey } from "../state/issue-drafts"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageStatusText, sprintIssuePageSourceId } from "../state/issue-pages"
 import { boardCapabilities } from "../state/routes"
-import { emptyLoadedIssuesText, groupBacklogIssues, groupModeLabel, issueTypeColor, statusColor, statusName } from "../state/selectors"
+import { emptyLoadedIssuesText, groupBacklogIssues, groupModeLabel, issueTypeColor, issueTypeName, statusColor, statusName } from "../state/selectors"
 import { ParentBadge } from "../ui/parent-badge"
 
 export function BacklogRoute() {
@@ -37,7 +37,8 @@ export function BacklogRoute() {
 
   createEffect(() => {
     if (state.route !== "backlog") return
-    scrollbox?.scrollChildIntoView(`backlog-group-${state.selectedBacklogGroupId}`)
+    const selectedGroup = groups().find((group) => group.id === state.selectedBacklogGroupId)
+    scrollbox?.scrollChildIntoView(backlogScrollTarget(state.selectedBacklogGroupId, state.selectedIssueKey, state.collapsedBacklogGroupIds.includes(state.selectedBacklogGroupId), selectedGroup?.issueKeys ?? []))
   })
 
   function scrollPage(delta: 1 | -1) {
@@ -197,7 +198,11 @@ export function packLegendRows(tokens: LegendToken[], width: number, maxRows: nu
 }
 
 export function backlogUsesCompactLayout(width: number) {
-  return width < 130
+  return width < 170
+}
+
+export function backlogScrollTarget(groupId: string, selectedIssueKey: string, collapsed: boolean, issueKeys: string[]) {
+  return !collapsed && issueKeys.includes(selectedIssueKey) ? `issue-${selectedIssueKey}` : `backlog-group-${groupId}`
 }
 
 function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: boolean }) {
@@ -210,7 +215,7 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: bo
         <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">
           <span style={{ fg: issueTypeColor(state, props.issue) }}>■ </span>
           <span>{props.issue.key}</span>
-          <span style={{ fg: theme.textSubtle }}> {props.issue.type}</span>
+           <span style={{ fg: theme.textSubtle }}> {issueTypeName(state, props.issue)}</span>
           <span> {props.issue.title}</span>
         </text>
         <text fg={statusColor(state, props.issue)} wrapMode="none">
@@ -223,18 +228,18 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: bo
 
   return (
     <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
-      <box flexDirection="row" gap={2}>
+      <box flexDirection="row" gap={1}>
         <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexGrow={1} flexShrink={1} minWidth={0}>
           <span style={{ fg: issueTypeColor(state, props.issue) }}>■ </span>
           <span>{props.issue.key}</span>
-          <span style={{ fg: theme.textSubtle }}> {props.issue.type}</span>
+          <span style={{ fg: theme.textSubtle }}> {issueTypeName(state, props.issue)}</span>
           <span> {props.issue.title}</span>
         </text>
-        <text fg={statusColor(state, props.issue)} wrapMode="none" width="38%" flexShrink={0}>
+        <box width={28} flexShrink={0}><ParentBadge issue={props.issue} width={28} /></box>
+        <text fg={statusColor(state, props.issue)} wrapMode="none" width={34} flexShrink={0}>
           {statusName(state, props.issue)} · {props.issue.priority} · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
         </text>
       </box>
-      <ParentBadge issue={props.issue} />
     </box>
   )
 }

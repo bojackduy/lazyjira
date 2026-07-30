@@ -1,5 +1,5 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
+import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchCurrentJiraUser, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage, type JiraUser } from "../../jira/client"
 import { discoverJiraIssueFieldIds, discoverJiraStartDateField, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
 import { markdownToAdf } from "../../jira/adf"
 import type { IssuePageState, IssueSummary, SprintSummary, TimelineStartDateField } from "../../state/app-state"
@@ -44,12 +44,13 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     async loadWorkspace(selection) {
       if (!selection.board.id) return createProdWorkspace(selection)
       const auth = await requireJiraAuth(authLoader)
-      const [boardConfig, statusIssueTypes, createIssueTypes, sprints, jiraFields] = await Promise.all([
+      const [boardConfig, statusIssueTypes, createIssueTypes, sprints, jiraFields, currentUser] = await Promise.all([
         fetchBoardConfiguration(auth, selection.board.id, fetchImpl),
         fetchProjectStatuses(auth, selection.project.key, fetchImpl),
         fetchJiraCreateIssueTypes(auth, selection.project.key, fetchImpl),
         selection.board.type === "scrum" ? fetchBoardSprints(auth, selection.board.id, fetchImpl) : Promise.resolve([]),
         issueFields(auth),
+        fetchCurrentJiraUser(auth, fetchImpl),
       ])
       const statusLookup = normalizeProjectStatuses(statusIssueTypes)
       const missingStatusIds = boardStatusIds(boardConfig).filter((statusId) => !statusLookup.has(statusId))
@@ -77,7 +78,7 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
         ...backlogIssues,
       ])
       const issueKeysBySource = initialIssueKeysBySource(normalizedSprints, activeSprintIssuePages, boardIssues, backlogIssues)
-      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, boardPage, backlogLoad), issueKeysBySource, normalizeCreateIssueTypes(createIssueTypes), jiraFields.startDate)
+      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, boardPage, backlogLoad), issueKeysBySource, normalizeCreateIssueTypes(createIssueTypes), jiraFields.startDate, currentUser)
     },
     async loadIssueDetail(issueKey, context) {
       const auth = await requireJiraAuth(authLoader)
@@ -221,7 +222,7 @@ function normalizeCreateIssueTypes(types: Awaited<ReturnType<typeof fetchJiraCre
   return normalized.length ? normalized : prodPlaceholderIssueTypes
 }
 
-function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnType<typeof normalizeBoardConfiguration>, sprints: ReturnType<typeof normalizeBoardSprints> = [], issues: ReturnType<typeof normalizeSprintIssues> = [], issuePageStateBySource: Record<string, IssuePageState> = {}, issueKeysBySource: Record<string, string[]> = {}, issueTypes: IssueTypeDefinition[] = prodPlaceholderIssueTypes, timelineStartDateField: TimelineStartDateField = { status: "unavailable", reason: "not-found" }) {
+function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnType<typeof normalizeBoardConfiguration>, sprints: ReturnType<typeof normalizeBoardSprints> = [], issues: ReturnType<typeof normalizeSprintIssues> = [], issuePageStateBySource: Record<string, IssuePageState> = {}, issueKeysBySource: Record<string, string[]> = {}, issueTypes: IssueTypeDefinition[] = prodPlaceholderIssueTypes, timelineStartDateField: TimelineStartDateField = { status: "unavailable", reason: "not-found" }, currentUser?: JiraUser) {
   const notice = selection.project.key === "JIRA"
     ? "Prod runtime is waiting for a Jira project selection. Tickets stay empty until a project is selected."
     : issues.length
@@ -235,6 +236,8 @@ function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnTyp
       : "Prod project and board selection are real. No Jira issues were loaded for this workspace yet."
   return createLoadedWorkspace({
     ...selection,
+    currentUser: currentUser?.displayName ?? "Current Jira user",
+    currentUserAccountId: currentUser?.accountId,
     activeSprintId: sprints.find((sprint) => sprint.state === "active")?.id ?? "",
     sprints,
     statuses: metadata?.statuses.length ? metadata.statuses : prodPlaceholderStatuses,

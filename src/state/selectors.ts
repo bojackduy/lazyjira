@@ -2,7 +2,7 @@ import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, S
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { issueWithDraft } from "./issue-drafts"
 import { matchesIssueSearch } from "./issue-search"
-import { defaultIssueTypeColor, statusColorForCategory } from "./metadata-colors"
+import { issueTypeColorForName, statusColorForCategory } from "./metadata-colors"
 import { boardCapabilities } from "./routes"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, sprintIssuePageSourceId } from "./issue-pages"
 
@@ -90,11 +90,16 @@ export function statusById(state: AppState, statusId: string): StatusDefinition 
 }
 
 export function issueTypeColor(state: AppState, issue: IssueSummary) {
-  return configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type)?.color ?? defaultIssueTypeColor
+  return configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type || type.name === issue.typeName)?.color ?? issueTypeColorForName(issue.typeName ?? issue.type)
 }
 
 export function issueTypeName(state: AppState, issue: IssueSummary) {
-  return configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type)?.name ?? issue.type
+  return configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type || type.name === issue.typeName)?.name ?? issue.typeName ?? issue.type
+}
+
+export function isAssignedToCurrentUser(state: AppState, issue: IssueSummary) {
+  if (state.currentUserAccountId && issue.assigneeAccountId) return state.currentUserAccountId === issue.assigneeAccountId
+  return issue.assignee.trim().toLocaleLowerCase() === state.currentUser.trim().toLocaleLowerCase()
 }
 
 export function statusColor(state: AppState, issue: IssueSummary) {
@@ -109,7 +114,7 @@ export function matchesQuickFilters(state: AppState, issue: IssueSummary) {
   return state.activeQuickFilters.every((filter) => {
     switch (filter) {
       case "mine":
-        return issue.assignee === state.currentUser
+        return isAssignedToCurrentUser(state, issue)
       case "blocked":
         return issue.blocked || issue.statusId === "blocked"
       case "stale":

@@ -72,7 +72,7 @@ export type JiraIssue = {
     issuetype?: { id?: string; name?: string }
     priority?: { name?: string }
     status?: { id?: string; name?: string }
-    assignee?: { displayName?: string } | null
+    assignee?: { accountId?: string; displayName?: string } | null
     reporter?: { displayName?: string } | null
     parent?: { key?: string; fields?: { summary?: string; issuetype?: { id?: string; name?: string } } }
     labels?: string[]
@@ -96,6 +96,10 @@ export type JiraComment = {
   body?: unknown
   created?: string
   updated?: string
+}
+
+export async function fetchCurrentJiraUser(auth: JiraAuthConfig, fetchImpl: FetchLike = fetch): Promise<JiraUser> {
+  return jiraRequest<JiraUser>(auth, "/rest/api/3/myself", { endpoint: "current Jira user" }, fetchImpl)
 }
 
 export type JiraTransition = {

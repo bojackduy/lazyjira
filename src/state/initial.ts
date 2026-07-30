@@ -59,6 +59,7 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     project: workspace.project,
     board: workspace.board,
     currentUser: workspace.currentUser,
+    currentUserAccountId: workspace.currentUserAccountId,
     quickFilters: workspace.quickFilters,
     activeQuickFilters: [],
     activeSprintId: workspace.activeSprintId,

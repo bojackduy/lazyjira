@@ -46,7 +46,7 @@ Issue details and Confluence-style rich documents still matter, but they are the
 ## Product Principles
 
 - Overview first, details second.
-- Boards and backlog are first-class screens, not just filters over a ticket list.
+- Timeline, Backlog, List, and Active sprints/Board are first-class project screens, not filters over one shared ticket list.
 - Active sprint health should be visible without running reports in the browser.
 - Rich ticket/document reading should be beautiful when opened, but should not dominate the default workflow.
 - Keyboard actions should be one or two keystrokes for common Jira work.
@@ -81,7 +81,7 @@ The selected board determines the final project destination: Scrum shows `Active
 │   List               ││                                                     ││                        │
 │ > Active sprints     ││                                                     ││                        │
 │ Quick Filters        ││                                                     ││                        │
-│   [ ] Only my issues ││                                                     ││                        │
+│   [ ] Assignee: me   ││                                                     ││                        │
 │ Pending              ││                                                     ││                        │
 │   0 staged changes   ││                                                     ││                        │
 └──────────────────────┘└─────────────────────────────────────────────────────┘└─────────────────────────┘
@@ -126,7 +126,7 @@ Should show:
 - Colored type/status fields that match board/backlog rendering.
 - Status/type multiple-choice editing from the current board/Jira metadata.
 
-The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. Body editing lives in the detail route, not the inspector: in detail, `e` edits body, `j/k` scroll one line, and `d/u` scroll half a page. Assignee and Reporter use the same searchable Jira assignable-user picker for the current issue. Typing filters results, Up/Down selects an option, and Enter stages the selected Jira account rather than free text. In text edit mode, printable keys go to the editor and `Ctrl-Enter` stages the current edit. `n` creates a draft issue with context-aware defaults, `x` asks to stage an issue delete, `X` opens a staged-discard popup, `w` applies staged edits/deletes locally, and `W` opens the Jira write review popup. Inside the Jira write popup, `W` is the final remote-apply key; until Jira API writes are wired, it shows planned and blocked operation previews and keeps staged changes intact. `Enter` opens the full issue detail route for reading; `q`/`Esc` returns to the previous overview.
+The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. Body editing lives in the detail route, not the inspector: in detail, `e` edits body, `j/k` scroll one line, and `d/u` scroll half a page. Assignee and Reporter use the same searchable Jira assignable-user picker for the current issue. Typing filters results, Up/Down selects an option, and Enter stages the selected Jira account rather than free text. In text edit mode, printable keys go to the editor and `Ctrl-Enter` stages the current edit. `n` creates a draft issue with context-aware defaults, `x` asks to stage an issue delete, `X` opens a staged-discard popup, `w` applies staged edits/deletes locally, and `W` opens the Jira write review popup. Inside the Jira write popup, `W` is the final remote-apply key: planned and blocked operations remain visible, successful writes clear only their staged rows, and failed writes stay staged with the Jira error. `Enter` opens the full issue detail route for reading; `q`/`Esc` returns to the previous overview.
 
 Board cells always include a trailing `+ New issue` placeholder, even when a column or grouped swimlane is otherwise empty. Selecting that placeholder makes empty columns reachable with `h/l`; pressing `Enter` or `n` creates a draft issue in that exact status and group context.
 

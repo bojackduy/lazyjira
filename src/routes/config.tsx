@@ -306,7 +306,7 @@ function priorityColor(priority: string) {
 function quickFilterDescription(state: AppState, filterId: string) {
   switch (filterId) {
     case "mine":
-      return `assignee = ${state.currentUser}`
+      return "assignee = currentUser()"
     case "blocked":
       return "blocked flag or Blocked status"
     case "stale":

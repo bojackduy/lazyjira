@@ -47,6 +47,7 @@ export type ParentIssueSummary = {
   key: string
   title?: string
   type?: IssueType
+  typeName?: string
 }
 
 export type IssueComment = {
@@ -228,9 +229,11 @@ export type IssueSummary = {
   key: string
   title: string
   type: IssueType
+  typeName?: string
   priority: IssuePriority
   statusId: string
   assignee: string
+  assigneeAccountId?: string
   reporter: string
   epic?: string
   feature?: string
@@ -317,6 +320,7 @@ export type AppState = {
   project: ProjectSummary
   board: BoardSummary
   currentUser: string
+  currentUserAccountId?: string
   quickFilters: QuickFilterDefinition[]
   activeQuickFilters: QuickFilterId[]
   activeSprintId: string

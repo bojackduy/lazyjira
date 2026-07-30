@@ -376,7 +376,9 @@ describe("Jira discovery client", () => {
       key: "PROJ-9",
       fields: {
         summary: "Scheduled child",
+        issuetype: { id: "10009", name: "Story" },
         status: { id: "todo" },
+        assignee: { accountId: "account-1", displayName: "Duy Trinh" },
         parent: { key: "PROJ-1", fields: { summary: "Parent initiative", issuetype: { id: "10000", name: "Initiative" } } },
         duedate: "2026-09-30",
         customfield_12345: "2026-08-01",
@@ -386,8 +388,11 @@ describe("Jira discovery client", () => {
     expect(issue).toMatchObject({
       startDate: "2026-08-01",
       dueDate: "2026-09-30",
+      type: "10009",
+      typeName: "Story",
+      assigneeAccountId: "account-1",
       parentKey: "PROJ-1",
-      parent: { key: "PROJ-1", title: "Parent initiative", type: "10000" },
+      parent: { key: "PROJ-1", title: "Parent initiative", type: "10000", typeName: "Initiative" },
     })
   })
 

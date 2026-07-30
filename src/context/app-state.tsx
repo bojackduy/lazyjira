@@ -225,6 +225,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("workspaceLoadError", undefined)
     setState("workspaceNotice", workspace.notice)
     setState("currentUser", workspace.currentUser)
+    setState("currentUserAccountId", workspace.currentUserAccountId)
     setState("quickFilters", reconcile(workspace.quickFilters))
     setState("activeQuickFilters", [])
     setState("activeSprintId", workspace.activeSprintId)

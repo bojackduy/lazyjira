@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { loadDevWorkspaceState } from "./dev"
-import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, kanbanIssues, sprintDateRange, visibleStatusesForBoard } from "./selectors"
+import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, issueTypeName, kanbanIssues, matchesQuickFilters, sprintDateRange, visibleStatusesForBoard } from "./selectors"
 
 describe("board selectors", () => {
   test("shows all statuses when the board is wide enough", () => {
@@ -107,5 +107,24 @@ describe("board selectors", () => {
     state.sprints = state.sprints.filter((sprint) => sprint.state === "future")
     expect(activeSprint(state)).toBeUndefined()
     expect(activeSprintIssues(state)).toEqual([])
+  })
+
+  test("matches Assignee: me by Jira account ID before display name", () => {
+    const state = loadDevWorkspaceState()
+    const issue = { ...state.issues[state.selectedIssueKey]!, assignee: "Renamed User", assigneeAccountId: "account-me" }
+    state.currentUser = "Old Display Name"
+    state.currentUserAccountId = "account-me"
+    state.activeQuickFilters = ["mine"]
+
+    expect(matchesQuickFilters(state, issue)).toBe(true)
+    expect(matchesQuickFilters(state, { ...issue, assigneeAccountId: "someone-else" })).toBe(false)
+  })
+
+  test("uses normalized Jira type names when create metadata is unavailable", () => {
+    const state = loadDevWorkspaceState()
+    const issue = { ...state.issues[state.selectedIssueKey]!, type: "10009", typeName: "Story" }
+    state.issueTypes = []
+
+    expect(issueTypeName(state, issue)).toBe("Story")
   })
 })
