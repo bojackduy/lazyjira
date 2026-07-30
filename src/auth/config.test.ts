@@ -140,6 +140,22 @@ describe("Jira auth config", () => {
     })
   })
 
+  test("normalizes legacy persisted board routes in the real workspace config shape", async () => {
+    await withTempConfig(async (env, path) => {
+      await writeFile(path, JSON.stringify({
+        prodWorkspace: { projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Delivery", boardType: "scrum", route: "active-sprint" },
+        devWorkspace: { projectKey: "DEV", projectName: "Dev", boardId: "dev-1", boardName: "Flow", boardType: "kanban", route: "kanban" },
+      }))
+
+      const loaded = await loadLazyJiraConfig(env)
+
+      expect(loaded?.prodWorkspace?.route).toBe("board")
+      expect(loaded?.devWorkspace?.route).toBe("board")
+      expect(loaded?.prodRecentWorkspaces?.[0]?.route).toBe("board")
+      expect(loaded?.devRecentWorkspaces?.[0]?.route).toBe("board")
+    })
+  })
+
   test("removes saved credentials", async () => {
     await withTempConfig(async (env) => {
       await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }, env)

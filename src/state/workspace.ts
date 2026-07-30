@@ -4,6 +4,7 @@ import { effectiveIssueSearchQuery } from "./issue-search"
 import { loadedIssueCount } from "./issue-pages"
 import { allIssues, activeSprint, groupModeLabel, issueList, statusName } from "./selectors"
 import { stagedChanges } from "./staged-changes"
+import { boardCapabilities } from "./routes"
 
 export type WorkspaceItem = {
   id: string
@@ -40,15 +41,18 @@ export function workspaceJumpTargets(state: AppState): WorkspaceItem[] {
   const activeSprintIssues = issues.filter((issue) => issue.sprintId === state.activeSprintId)
   const backlogIssues = issues.filter((issue) => issue.sprintId !== state.activeSprintId)
   const myIssues = issues.filter((issue) => issue.assignee === state.currentUser)
+  const board = boardCapabilities(state.board)
 
   return [
     {
-      id: "jump:active-sprint",
+      id: "jump:board",
       section: "jump",
-      title: "Active Sprint",
-      subtitle: `${sprint?.name ?? "No active sprint"} · ${activeSprintIssues.length} issues · ${blockedIssues(activeSprintIssues).length} blocked`,
-      count: activeSprintIssues.length,
-      route: "active-sprint",
+      title: board.projectBoardLabel,
+      subtitle: board.supportsSprints
+        ? `${sprint?.name ?? "No active sprint"} · ${activeSprintIssues.length} issues · ${blockedIssues(activeSprintIssues).length} blocked`
+        : `Grouped by ${groupModeLabel(state.kanbanGroupBy)} · ${issues.length} issues`,
+      count: board.supportsSprints ? activeSprintIssues.length : issues.length,
+      route: "board",
     },
     {
       id: "jump:backlog",
@@ -57,14 +61,6 @@ export function workspaceJumpTargets(state: AppState): WorkspaceItem[] {
       subtitle: `${backlogIssues.length} issues · ${missingEstimateIssues(backlogIssues).length} need estimate`,
       count: backlogIssues.length,
       route: "backlog",
-    },
-    {
-      id: "jump:kanban",
-      section: "jump",
-      title: "Kanban",
-      subtitle: `Grouped by ${groupModeLabel(state.kanbanGroupBy)} · ${issues.length} issues`,
-      count: issues.length,
-      route: "kanban",
     },
     {
       id: "jump:my-work",

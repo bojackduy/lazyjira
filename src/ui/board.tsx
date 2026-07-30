@@ -4,22 +4,25 @@ import { createEffect, createMemo, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
-import type { BoardLocation, IssuePageState, IssueSummary } from "../state/app-state"
+import type { BoardLocation, IssueSummary } from "../state/app-state"
 import type { BoardCellItem } from "../state/board-navigation"
 import { selectedBoardItemLocation } from "../state/board-navigation"
 import { boardView } from "../state/board-view"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
 import { ParentBadge } from "./parent-badge"
-import { boardIssuePageSourceId, loadedIssueCount } from "../state/issue-pages"
+import { boardIssuePageSourceId, issuePageStatusText } from "../state/issue-pages"
 import {
   activeSprint,
   boardGroupByForMode,
+  boardIssuesForMode,
   boardStatusOffsetForMode,
   boardStatusWindowSize,
   groupModeLabel,
+  emptyLoadedIssuesText,
   issueTypeColor,
   issueTypeName,
+  sprintDateRange,
   statusColor,
   visibleStatusesForBoard,
 } from "../state/selectors"
@@ -39,7 +42,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   const displayedStatusStart = () => Math.min(statusOffset(), Math.max(0, configuredStatuses(state).length - statusWindowSize())) + 1
   const bodyHeight = () => Math.max(5, dimensions().height - 21)
   const compactHeader = () => dimensions().width < 145
-  const title = () => (props.mode === "active-sprint" ? `Active Sprint: ${activeSprint(state)?.name ?? "Sprint"}` : "Kanban Board")
+  const title = () => (props.mode === "active-sprint" ? `Active sprints: ${activeSprint(state)?.name ?? "No active sprint"}${sprintDateRange(activeSprint(state)?.startDate, activeSprint(state)?.endDate)}` : `Board: ${state.board.name}`)
   const subtitle = () =>
     props.mode === "active-sprint"
       ? (activeSprint(state)?.goal ?? "No sprint goal")
@@ -59,13 +62,13 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   }))
 
   createEffect(() => {
-    if (state.route !== props.mode) return
+    if (state.route !== "board") return
     const location = selectedBoardItemLocation(state, props.mode)
     if (location) scrollbox?.scrollChildIntoView(boardItemElementId(props.mode, location))
   })
 
   function scrollPage(delta: 1 | -1) {
-    if (state.focusedPane !== "main" || state.route !== props.mode) return
+    if (state.focusedPane !== "main" || state.route !== "board") return
     scrollbox?.scrollBy(delta, "viewport")
   }
 
@@ -86,7 +89,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
           <text fg={theme.text}>Group by: {groupModeLabel(groupBy())}</text>
           <text fg={theme.textSubtle}>Statuses {displayedStatusStart()}-{Math.min(displayedStatusStart() + visibleStatuses().length - 1, configuredStatuses(state).length)}/{configuredStatuses(state).length}</text>
           <Show when={props.mode === "kanban" && state.issuePageStateBySource[boardIssuePageSourceId]}>
-            {(page) => <text fg={page().error ? theme.danger : page().loading ? theme.warning : theme.textSubtle} wrapMode="none">{issuePageText(page())}</text>}
+            {(page) => <text fg={page().error ? theme.danger : page().loading ? theme.warning : theme.textSubtle} wrapMode="none">{issuePageStatusText(page())}</text>}
           </Show>
         </box>
       </box>
@@ -94,7 +97,14 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
       <Show when={state.workspaceNotice}>
         {(notice) => <text fg={theme.warning}>{notice()}</text>}
       </Show>
-      <scrollbox
+      <Show when={props.mode === "active-sprint" && !activeSprint(state)}>
+        <text fg={theme.warning}>No active sprint is available. Open Backlog to plan work.</text>
+      </Show>
+      <Show when={(props.mode === "kanban" || !!activeSprint(state)) && !boardIssuesForMode(state, props.mode).length}>
+        <text fg={theme.textMuted}>{emptyLoadedIssuesText(state, props.mode === "kanban" ? "board issues" : "active sprint issues")}</text>
+      </Show>
+      <Show when={props.mode === "kanban" || !!activeSprint(state)}>
+        <scrollbox
         ref={(element: ScrollBoxRenderable) => (scrollbox = element)}
         width="100%"
         height={bodyHeight()}
@@ -130,19 +140,10 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
             </>
           )}
         </For>
-      </scrollbox>
+        </scrollbox>
+      </Show>
     </box>
   )
-}
-
-function issuePageText(page: IssuePageState) {
-  return page.loading
-    ? "Loading more Jira issues..."
-    : page.error
-      ? `Load more failed: ${page.error}`
-      : page.isLast
-        ? `Loaded ${loadedIssueCount(page)}${typeof page.total === "number" ? `/${page.total}` : ""} Jira issues`
-        : `Loaded ${loadedIssueCount(page)}${typeof page.total === "number" ? `/${page.total}` : ""} Jira issues · L load more`
 }
 
 function IssueCell(props: { item?: BoardCellItem; location: BoardLocation; mode: "active-sprint" | "kanban"; selected: boolean }) {

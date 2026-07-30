@@ -18,13 +18,13 @@ import {
   writableConfigSection,
 } from "../state/config-drafts"
 import { defaultIssueTypeColor, statusColorForCategory } from "../state/metadata-colors"
-import { sidebarRoutes, type AppRoute } from "../state/routes"
+import { normalizePersistedRoute, sidebarEntryCount, sidebarQuickFilterIndex, sidebarRoutesForBoard, type AppRoute } from "../state/routes"
 import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldDisplayValue, issueFields, parentIssueChoices, selectedIssueField } from "../state/issue-fields"
 import { filteredProjectPickerBoards, filteredProjectPickerOptions, filteredProjectPickerProjects, filteredProjectPickerWorkspaces } from "../state/project-picker"
 import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from "../state/staged-changes"
 import { workspaceCurrentResults, workspaceItems, workspaceSelectedItem } from "../state/workspace"
-import { defaultIssuePageState, remoteSearchIssuePageSourceId } from "../state/issue-pages"
+import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, projectListIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
 import { planJiraWrites, writePlanCounts } from "../state/jira-write-plan"
 import { markdownToAdf } from "../jira/adf"
 import { useToast } from "./toast"
@@ -81,7 +81,9 @@ export type AppStateContext = {
   selectIssue: (issueKey: string) => void
   openIssueDetail: (issueKey?: string) => void
   loadIssueDetail: (issueKey?: string) => Promise<void>
-  loadIssuePage: (sourceId: string) => Promise<void>
+  loadIssuePage: (sourceId: string, refresh?: boolean) => Promise<void>
+  setProjectListSelection: (issueKey: string | undefined) => void
+  setProjectListHorizontalOffset: (offset: number) => void
   closeIssueDetail: () => void
   moveInspectorSelection: (delta: number) => void
   moveInspectorChoice: (delta: number) => void
@@ -119,6 +121,7 @@ export type AppStateContext = {
   setKanbanGroupBy: (groupBy: BoardGroupBy) => void
   setBacklogGroupBy: (groupBy: BacklogGroupBy) => void
   setSelectedBacklogGroup: (groupId: string) => void
+  toggleBacklogGroupCollapsed: (groupId: string) => void
   setActiveSprintStatusOffset: (offset: number) => void
   setKanbanStatusOffset: (offset: number) => void
 }
@@ -194,6 +197,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         boardId: board.id,
         boardName: board.name,
         boardType: board.type,
+        route: normalizePersistedRoute(state.route),
       })
       if (workspace) applyLoadedWorkspace(workspace)
       setState("recentWorkspaces", reconcile(recentWorkspacesWith(selectedWorkspace, state.recentWorkspaces)))
@@ -251,7 +255,11 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("issueDetailLoadedAtByKey", reconcile({}))
     setState("issueDetailRequestId", 0)
     setState("issuePageStateBySource", reconcile(workspace.issuePageStateBySource))
+    setState("issueKeysBySource", reconcile(workspace.issueKeysBySource))
     setState("issuePageRequestIdBySource", reconcile({}))
+    setState("projectListSelectedIssueKey", undefined)
+    setState("projectListHorizontalOffset", 0)
+    setState("projectListSort", "rank")
     setState("pendingDeleteIssueKey", undefined)
     setState("inspectorSelectedFieldIndex", 1)
     setState("inspectorEditingFieldId", undefined)
@@ -269,6 +277,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("activeSprintStatusOffset", 0)
     setState("kanbanStatusOffset", 0)
     setState("selectedBacklogGroupId", workspace.activeSprintId || "backlog")
+    setState("collapsedBacklogGroupIds", [])
   }
 
   async function runRemoteSearch(query: string, append: boolean) {
@@ -309,7 +318,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("searchOpen", false)
       setState("searchDraft", trimmed)
       setState("route", "workspace")
-      setState("sidebarSelectedIndex", sidebarRoutes.findIndex((route) => route.id === "workspace"))
+      setState("sidebarSelectedIndex", sidebarRoutesForBoard(state.board).findIndex((route) => route.id === "workspace"))
       setState("workspaceFocusedArea", "cards")
       setState("workspaceSelectedIndex", remoteSearchWorkspaceItemIndex(state))
       setState("workspaceResultSelectedIndex", 0)
@@ -533,13 +542,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     setRoute(route) {
       setState("route", route)
-      const index = sidebarRoutes.findIndex((candidate) => candidate.id === route)
+      const index = sidebarRoutesForBoard(state.board).findIndex((candidate) => candidate.id === route)
       if (index !== -1) setState("sidebarSelectedIndex", index)
       if (route === "issue-detail") setState("focusedPane", "main")
       if (route === "workspace") setState("focusedPane", "main")
       if (route === "config") setState("focusedPane", "main")
       if (route !== "workspace") setState("workspaceFocusedArea", "cards")
       if (route !== "issue-detail") setState("previousRoute", undefined)
+      if (route === "list" && !state.issuePageStateBySource[projectListIssuePageSourceId]) void context.loadIssuePage(projectListIssuePageSourceId)
     },
     setFocusedPane(pane) {
       setState("focusedPane", pane)
@@ -550,19 +560,20 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("focusedPane", panes[(currentIndex + delta + panes.length) % panes.length]!)
     },
     moveSidebarSelection(delta) {
-      const entryCount = sidebarRoutes.length + state.quickFilters.length
+      const entryCount = sidebarEntryCount(state.board, state.quickFilters.length)
       const nextIndex = (state.sidebarSelectedIndex + delta + entryCount) % entryCount
       setState("sidebarSelectedIndex", nextIndex)
     },
     openSidebarSelection() {
-      if (state.sidebarSelectedIndex < sidebarRoutes.length) {
-        setState("route", sidebarRoutes[state.sidebarSelectedIndex]?.id ?? "active-sprint")
+      const routes = sidebarRoutesForBoard(state.board)
+      if (state.sidebarSelectedIndex < routes.length) {
+        context.setRoute(routes[state.sidebarSelectedIndex]?.id ?? "board")
         return
       }
       context.toggleSidebarFilterSelection()
     },
     toggleSidebarFilterSelection() {
-      const filter = state.quickFilters[state.sidebarSelectedIndex - sidebarRoutes.length]
+      const filter = state.quickFilters[state.sidebarSelectedIndex - sidebarQuickFilterIndex(state.board, 0)]
       if (filter) context.toggleQuickFilter(filter.id)
     },
     toggleQuickFilter(filterId) {
@@ -796,16 +807,20 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         if (state.issueDetailRequestId === requestId) setState("issueDetailLoadingByKey", issueKey, false)
       }
     },
-    async loadIssuePage(sourceId) {
-      const currentPage = state.issuePageStateBySource[sourceId] ?? defaultIssuePageState(sourceId)
+    async loadIssuePage(sourceId, refresh = false) {
+      const retainedPage = state.issuePageStateBySource[sourceId]
+      const currentPage = refresh ? defaultIssuePageState(sourceId, retainedPage?.maxResults ?? 50) : retainedPage ?? defaultIssuePageState(sourceId, sourceId === projectListIssuePageSourceId ? 50 : 100)
       if (currentPage.loading) return
-      if (currentPage.isLast) {
+      if (!refresh && currentPage.isLast) {
         toast.show("No more Jira issues to load for this section")
         return
       }
       const requestId = (state.issuePageRequestIdBySource[sourceId] ?? 0) + 1
+      const workspaceGeneration = state.workspaceRequestId
+      const projectKey = state.project.key
+      const boardId = state.board.id
       setState("issuePageRequestIdBySource", sourceId, requestId)
-      setState("issuePageStateBySource", sourceId, { ...currentPage, loading: true, error: undefined })
+      setState("issuePageStateBySource", sourceId, { ...(refresh && retainedPage ? retainedPage : currentPage), loading: true, refreshing: refresh && !!(state.issueKeysBySource[sourceId]?.length), error: undefined })
       try {
         const loaded = await props.source.loadIssuePage(sourceId, {
           project: state.project,
@@ -813,23 +828,37 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           statuses: state.statuses,
           pageState: currentPage,
         })
-        if (state.issuePageRequestIdBySource[sourceId] !== requestId) return
+        if (state.issuePageRequestIdBySource[sourceId] !== requestId || state.workspaceRequestId !== workspaceGeneration || state.project.key !== projectKey || state.board.id !== boardId) return
         const nextIssues = { ...state.issues }
         for (const issue of loaded.issues) nextIssues[issue.key] = mergeLoadedPageIssue(nextIssues[issue.key], issue)
+        const nextSourceKeys = uniqueStrings([...(refresh ? [] : state.issueKeysBySource[sourceId] ?? []), ...loaded.issues.map((issue) => issue.key)])
         setState("issues", reconcile(nextIssues))
+        setState("issueKeysBySource", sourceId, nextSourceKeys)
         setState("stats", workspaceStats(state.statuses, Object.values(nextIssues)))
-        setState("issuePageStateBySource", sourceId, reconcile({ ...loaded.pageState, loading: false, error: undefined }))
+        setState("issuePageStateBySource", sourceId, reconcile({ ...loaded.pageState, loading: false, refreshing: false, error: undefined }))
+        if (sourceId === projectListIssuePageSourceId) {
+          if (loaded.sort) setState("projectListSort", loaded.sort)
+          const selected = state.projectListSelectedIssueKey
+          if (!selected || !nextSourceKeys.includes(selected)) setState("projectListSelectedIssueKey", nextSourceKeys[0])
+        }
         if (!state.selectedIssueKey && loaded.issues[0]) setState("selectedIssueKey", loaded.issues[0].key)
       } catch (error) {
-        if (state.issuePageRequestIdBySource[sourceId] !== requestId) return
+        if (state.issuePageRequestIdBySource[sourceId] !== requestId || state.workspaceRequestId !== workspaceGeneration || state.project.key !== projectKey || state.board.id !== boardId) return
         const message = error instanceof Error ? error.message : String(error)
-        setState("issuePageStateBySource", sourceId, { ...currentPage, loading: false, error: message })
+        setState("issuePageStateBySource", sourceId, { ...(retainedPage ?? currentPage), loading: false, refreshing: false, error: message })
         toast.show(message)
       }
     },
+    setProjectListSelection(issueKey) {
+      setState("projectListSelectedIssueKey", issueKey)
+      if (issueKey) setState("selectedIssueKey", issueKey)
+    },
+    setProjectListHorizontalOffset(offset) {
+      setState("projectListHorizontalOffset", Math.max(0, offset))
+    },
     closeIssueDetail() {
       if (state.route !== "issue-detail") return
-      setState("route", state.previousRoute ?? "active-sprint")
+      setState("route", state.previousRoute ?? "board")
       setState("previousRoute", undefined)
       setState("focusedPane", "main")
     },
@@ -845,13 +874,15 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         setState("inspectorUserPicker", "selectedIndex", (picker.selectedIndex + delta + picker.options.length) % picker.options.length)
         return
       }
-      if (fieldId !== "statusId" && fieldId !== "type" && fieldId !== "parentKey") return
+      if (fieldId !== "statusId" && fieldId !== "type" && fieldId !== "parentKey" && fieldId !== "sprintId") return
       const issue = issueByKey(state, state.selectedIssueKey)
       const choices = fieldId === "statusId"
         ? configuredStatuses(state).map((status) => status.id)
         : fieldId === "type"
           ? configuredIssueTypes(state).map((type) => type.id)
-          : issue ? ["", ...parentIssueChoices(state, issue).map((choice) => choice.value)] : []
+          : fieldId === "sprintId"
+            ? ["", ...state.sprints.filter((sprint) => sprint.state !== "closed").map((sprint) => sprint.id)]
+            : issue ? ["", ...parentIssueChoices(state, issue).map((choice) => choice.value)] : []
       if (!choices.length) return
       const currentIndex = Math.max(0, choices.findIndex((choice) => choice === state.inspectorEditValue))
       setState("inspectorEditValue", choices[(currentIndex + delta + choices.length) % choices.length]!)
@@ -861,7 +892,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const field = selectedIssueField(state)
       if (!issue || !field || !field.editable || !isEditableField(field.id)) return
       setState("inspectorEditingFieldId", field.id)
-      setState("inspectorEditValue", field.id === "statusId" ? issue.statusId : field.id === "type" ? issue.type : field.id === "parentKey" ? issue.parentKey ?? "" : issueFieldDisplayValue(state, issue, field))
+      setState("inspectorEditValue", field.id === "statusId" ? issue.statusId : field.id === "type" ? issue.type : field.id === "parentKey" ? issue.parentKey ?? "" : field.id === "sprintId" ? issue.sprintId ?? "" : issueFieldDisplayValue(state, issue, field))
       if (field.id === "assignee" || field.id === "reporter") {
         setState("inspectorUserPicker", { fieldId: field.id, issueKey: issue.key, query: "", allOptions: [], options: [], selectedIndex: 0, loading: true })
         scheduleInspectorUserPicker(field.id, issue.key, "")
@@ -1018,6 +1049,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           }
           if (item.operation === "sprint-move") {
             await props.source.moveIssueToSprint(issueKey, item.sprintId)
+            const targetSourceId = item.sprintId ? sprintIssuePageSourceId(item.sprintId) : backlogIssuePageSourceId
+            setState("issueKeysBySource", reconcile(moveSourceIssueKey(state.issueKeysBySource, issueKey, targetSourceId)))
             const draft = { ...(state.issueDrafts[issueKey] ?? {}) }
             delete draft.sprintId
             const drafts = { ...state.issueDrafts }
@@ -1050,6 +1083,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
             const issues = { ...state.issues }
             delete issues[issueKey]
             setState("issues", reconcile(issues))
+            setState("issueKeysBySource", reconcile(withoutSourceIssueKey(state.issueKeysBySource, issueKey)))
             setState("stats", workspaceStats(state.statuses, Object.values(issues)))
             setState("issueDeletes", (deletes) => deletes.filter((key) => key !== issueKey))
             if (state.selectedIssueKey === issueKey) setState("selectedIssueKey", Object.keys(issues)[0] ?? "")
@@ -1061,6 +1095,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
             const issues = { ...state.issues }
             delete issues[issueKey]
             setState("issues", reconcile(issues))
+            setState("issueKeysBySource", reconcile(replaceSourceIssueKey(state.issueKeysBySource, issueKey, createdKey)))
             if (state.selectedIssueKey === issueKey) setState("selectedIssueKey", createdKey)
             createdIssueKeys.add(createdKey)
           }
@@ -1193,6 +1228,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       let commentDrafts = [...state.commentDrafts]
       const rankDrafts = { ...state.rankDrafts }
       const issues = { ...state.issues }
+      let issueKeysBySource = state.issueKeysBySource
       for (const change of changes) {
         if (!selectedIds.has(change.id)) continue
         discardedCount += 1
@@ -1203,6 +1239,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           issueDeletes = issueDeletes.filter((issueKey) => issueKey !== change.issueKey)
           commentDrafts = commentDrafts.filter((draft) => draft.issueKey !== change.issueKey)
           delete rankDrafts[change.issueKey]
+          issueKeysBySource = withoutSourceIssueKey(issueKeysBySource, change.issueKey)
           continue
         }
         if (change.kind === "config") {
@@ -1233,6 +1270,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         }
       }
       setState("issues", reconcile(issues))
+      setState("issueKeysBySource", reconcile(issueKeysBySource))
       if (!issues[state.selectedIssueKey]) setState("selectedIssueKey", Object.keys(issues)[0] ?? "")
       setState("stats", workspaceStats(state.statuses, Object.values(issues)))
       setState("issueDrafts", reconcile(issueDrafts))
@@ -1275,6 +1313,9 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     createDraftIssue(issue) {
       setState("issues", issue.key, issue)
+      const sourceId = draftIssueSourceId(state, issue)
+      if (sourceId) setState("issueKeysBySource", sourceId, uniqueStrings([...(state.issueKeysBySource[sourceId] ?? []), issue.key]))
+      if (sourceId === projectListIssuePageSourceId) setState("projectListSelectedIssueKey", issue.key)
       setState("selectedIssueKey", issue.key)
       setState("focusedPane", "inspector")
       setState("draftIssueCounter", state.draftIssueCounter + 1)
@@ -1296,6 +1337,9 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     setSelectedBacklogGroup(groupId) {
       setState("selectedBacklogGroupId", groupId)
+    },
+    toggleBacklogGroupCollapsed(groupId) {
+      setState("collapsedBacklogGroupIds", (groupIds) => groupIds.includes(groupId) ? groupIds.filter((candidate) => candidate !== groupId) : [...groupIds, groupId])
     },
     setActiveSprintStatusOffset(offset) {
       setState("activeSprintStatusOffset", clampOffset(offset, configuredStatuses(state).length))
@@ -1329,6 +1373,30 @@ function mergeLoadedPageIssue(existing: IssueSummary | undefined, issue: IssueSu
 
 function uniqueStrings(values: string[]) {
   return [...new Set(values)]
+}
+
+function draftIssueSourceId(state: AppState, issue: IssueSummary) {
+  if (state.route === "list") return projectListIssuePageSourceId
+  if (state.board.type === "kanban") {
+    if (state.route === "backlog") return backlogIssuePageSourceId
+    if (state.route === "board") return boardIssuePageSourceId
+    return undefined
+  }
+  return issue.sprintId ? sprintIssuePageSourceId(issue.sprintId) : backlogIssuePageSourceId
+}
+
+function withoutSourceIssueKey(keysBySource: Record<string, string[]>, issueKey: string) {
+  return Object.fromEntries(Object.entries(keysBySource).map(([sourceId, keys]) => [sourceId, keys.filter((key) => key !== issueKey)]))
+}
+
+function replaceSourceIssueKey(keysBySource: Record<string, string[]>, issueKey: string, createdKey: string) {
+  return Object.fromEntries(Object.entries(keysBySource).map(([sourceId, keys]) => [sourceId, uniqueStrings(keys.map((key) => key === issueKey ? createdKey : key))]))
+}
+
+function moveSourceIssueKey(keysBySource: Record<string, string[]>, issueKey: string, targetSourceId: string) {
+  const next = withoutSourceIssueKey(keysBySource, issueKey)
+  next[targetSourceId] = uniqueStrings([...(next[targetSourceId] ?? []), issueKey])
+  return next
 }
 
 function remoteSearchWorkspaceItemIndex(state: AppState) {

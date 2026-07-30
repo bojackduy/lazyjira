@@ -10,11 +10,11 @@ import { issueByKey } from "../state/issue-drafts"
 import { planJiraWrites, writePlanCounts, type JiraWritePlanItem } from "../state/jira-write-plan"
 import type { AppState } from "../state/app-state"
 import { filteredProjectPickerBoards, filteredProjectPickerProjects, filteredProjectPickerWorkspaces } from "../state/project-picker"
-import { routeLabel, sidebarRoutes } from "../state/routes"
+import { boardCapabilities, routeLabel, sidebarQuickFilterIndex, sidebarRoutesForBoard, type AppRoute } from "../state/routes"
 import { allIssues, issueList } from "../state/selectors"
 import { stagedChanges, type StagedChange } from "../state/staged-changes"
 import { IssueInspector } from "./issue-inspector"
-import { paletteCommands, searchPaletteCommands, type PaletteCommand } from "../keymap/commands"
+import { paletteCommandsForBoard, searchPaletteCommands, type PaletteCommand } from "../keymap/commands"
 import { useBindings, useKeymap } from "../context/keymap"
 
 export function AppShell() {
@@ -50,17 +50,45 @@ function Sidebar() {
   const config = useConfig()
   const theme = useTheme()
   const focused = () => state.focusedPane === "sidebar"
+  const routes = () => sidebarRoutesForBoard(state.board)
+  const globalRoutes = () => routes().filter((route) => route.scope === "global")
+  const projectRoutes = () => routes().filter((route) => route.scope === "project")
+  const pendingCount = () => stagedChanges(state).length
 
   return (
     <box borderStyle="rounded" borderColor={focused() ? theme.borderActive : theme.border} padding={1} width={26} flexShrink={0} onMouseUp={() => setFocusedPane("sidebar")}>
         <text attributes={TextAttributes.BOLD} fg={theme.text}>{config.appName}</text>
         <text fg={theme.textMuted}>{state.project.key} {state.project.name}</text>
+        <text fg={theme.textSubtle}>{state.board.name} · {state.board.type === "scrum" ? "Scrum" : "Kanban"}</text>
         <text fg={theme.textSubtle}>{runtimeEnvText(config, state.jiraAuthReady, state.jiraProjectReady)}</text>
       <box paddingTop={1} flexDirection="column">
-        <text fg={theme.warning}>Views</text>
-        <For each={sidebarRoutes}>
-          {(route, index) => {
-            const selected = () => state.sidebarSelectedIndex === index()
+        <text fg={theme.warning}>Global</text>
+        <For each={globalRoutes()}>
+          {(route) => {
+            const routeIndex = () => routes().findIndex((candidate) => candidate.id === route.id)
+            const selected = () => state.sidebarSelectedIndex === routeIndex()
+            const current = () => state.route === route.id
+            return (
+              <text
+                fg={selected() ? theme.selectedText : current() ? theme.text : theme.textMuted}
+                bg={selected() && focused() ? theme.selected : undefined}
+                onMouseUp={() => {
+                  setFocusedPane("sidebar")
+                  setRoute(route.id)
+                }}
+              >
+                {selected() ? ">" : current() ? "*" : " "} {route.shortLabel}
+              </text>
+            )
+          }}
+        </For>
+      </box>
+      <box paddingTop={1} flexDirection="column">
+        <text fg={theme.warning}>Project</text>
+        <For each={projectRoutes()}>
+          {(route) => {
+            const routeIndex = () => routes().findIndex((candidate) => candidate.id === route.id)
+            const selected = () => state.sidebarSelectedIndex === routeIndex()
             const current = () => state.route === route.id
             return (
               <text
@@ -81,7 +109,7 @@ function Sidebar() {
         <text fg={theme.warning}>Quick Filters</text>
         <For each={state.quickFilters}>
           {(filter, index) => {
-            const sidebarIndex = () => sidebarRoutes.length + index()
+            const sidebarIndex = () => sidebarQuickFilterIndex(state.board, index())
             const selected = () => state.sidebarSelectedIndex === sidebarIndex()
             const active = () => state.activeQuickFilters.includes(filter.id)
             return (
@@ -99,6 +127,10 @@ function Sidebar() {
           }}
         </For>
       </box>
+      <box paddingTop={1} flexDirection="column">
+        <text fg={theme.warning}>Pending</text>
+        <text fg={pendingCount() ? theme.text : theme.textMuted}>  {pendingCount()} staged {pendingCount() === 1 ? "change" : "changes"}</text>
+      </box>
     </box>
   )
 }
@@ -111,7 +143,7 @@ function MainSurface() {
   return (
     <box borderStyle="rounded" borderColor={focused() ? theme.borderActive : theme.border} padding={1} flexGrow={1} flexShrink={1} minWidth={0} minHeight={0} onMouseUp={() => setFocusedPane("main")}>
       <box flexDirection="row" justifyContent="space-between">
-        <text attributes={TextAttributes.BOLD} fg={theme.text}>{routeLabel(state.route)}</text>
+        <text attributes={TextAttributes.BOLD} fg={theme.text}>{routeLabel(state.route, state.board)}</text>
         <text fg={theme.textSubtle}>{state.board.name}</text>
       </box>
       <Show when={(state.workspaceLoading || state.workspaceLoadError) && !!Object.keys(state.issues).length}>
@@ -213,7 +245,7 @@ function Footer() {
     ? ["command palette", "type filter", "up/down choose", "enter run", "esc close"]
     : state.searchOpen
     ? state.searchMode === "remote" ? ["search Jira", "type text", "enter run", "esc close", "empty enter clears"] : ["filter loaded", "type query", "enter apply", "esc close", "empty enter clears"]
-    : footerItems(state.focusedPane, state.route, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open ? state.projectPicker.mode : undefined)
+    : footerItems(state.focusedPane, state.route, state.board, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open ? state.projectPicker.mode : undefined)
 
   return (
     <box height={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.panel} flexDirection="row" justifyContent="space-between">
@@ -231,7 +263,7 @@ function CommandPalettePopup() {
   const dimensions = useTerminalDimensions()
   let input: InputRenderable | undefined
   let scrollbox: ScrollBoxRenderable | undefined
-  const commands = () => searchPaletteCommands(state.commandPaletteQuery)
+  const commands = () => searchPaletteCommands(state.commandPaletteQuery, state.board)
   const listHeight = () => Math.max(4, dimensions().height - 12)
 
   createEffect(() => {
@@ -249,7 +281,7 @@ function CommandPalettePopup() {
       <ModalFrame borderColor={theme.accent} width={88} centered>
         <box flexDirection="row" justifyContent="space-between">
           <text attributes={TextAttributes.BOLD} fg={theme.accent}>Command Palette</text>
-          <text fg={theme.textSubtle}>p · ; · : actions</text>
+          <text fg={theme.textSubtle}>; · : actions</text>
         </box>
         <input
           value={state.commandPaletteQuery}
@@ -335,7 +367,7 @@ function HelpPopup() {
         </box>
         <text fg={theme.textMuted}>Commands reflect the current lazyjira keyboard workflow.</text>
         <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} height={listHeight()} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
-          <For each={paletteCommands}>
+          <For each={paletteCommandsForBoard(state.board)}>
             {(command) => (
               <box height={2} flexDirection="column">
                 <box flexDirection="row" gap={2}>
@@ -835,7 +867,7 @@ function stagedChangeText(change: StagedChange, issueTitle?: string) {
   return `${change.issueKey} ${change.label} · ${preview}`
 }
 
-function footerItems(focusedPane: string, route: string, stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerMode?: AppState["projectPicker"]["mode"]) {
+function footerItems(focusedPane: string, route: AppRoute, board: AppState["board"], stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerMode?: AppState["projectPicker"]["mode"]) {
   if (authOnboardingOpen) return ["prod setup", "Enter continue/save", "Esc skip setup"]
   if (projectPickerMode === "local") return ["workspace switcher", "/ filter local", "enter switch", "a browse Jira", "esc/q close"]
   if (projectPickerMode === "remote-projects") return ["remote projects", "/ filter", "j/k choose", "enter load boards", "r refresh", "h local"]
@@ -847,10 +879,15 @@ function footerItems(focusedPane: string, route: string, stagedDiscardOpen: bool
   if (route === "issue-detail") return ["detail", "j/k line", "d/u half-page", "e edit body", "r refresh", "ctrl-enter stage", "W Jira"]
   if (route === "workspace") return ["workspace", "j/k choose", "d/u page", "enter open", "R refresh", "/ filter", "S Jira search", "W Jira"]
   if (route === "config") return ["config", "j/k choose", "d/u page", "h/l pane", "a add", "e rename", "c color", "R refresh", "W Jira"]
-  if (route === "active-sprint") return ["sprint", "j/k card", "h/l column", "enter open/new", "R refresh", "/ filter", "S Jira search", "W Jira"]
-  if (route === "kanban") return ["kanban", "j/k row", "h/l column", "enter open/new", "R refresh", "L load more", "S Jira search", "W Jira"]
-  if (route === "backlog") return ["backlog", "j/k row", "h/l group", "J/K rank", "c comment", "R refresh", "L load more", "W Jira"]
-  return ["1 workspace", "2 sprint", "3 backlog", "4 kanban", "P project", "R refresh", "/ filter loaded", "q quit"]
+  if (route === "timeline") return ["timeline", "planned N5", "3 backlog", `5 ${routeLabel("board", board).toLowerCase()}`, ";/: commands", "P project"]
+  if (route === "list") return ["list", "j/k row", "g/G ends", "ctrl-u/d page", "h/l columns", "enter detail", "/ filter", "L load more"]
+  if (route === "board") return boardCapabilities(board).supportsSprints
+    ? ["active sprints", "j/k card", "h/l column", "enter open/new", "p priority", "R refresh", "/ filter", "W Jira"]
+    : ["board", "j/k row", "h/l column", "enter open/new", "p priority", "R refresh", "L load more", "W Jira"]
+  if (route === "backlog") return boardCapabilities(board).supportsSprintBacklog
+    ? ["backlog", "j/k row", "h/l group", "space collapse", "J/K rank", "m move", "L load more", "W Jira"]
+    : ["backlog", "j/k row", "space collapse", "J/K rank", "L load more", "W Jira"]
+  return [...sidebarRoutesForBoard(board).map((destination) => `${destination.shortcut} ${destination.shortLabel.toLowerCase()}`), "P project", ";/: commands", "q quit"]
 }
 
 function runtimeEnvText(config: ReturnType<typeof useConfig>, jiraAuthReady = false, jiraProjectReady = false) {

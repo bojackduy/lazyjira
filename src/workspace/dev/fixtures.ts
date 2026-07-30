@@ -33,8 +33,8 @@ export const devIssueTypes: IssueTypeDefinition[] = [
 ]
 
 const devSprints: SprintSummary[] = [
-  { id: "sprint-24", name: "Sprint 24", goal: "Stabilize auth, checkout, and board triage", state: "active" },
-  { id: "sprint-25", name: "Sprint 25", goal: "Improve planning and docs reading", state: "future" },
+  { id: "sprint-24", name: "Sprint 24", goal: "Stabilize auth, checkout, and board triage", state: "active", startDate: "2026-07-27", endDate: "2026-08-07" },
+  { id: "sprint-25", name: "Sprint 25", goal: "Improve planning and docs reading", state: "future", startDate: "2026-08-10", endDate: "2026-08-21" },
   { id: "sprint-26", name: "Sprint 26", goal: "Bulk workflows and saved team layouts", state: "future" },
 ]
 
@@ -63,6 +63,8 @@ function issue(key: string, title: string, statusId: string, options: Partial<Is
     assignee: options.assignee ?? "Duy",
     reporter: options.reporter ?? "Mina",
     sprintId: options.sprintId,
+    parentKey: options.parentKey,
+    parent: options.parent,
     storyPoints: options.storyPoints,
     labels: options.labels ?? [],
     components: options.components ?? [],
@@ -86,7 +88,7 @@ const selectedIssueByProjectKey: Record<string, string> = {
 const devIssuesByProjectKey: Record<string, IssueSummary[]> = {
   PROJ: [
     issue("PROJ-101", "Authentication platform refresh", "in-progress", { type: "Epic", priority: "Critical", sprintId: "sprint-24", storyPoints: 13, epic: "Authentication platform refresh", feature: "Identity", space: "Platform", labels: ["auth", "platform"] }),
-    issue("PROJ-121", "OAuth setup wizard", "todo", { type: "Task", sprintId: "sprint-24", storyPoints: 3, epic: "Authentication platform refresh", feature: "Identity", space: "Platform", labels: ["auth"] }),
+    issue("PROJ-121", "OAuth setup wizard", "todo", { type: "Task", sprintId: "sprint-24", storyPoints: 3, parentKey: "PROJ-101", parent: { key: "PROJ-101", title: "Authentication platform refresh", type: "Epic" }, epic: "Authentication platform refresh", feature: "Identity", space: "Platform", labels: ["auth"] }),
     issue("PROJ-128", "Fix login redirect after expired session", "blocked", { type: "Bug", priority: "High", sprintId: "sprint-24", storyPoints: 5, epic: "Authentication platform refresh", feature: "OAuth recovery", space: "Platform", labels: ["auth", "release-blocker"], staleDays: 8 }),
     issue("PROJ-142", "Retry failed payment webhooks", "code-review", { type: "Bug", priority: "High", sprintId: "sprint-24", storyPoints: 5, feature: "Billing", space: "Checkout" }),
     issue("PROJ-160", "Cleanup legacy labels", "todo", { type: "Task", priority: "Low", sprintId: "sprint-25", storyPoints: 2, feature: "Taxonomy", space: "Platform" }),

@@ -6,7 +6,7 @@ describe("dev workspace state", () => {
     const state = loadDevWorkspaceState()
 
     expect(state.runtimeEnv).toBe("dev")
-    expect(state.route).toBe("active-sprint")
+    expect(state.route).toBe("board")
     expect(state.statuses.length).toBeGreaterThan(4)
     expect(state.issueTypes.map((type) => type.id)).toContain("Subtask")
     expect(Object.keys(state.issues).length).toBeGreaterThan(9)

@@ -83,6 +83,7 @@ function sparseKanbanState(): AppState {
     ...loadDevWorkspaceState(),
     statuses,
     issues: Object.fromEntries(issues.map((candidate) => [candidate.key, candidate])),
+    issueKeysBySource: { ...loadDevWorkspaceState().issueKeysBySource, board: issues.map((candidate) => candidate.key) },
     kanbanGroupBy: "feature",
     activeQuickFilters: [],
     selectedIssueKey: "A",

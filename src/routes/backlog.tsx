@@ -4,11 +4,13 @@ import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
-import type { IssuePageState, IssueSummary } from "../state/app-state"
+import type { IssueSummary } from "../state/app-state"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
-import { backlogIssuePageSourceId, loadedIssueCount, sprintIssuePageSourceId } from "../state/issue-pages"
-import { groupBacklogIssues, groupModeLabel, issueTypeColor, statusColor, statusName } from "../state/selectors"
+import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageStatusText, sprintIssuePageSourceId } from "../state/issue-pages"
+import { boardCapabilities } from "../state/routes"
+import { emptyLoadedIssuesText, groupBacklogIssues, groupModeLabel, issueTypeColor, statusColor, statusName } from "../state/selectors"
+import { ParentBadge } from "../ui/parent-badge"
 
 export function BacklogRoute() {
   const { state } = useAppState()
@@ -16,7 +18,8 @@ export function BacklogRoute() {
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
   const groups = () => groupBacklogIssues(state, state.backlogGroupBy)
-  const compact = () => dimensions().width < 130
+  const capabilities = () => boardCapabilities(state.board)
+  const compact = () => backlogUsesCompactLayout(dimensions().width)
   const mainWidth = () => Math.max(20, dimensions().width - (compact() ? 8 : 38))
 
   useBindings(() => ({
@@ -47,7 +50,9 @@ export function BacklogRoute() {
       <box flexDirection="column" gap={1} flexGrow={1} minHeight={0} overflow="hidden">
         <box height={3} flexShrink={0} flexDirection="column">
           <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">Backlog: {state.board.name}</text>
-          <text fg={theme.textMuted} wrapMode="none">Grouped by {groupModeLabel(state.backlogGroupBy)} · g cycle group · h/l jump group · L load more</text>
+          <text fg={theme.textMuted} wrapMode="none">
+            {capabilities().supportsSprintBacklog ? `Sprint planning · grouped by ${groupModeLabel(state.backlogGroupBy)} · g cycle group` : "Kanban board backlog · no sprint controls"} · h/l jump group · Space collapse · L load more
+          </text>
         </box>
         <BacklogLegend width={mainWidth()} />
         <Show when={state.workspaceNotice}>
@@ -69,27 +74,29 @@ export function BacklogRoute() {
             {(group) => (
               <box id={`backlog-group-${group.id}`} borderStyle="rounded" borderColor={state.selectedBacklogGroupId === group.id ? theme.borderActive : theme.border} backgroundColor={state.selectedBacklogGroupId === group.id ? theme.panel : undefined} padding={1} flexDirection="column" gap={1} marginBottom={1} width="100%">
                 <box flexDirection="row" justifyContent="space-between">
-                  <text attributes={TextAttributes.BOLD} fg={theme.text}>{group.label}</text>
+                  <text attributes={TextAttributes.BOLD} fg={theme.text}>{state.collapsedBacklogGroupIds.includes(group.id) ? ">" : "v"} {group.label}</text>
                   <text fg={theme.textSubtle}>{sectionPoints(group.issueKeys)} pts · {group.issueKeys.length} issues</text>
                 </box>
-                <For each={group.issueKeys}>
-                  {(issueKey) => {
-                    const issue = issueByKey(state, issueKey)
-                    return issue ? <BacklogRow issue={issue} selected={state.selectedIssueKey === issue.key} compact={compact()} /> : null
-                  }}
-                </For>
-                <Show when={!group.issueKeys.length}>
-                  <text fg={theme.textMuted}>No loaded issues in this group.</text>
+                <Show when={!state.collapsedBacklogGroupIds.includes(group.id)}>
+                  <For each={group.issueKeys}>
+                    {(issueKey) => {
+                      const issue = issueByKey(state, issueKey)
+                      return issue ? <BacklogRow issue={issue} selected={state.selectedIssueKey === issue.key} compact={compact()} /> : null
+                    }}
+                  </For>
+                  <Show when={!group.issueKeys.length}>
+                    <text fg={theme.textMuted}>{emptyLoadedIssuesText(state, "backlog issues")} · Enter/n creates here.</text>
+                  </Show>
                 </Show>
-                <Show when={state.backlogGroupBy === "sprint"}>
-                  <IssuePageLine sourceId={backlogGroupSourceId(group.id)} />
+                <Show when={capabilities().supportsSprintBacklog ? state.backlogGroupBy === "sprint" : true}>
+                  <IssuePageLine sourceId={capabilities().supportsSprintBacklog ? backlogGroupSourceId(group.id) : boardIssuePageSourceId} />
                 </Show>
               </box>
             )}
           </For>
         </scrollbox>
       </box>
-      <Show when={!compact()}>
+      <Show when={!compact() && capabilities().supportsSprintBacklog}>
         <SprintHealth />
       </Show>
     </box>
@@ -109,21 +116,11 @@ function IssuePageLine(props: { sourceId: string }) {
     <Show when={page()}>
       {(value) => (
         <text fg={value().error ? theme.danger : value().loading ? theme.warning : theme.textSubtle} wrapMode="none">
-          {issuePageText(value())}
+          {issuePageStatusText(value())}
         </text>
       )}
     </Show>
   )
-}
-
-function issuePageText(page: IssuePageState) {
-  return page.loading
-    ? "Loading more Jira issues..."
-    : page.error
-      ? `Load more failed: ${page.error}`
-      : page.isLast
-        ? `Loaded ${loadedIssueCount(page)}${typeof page.total === "number" ? `/${page.total}` : ""} Jira issues`
-        : `Loaded ${loadedIssueCount(page)}${typeof page.total === "number" ? `/${page.total}` : ""} Jira issues · L load more`
 }
 
 function backlogGroupSourceId(groupId: string) {
@@ -199,6 +196,10 @@ export function packLegendRows(tokens: LegendToken[], width: number, maxRows: nu
   return { rows, overflow: 0 }
 }
 
+export function backlogUsesCompactLayout(width: number) {
+  return width < 130
+}
+
 function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: boolean }) {
   const { state } = useAppState()
   const theme = useTheme()
@@ -215,28 +216,25 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: bo
         <text fg={statusColor(state, props.issue)} wrapMode="none">
           {statusName(state, props.issue)} · {props.issue.priority} · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
         </text>
+        <ParentBadge issue={props.issue} compact />
       </box>
     )
   }
 
   return (
-    <box
-      id={`issue-${props.issue.key}`}
-      flexDirection="row"
-      gap={2}
-      paddingLeft={1}
-      paddingRight={1}
-      backgroundColor={props.selected ? "#172554" : undefined}
-    >
-      <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexGrow={1} flexShrink={1} minWidth={0}>
-        <span style={{ fg: issueTypeColor(state, props.issue) }}>■ </span>
-        <span>{props.issue.key}</span>
-        <span style={{ fg: theme.textSubtle }}> {props.issue.type}</span>
-        <span> {props.issue.title}</span>
-      </text>
-      <text fg={statusColor(state, props.issue)} wrapMode="none" width="38%" flexShrink={0}>
-        {statusName(state, props.issue)} · {props.issue.priority} · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
-      </text>
+    <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
+      <box flexDirection="row" gap={2}>
+        <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexGrow={1} flexShrink={1} minWidth={0}>
+          <span style={{ fg: issueTypeColor(state, props.issue) }}>■ </span>
+          <span>{props.issue.key}</span>
+          <span style={{ fg: theme.textSubtle }}> {props.issue.type}</span>
+          <span> {props.issue.title}</span>
+        </text>
+        <text fg={statusColor(state, props.issue)} wrapMode="none" width="38%" flexShrink={0}>
+          {statusName(state, props.issue)} · {props.issue.priority} · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
+        </text>
+      </box>
+      <ParentBadge issue={props.issue} />
     </box>
   )
 }

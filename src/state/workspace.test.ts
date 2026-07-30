@@ -7,10 +7,9 @@ describe("workspace dashboard", () => {
     const state = loadDevWorkspaceState()
     const items = workspaceItems(state)
 
-    expect(items.slice(0, 5).map((item) => item.id)).toEqual([
-      "jump:active-sprint",
+    expect(items.slice(0, 4).map((item) => item.id)).toEqual([
+      "jump:board",
       "jump:backlog",
-      "jump:kanban",
       "jump:my-work",
       "pending:staged",
     ])

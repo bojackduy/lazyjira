@@ -1,6 +1,7 @@
 import { chmod, mkdir, readFile, unlink, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { homedir } from "node:os"
+import { normalizePersistedRoute, type AppRoute } from "../state/routes"
 
 export type JiraAuthConfig = {
   baseUrl: string
@@ -20,6 +21,7 @@ export type JiraWorkspaceConfig = {
   boardId: string
   boardName: string
   boardType: "scrum" | "kanban"
+  route?: AppRoute
 }
 
 export type LazyJiraConfigFile = {
@@ -127,7 +129,14 @@ export function normalizeJiraWorkspaceConfig(workspace: JiraWorkspaceConfig): Ji
   if (!projectName) throw new Error("Jira project name is required")
   if (!boardId) throw new Error("Jira board ID is required")
   if (!boardName) throw new Error("Jira board name is required")
-  return { projectKey, projectName, boardId, boardName, boardType: workspace.boardType === "kanban" ? "kanban" : "scrum" }
+  return {
+    projectKey,
+    projectName,
+    boardId,
+    boardName,
+    boardType: workspace.boardType === "kanban" ? "kanban" : "scrum",
+    ...(workspace.route === undefined ? {} : { route: normalizePersistedRoute(workspace.route) }),
+  }
 }
 
 export function normalizeBaseUrl(value: string) {
@@ -195,7 +204,8 @@ function parseJiraWorkspace(value: unknown, path: string): JiraWorkspaceConfig {
     throw new Error(`Invalid Jira workspace config at ${path}`)
   }
   const boardType = value.boardType === "kanban" ? "kanban" : "scrum"
-  return normalizeJiraWorkspaceConfig({ projectKey: value.projectKey, projectName: value.projectName, boardId: value.boardId, boardName: value.boardName, boardType })
+  const route = typeof value.route === "string" ? normalizePersistedRoute(value.route) : undefined
+  return normalizeJiraWorkspaceConfig({ projectKey: value.projectKey, projectName: value.projectName, boardId: value.boardId, boardName: value.boardName, boardType, route })
 }
 
 function recentWorkspacesFromValue(value: unknown, path: string, active?: JiraWorkspaceConfig) {

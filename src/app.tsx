@@ -6,10 +6,12 @@ import { useExit } from "./context/exit"
 import { AppShell } from "./ui/shell"
 import { configuredIssueTypes, configuredStatuses } from "./state/config-drafts"
 import { issueByKey } from "./state/issue-drafts"
-import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageCanLoadMore, sprintIssuePageSourceId } from "./state/issue-pages"
-import { sidebarRoutes } from "./state/routes"
+import { issueFields } from "./state/issue-fields"
+import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageCanLoadMore, projectListIssuePageSourceId, sprintIssuePageSourceId } from "./state/issue-pages"
+import { boardCapabilities, boardModeForBoard, sidebarRoutesForBoard } from "./state/routes"
 import { searchPaletteCommands } from "./keymap/commands"
 import type { BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
+import { projectListIssues, projectListMaxHorizontalOffset, projectListSelection } from "./state/project-list"
 import {
   boardCellItems,
   boardCellIssueKeys,
@@ -24,6 +26,7 @@ import {
   boardIssuesForMode,
   boardStatusOffsetForMode,
   boardStatusWindowSize,
+  backlogCreateSprintId,
   groupBacklogIssues,
   nextBacklogGroupBy,
   nextBoardGroupBy,
@@ -37,8 +40,9 @@ export function App() {
   const exit = useExit()
 
   createEffect(() => {
-    if (isBoardRoute(state.route)) ensureSelectedIssue(visibleBoardIssueKeys(state.route))
+    if (state.route === "board") ensureSelectedIssue(visibleBoardIssueKeys(currentBoardMode()))
     if (state.route === "backlog") ensureSelectedIssue(groupBacklogIssues(state, state.backlogGroupBy).flatMap((group) => group.issueKeys))
+    if (state.route === "list") ensureProjectListSelection()
   })
 
   useBindings(() => ({
@@ -121,9 +125,10 @@ export function App() {
       { name: "command-palette.next", run: () => moveCommandPaletteSelection(1) },
       { name: "command-palette.previous", run: () => moveCommandPaletteSelection(-1) },
       { name: "route.workspace", run: () => (canRunGlobalShortcut() ? appState.setRoute("workspace") : false) },
-      { name: "route.active-sprint", run: () => (canRunGlobalShortcut() ? appState.setRoute("active-sprint") : false) },
+      { name: "route.timeline", run: () => (canRunGlobalShortcut() ? appState.setRoute("timeline") : false) },
       { name: "route.backlog", run: () => (canRunGlobalShortcut() ? appState.setRoute("backlog") : false) },
-      { name: "route.kanban", run: () => (canRunGlobalShortcut() ? appState.setRoute("kanban") : false) },
+      { name: "route.list", run: () => (canRunGlobalShortcut() ? appState.setRoute("list") : false) },
+      { name: "route.board", run: () => (canRunGlobalShortcut() ? appState.setRoute("board") : false) },
       { name: "route.config", run: () => (canRunGlobalShortcut() ? appState.setRoute("config") : false) },
       { name: "project.switch", run: () => (canRunGlobalShortcut() ? appState.openProjectPicker() : false) },
       { name: "search.open", run: () => (canRunGlobalShortcut() && state.route !== "config" ? appState.openSearch() : false) },
@@ -132,8 +137,10 @@ export function App() {
       { name: "workspace.refresh", run: () => refreshWorkspace() },
       { name: "issue.load-more", run: () => loadMoreIssues() },
       { name: "issue.comment", run: () => commentSelectedIssue() },
+      { name: "issue.priority", run: () => editSelectedIssuePriority() },
       { name: "issue.rank-down", run: () => rankSelectedBacklogIssue("after") },
       { name: "issue.rank-up", run: () => rankSelectedBacklogIssue("before") },
+      { name: "issue.move", run: () => moveSelectedBacklogIssue() },
       { name: "focus.next", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(1)) },
       { name: "focus.previous", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(-1)) },
       { name: "pane.down", run: () => moveVertical(1) },
@@ -147,6 +154,7 @@ export function App() {
       { name: "staged-discard.confirm", run: () => (state.stagedDiscardOpen ? appState.confirmStagedDiscard() : openFocusedItem()) },
       { name: "staged-discard.toggle", run: () => (state.stagedDiscardOpen ? appState.toggleStagedDiscardSelection() : toggleSpaceAction()) },
       { name: "group.cycle", run: () => cycleGroup() },
+      { name: "pane.bottom", run: () => moveToBoundary("last") },
       { name: "issue.edit", run: () => editSelectedIssue() },
       { name: "issue.new", run: () => createIssueFromContext() },
       { name: "config.add", run: () => addConfigRow() },
@@ -166,13 +174,13 @@ export function App() {
       { key: "tab", cmd: "focus.next", preventDefault: false },
       { key: { name: "tab", shift: true }, cmd: "focus.previous", preventDefault: false },
       { key: "1", cmd: "route.workspace", preventDefault: false },
-      { key: "2", cmd: "route.active-sprint", preventDefault: false },
+      { key: "2", cmd: "route.timeline", preventDefault: false },
       { key: "3", cmd: "route.backlog", preventDefault: false },
-      { key: "4", cmd: "route.kanban", preventDefault: false },
-      { key: "5", cmd: "route.config", preventDefault: false },
+      { key: "4", cmd: "route.list", preventDefault: false },
+      { key: "5", cmd: "route.board", preventDefault: false },
       { key: { name: "p", shift: true }, cmd: "project.switch", preventDefault: false },
       { key: "?", cmd: "help.open", preventDefault: false },
-      { key: "p", cmd: "command-palette.open", preventDefault: false },
+      { key: "p", cmd: "issue.priority", preventDefault: false },
       { key: ";", cmd: "command-palette.open", preventDefault: false },
       { key: ":", cmd: "command-palette.open", preventDefault: false },
       { key: "/", cmd: "search.open", preventDefault: false },
@@ -191,10 +199,12 @@ export function App() {
       { key: "return", cmd: "staged-discard.confirm", preventDefault: false },
       { key: "space", cmd: "staged-discard.toggle", preventDefault: false },
       { key: "g", cmd: "group.cycle", preventDefault: false },
+      { key: { name: "g", shift: true }, cmd: "pane.bottom", preventDefault: false },
       { key: "e", cmd: "issue.edit", preventDefault: false },
       { key: "n", cmd: "issue.new", preventDefault: false },
       { key: "a", cmd: "config.add", preventDefault: false },
       { key: "c", cmd: "issue.comment", preventDefault: false },
+      { key: "m", cmd: "issue.move", preventDefault: false },
       { key: { name: "j", shift: true }, cmd: "issue.rank-down", preventDefault: false },
       { key: { name: "k", shift: true }, cmd: "issue.rank-up", preventDefault: false },
       { key: "w", cmd: "issue.apply", preventDefault: false },
@@ -228,7 +238,7 @@ export function App() {
 
   function moveCommandPaletteSelection(delta: number) {
     if (!state.commandPaletteOpen) return false
-    appState.moveCommandPaletteSelection(delta, searchPaletteCommands(state.commandPaletteQuery).length)
+    appState.moveCommandPaletteSelection(delta, searchPaletteCommands(state.commandPaletteQuery, state.board).length)
   }
 
   function moveVertical(delta: number) {
@@ -243,7 +253,7 @@ export function App() {
       return
     }
     if (state.focusedPane === "inspector") {
-      if (state.inspectorEditingFieldId === "statusId" || state.inspectorEditingFieldId === "type" || state.inspectorEditingFieldId === "parentKey") {
+      if (state.inspectorEditingFieldId === "statusId" || state.inspectorEditingFieldId === "type" || state.inspectorEditingFieldId === "parentKey" || state.inspectorEditingFieldId === "sprintId") {
         appState.moveInspectorChoice(delta)
         return
       }
@@ -259,15 +269,16 @@ export function App() {
       appState.moveConfigSelection(delta)
       return
     }
-    if (isBoardRoute(state.route)) moveBoardVertical(state.route, delta)
+    if (state.route === "board") moveBoardVertical(currentBoardMode(), delta)
     if (state.route === "backlog") moveBacklogSelection(delta)
+    if (state.route === "list") moveProjectList(delta)
   }
 
   function moveHorizontal(delta: number) {
     if (isPlainTextEditing() || isPopupOpen()) return false
     if (state.focusedPane === "sidebar" && delta > 0) {
       appState.openSidebarSelection()
-      if (state.sidebarSelectedIndex < sidebarRoutes.length) appState.setFocusedPane("main")
+      if (state.sidebarSelectedIndex < sidebarRoutesForBoard(state.board).length) appState.setFocusedPane("main")
       return
     }
     if (state.focusedPane !== "main") return
@@ -280,8 +291,9 @@ export function App() {
       appState.focusConfigArea(delta > 0 ? "rows" : "sections")
       return
     }
-    if (isBoardRoute(state.route)) moveBoardHorizontal(state.route, delta)
+    if (state.route === "board") moveBoardHorizontal(currentBoardMode(), delta)
     if (state.route === "backlog") moveBacklogGroup(delta)
+    if (state.route === "list") moveProjectListHorizontal(delta)
   }
 
   function openFocusedItem() {
@@ -293,7 +305,7 @@ export function App() {
     if (isPlainTextEditing()) return false
     if (state.focusedPane === "sidebar") {
       appState.openSidebarSelection()
-      if (state.sidebarSelectedIndex < sidebarRoutes.length) appState.setFocusedPane("main")
+      if (state.sidebarSelectedIndex < sidebarRoutesForBoard(state.board).length) appState.setFocusedPane("main")
       return
     }
     if (state.focusedPane === "inspector") {
@@ -315,28 +327,40 @@ export function App() {
       else appState.startConfigRename()
       return
     }
-    if (isBoardRoute(state.route)) {
-      const location = selectedBoardItemLocation(state, state.route)
-      const issueKey = location ? boardIssueKeyAtLocation(state, state.route, location) : undefined
+    if (state.route === "board") {
+      const mode = currentBoardMode()
+      const location = selectedBoardItemLocation(state, mode)
+      const issueKey = location ? boardIssueKeyAtLocation(state, mode, location) : undefined
       if (issueKey) appState.openIssueDetail(issueKey)
       else createIssueFromContext()
       return
     }
-    if (state.route === "backlog") appState.openIssueDetail(state.selectedIssueKey)
+    if (state.route === "backlog") {
+      const focusedGroup = groupBacklogIssues(state, state.backlogGroupBy).find((group) => group.id === state.selectedBacklogGroupId)
+      const issueKey = focusedGroup?.issueKeys.includes(state.selectedIssueKey) ? state.selectedIssueKey : focusedGroup?.issueKeys[0]
+      if (issueKey) appState.openIssueDetail(issueKey)
+      else createIssueFromContext()
+      return
+    }
+    if (state.route === "list" && state.projectListSelectedIssueKey) appState.openIssueDetail(state.projectListSelectedIssueKey)
   }
 
   function cycleGroup() {
     if (!canRunGlobalShortcut()) return false
     if (state.focusedPane !== "main") return
-    if (state.route === "active-sprint") {
+    if (state.route === "list") {
+      moveToBoundary("first")
+      return
+    }
+    if (state.route === "board" && currentBoardMode() === "active-sprint") {
       appState.setActiveSprintGroupBy(nextBoardGroupBy(state.activeSprintGroupBy))
       appState.setActiveSprintStatusOffset(0)
     }
-    if (state.route === "kanban") {
+    if (state.route === "board" && currentBoardMode() === "kanban") {
       appState.setKanbanGroupBy(nextBoardGroupBy(state.kanbanGroupBy))
       appState.setKanbanStatusOffset(0)
     }
-    if (state.route === "backlog") appState.setBacklogGroupBy(nextBacklogGroupBy(state.backlogGroupBy))
+    if (state.route === "backlog" && boardCapabilities(state.board).supportsSprintBacklog) appState.setBacklogGroupBy(nextBacklogGroupBy(state.backlogGroupBy))
   }
 
   function editSelectedIssue() {
@@ -358,6 +382,15 @@ export function App() {
     appState.startInspectorEdit()
   }
 
+  function editSelectedIssuePriority() {
+    if (isPlainTextEditing() || isPopupOpen() || state.route === "workspace" || state.route === "config" || !state.selectedIssueKey) return false
+    const priorityIndex = issueFields.findIndex((field) => field.id === "priority")
+    if (priorityIndex < 0) return false
+    appState.moveInspectorSelection(priorityIndex - state.inspectorSelectedFieldIndex)
+    appState.setFocusedPane("inspector")
+    appState.startInspectorEdit()
+  }
+
   function createIssueFromContext() {
     if (isPlainTextEditing() || isPopupOpen()) return false
     if (state.pendingDeleteIssueKey) {
@@ -367,11 +400,13 @@ export function App() {
     if (state.route === "workspace") return false
     if (state.route === "config") return false
     if (state.route === "issue-detail") return
-    const boardMode = isBoardRoute(state.route) ? state.route : undefined
+    const boardMode = state.route === "board" ? currentBoardMode() : undefined
     const location = boardMode ? selectedBoardItemLocation(state, boardMode) : undefined
     const statuses = configuredStatuses(state)
     const selectedIssueKey = boardMode && location ? boardIssueKeyAtLocation(state, boardMode, location) : undefined
-    const current = selectedIssueKey ? state.issues[selectedIssueKey] : state.issues[state.selectedIssueKey]
+    const backlogGroup = state.route === "backlog" ? groupBacklogIssues(state, state.backlogGroupBy).find((group) => group.id === state.selectedBacklogGroupId) : undefined
+    const backlogGroupIssueKey = backlogGroup?.issueKeys[0]
+    const current = selectedIssueKey ? state.issues[selectedIssueKey] : (backlogGroupIssueKey ? state.issues[backlogGroupIssueKey] : state.issues[state.selectedIssueKey])
     const groupIssue = boardMode && location ? firstIssueInBoardGroup(location, boardMode) : undefined
     const defaultSource = boardMode ? (current ?? groupIssue) : current
     const statusId = location ? statuses[location.statusIndex]?.id : current?.statusId
@@ -388,7 +423,7 @@ export function App() {
       epic: groupDefaults.epic ?? defaultSource?.epic,
       feature: groupDefaults.feature ?? defaultSource?.feature,
       space: groupDefaults.space ?? defaultSource?.space,
-      sprintId: state.route === "active-sprint" ? state.activeSprintId : defaultSource?.sprintId,
+      sprintId: state.route === "list" ? undefined : boardMode === "active-sprint" ? state.activeSprintId : state.route === "backlog" || boardMode === "kanban" ? backlogCreateSprintId(state) : defaultSource?.sprintId,
       storyPoints: 0,
       estimate: 0,
       dueDate: "",
@@ -428,7 +463,11 @@ export function App() {
       return
     }
     if (isPlainTextEditing()) return false
-    if (state.focusedPane === "sidebar") appState.toggleSidebarFilterSelection()
+    if (state.focusedPane === "sidebar") {
+      appState.toggleSidebarFilterSelection()
+      return
+    }
+    if (state.focusedPane === "main" && state.route === "backlog") appState.toggleBacklogGroupCollapsed(state.selectedBacklogGroupId)
   }
 
   function stageCurrentEdit() {
@@ -474,11 +513,21 @@ export function App() {
 
   function rankSelectedBacklogIssue(position: "before" | "after") {
     if (!canRunGlobalShortcut() || state.route !== "backlog" || state.focusedPane !== "main") return false
-    const issueKeys = groupBacklogIssues(state, state.backlogGroupBy).flatMap((group) => group.issueKeys)
+    if (state.collapsedBacklogGroupIds.includes(state.selectedBacklogGroupId)) return false
+    const issueKeys = groupBacklogIssues(state, state.backlogGroupBy).find((group) => group.id === state.selectedBacklogGroupId)?.issueKeys ?? []
     const index = issueKeys.indexOf(state.selectedIssueKey)
     const targetIssueKey = issueKeys[index + (position === "before" ? -1 : 1)]
     if (!targetIssueKey) return false
     appState.stageIssueRank(state.selectedIssueKey, targetIssueKey, position)
+  }
+
+  function moveSelectedBacklogIssue() {
+    if (!canRunGlobalShortcut() || state.route !== "backlog" || state.focusedPane !== "main" || !boardCapabilities(state.board).supportsSprintBacklog) return false
+    const fieldIndex = issueFields.findIndex((field) => field.id === "sprintId")
+    if (fieldIndex < 0 || !state.selectedIssueKey) return false
+    appState.moveInspectorSelection(fieldIndex - state.inspectorSelectedFieldIndex)
+    appState.setFocusedPane("inspector")
+    appState.startInspectorEdit()
   }
 
   function remoteApplyAction() {
@@ -491,12 +540,17 @@ export function App() {
   }
 
   function refreshSelectedIssueDetail() {
+    if (!canRunGlobalShortcut()) return false
+    if (state.route === "list") {
+      void appState.loadIssuePage(projectListIssuePageSourceId, true)
+      return
+    }
     if (state.workspaceLoadError) {
       appState.retryWorkspaceLoad()
       return
     }
     if (state.workspaceLoading) return false
-    if (!canRunGlobalShortcut() || state.route !== "issue-detail") return false
+    if (state.route !== "issue-detail") return false
     void appState.loadIssueDetail()
   }
 
@@ -517,8 +571,10 @@ export function App() {
   }
 
   function loadMoreSourceId() {
-    if (state.route === "kanban") return boardIssuePageSourceId
+    if (state.route === "list") return issuePageCanLoadMore(state.issuePageStateBySource[projectListIssuePageSourceId]) ? projectListIssuePageSourceId : undefined
+    if (state.route === "board" && currentBoardMode() === "kanban") return boardIssuePageSourceId
     if (state.route !== "backlog") return undefined
+    if (!boardCapabilities(state.board).supportsSprintBacklog) return issuePageCanLoadMore(state.issuePageStateBySource[boardIssuePageSourceId]) ? boardIssuePageSourceId : undefined
     if (state.backlogGroupBy === "sprint") {
       const focusedSourceId = state.selectedBacklogGroupId === "backlog" ? backlogIssuePageSourceId : sprintIssuePageSourceId(state.selectedBacklogGroupId)
       if (issuePageCanLoadMore(state.issuePageStateBySource[focusedSourceId])) return focusedSourceId
@@ -537,7 +593,7 @@ export function App() {
   }
 
   function isPlainTextEditing() {
-    return state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.helpOpen || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type")
+    return state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.helpOpen || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type" && state.inspectorEditingFieldId !== "parentKey" && state.inspectorEditingFieldId !== "sprintId")
   }
 
   function isAnyEditing() {
@@ -616,6 +672,7 @@ export function App() {
   }
 
   function moveBacklogSelection(delta: number) {
+    if (state.collapsedBacklogGroupIds.includes(state.selectedBacklogGroupId)) return
     const groups = groupBacklogIssues(state, state.backlogGroupBy)
     const focusedGroup = groups.find((group) => group.id === state.selectedBacklogGroupId)
     const keys = focusedGroup?.issueKeys ?? groups.flatMap((group) => group.issueKeys)
@@ -634,6 +691,28 @@ export function App() {
     appState.setSelectedBacklogGroup(nextGroup.id)
     const firstIssueKey = nextGroup?.issueKeys[0]
     if (firstIssueKey) appState.selectIssue(firstIssueKey)
+  }
+
+  function moveProjectList(delta: number) {
+    const keys = projectListIssues(state).map((issue) => issue.key)
+    appState.setProjectListSelection(projectListSelection(keys, state.projectListSelectedIssueKey, delta))
+  }
+
+  function moveToBoundary(boundary: "first" | "last") {
+    if (!canRunGlobalShortcut() || state.focusedPane !== "main" || state.route !== "list") return false
+    const keys = projectListIssues(state).map((issue) => issue.key)
+    appState.setProjectListSelection(projectListSelection(keys, state.projectListSelectedIssueKey, boundary))
+  }
+
+  function moveProjectListHorizontal(delta: number) {
+    const maxOffset = projectListMaxHorizontalOffset(dimensions().width)
+    appState.setProjectListHorizontalOffset(Math.max(0, Math.min(maxOffset, state.projectListHorizontalOffset + delta)))
+  }
+
+  function ensureProjectListSelection() {
+    const keys = projectListIssues(state).map((issue) => issue.key)
+    const selected = keys.includes(state.projectListSelectedIssueKey ?? "") ? state.projectListSelectedIssueKey : keys[0]
+    if (selected !== state.projectListSelectedIssueKey || (selected && selected !== state.selectedIssueKey)) appState.setProjectListSelection(selected)
   }
 
   function visibleBoardIssueKeys(mode: BoardMode) {
@@ -672,8 +751,8 @@ export function App() {
     ensureStatusVisible(mode, location.statusIndex)
   }
 
-  function isBoardRoute(route: string): route is "active-sprint" | "kanban" {
-    return route === "active-sprint" || route === "kanban"
+  function currentBoardMode(): BoardMode {
+    return boardModeForBoard(state.board)
   }
 
   function ensureSelectedIssue(keys: string[]) {

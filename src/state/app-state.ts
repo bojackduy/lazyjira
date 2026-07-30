@@ -17,6 +17,8 @@ export type SprintSummary = {
   name: string
   goal: string
   state: "active" | "future" | "closed"
+  startDate?: string
+  endDate?: string
 }
 
 export type IssuePriority = "Low" | "Medium" | "High" | "Critical"
@@ -91,8 +93,11 @@ export type IssuePageState = {
   total?: number
   isLast: boolean
   loading: boolean
+  refreshing?: boolean
   error?: string
 }
+
+export type ProjectListSort = "rank" | "updated"
 
 export type BoardGroupBy = "none" | "assignee" | "epic" | "feature" | "space" | "issueType" | "priority"
 
@@ -317,6 +322,7 @@ export type AppState = {
   kanbanGroupBy: BoardGroupBy
   backlogGroupBy: BacklogGroupBy
   selectedBacklogGroupId: string
+  collapsedBacklogGroupIds: string[]
   activeSprintStatusOffset: number
   kanbanStatusOffset: number
   selectedIssueKey: string
@@ -338,7 +344,11 @@ export type AppState = {
   issueDetailLoadedAtByKey: Record<string, string>
   issueDetailRequestId: number
   issuePageStateBySource: Record<string, IssuePageState>
+  issueKeysBySource: Record<string, string[]>
   issuePageRequestIdBySource: Record<string, number>
+  projectListSelectedIssueKey?: string
+  projectListHorizontalOffset: number
+  projectListSort: ProjectListSort
   pendingDeleteIssueKey?: string
   remoteApplyOpen: boolean
   remoteApplyApplying: boolean

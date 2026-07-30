@@ -11,6 +11,7 @@ import { LazyJiraKeymapProvider } from "./context/keymap"
 import { AppProviders } from "./context/providers"
 import { parseRuntimeEnv } from "./runtime/env"
 import { createInitialAppState } from "./state/initial"
+import { sidebarRoutesForBoard } from "./state/routes"
 import { loadDevWorkspaceFixture } from "./workspace/dev/fixtures"
 import { createDevWorkspaceSource } from "./workspace/dev/source"
 import { createProdWorkspacePlaceholder, createProdWorkspaceSource } from "./workspace/prod/source"
@@ -39,6 +40,10 @@ const initialWorkspace = runtimeEnv === "dev"
   ? loadDevWorkspaceFixture("PROJ")
   : createProdWorkspacePlaceholder(savedWorkspaceSelection ?? { project: { key: "JIRA", name: "No project selected" }, board: { id: "", name: "Choose a project", type: "kanban" } })
 const initialState = createInitialAppState(initialWorkspace, runtimeEnv)
+if (workspaceConfig?.route) {
+  initialState.route = workspaceConfig.route
+  initialState.sidebarSelectedIndex = Math.max(0, sidebarRoutesForBoard(initialState.board).findIndex((route) => route.id === initialState.route))
+}
 const shouldOpenProjectPicker = !workspaceConfig && (runtimeEnv === "dev" || !!authConfig)
 initialState.jiraAuthReady = !!authConfig
 initialState.jiraProjectReady = !!workspaceConfig

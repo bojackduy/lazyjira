@@ -1,13 +1,14 @@
 import type { RuntimeEnv } from "../runtime/env"
-import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, JiraUserOption, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, WorkspaceStats } from "../state/app-state"
+import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, JiraUserOption, ProjectListSort, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, WorkspaceStats } from "../state/app-state"
 import { statusColorForCategory } from "../state/metadata-colors"
+import { backlogIssuePageSourceId, boardIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
 
 export type WorkspaceSelection = {
   project: ProjectSummary
   board: BoardSummary
 }
 
-export type LoadedWorkspace = WorkspaceSelection & Pick<AppState, "currentUser" | "quickFilters" | "activeSprintId" | "sprints" | "statuses" | "issueTypes" | "columns" | "stats" | "selectedIssueKey" | "issuePageStateBySource"> & {
+export type LoadedWorkspace = WorkspaceSelection & Pick<AppState, "currentUser" | "quickFilters" | "activeSprintId" | "sprints" | "statuses" | "issueTypes" | "columns" | "stats" | "selectedIssueKey" | "issuePageStateBySource" | "issueKeysBySource"> & {
   issues: Record<string, IssueSummary>
   notice?: string
 }
@@ -28,6 +29,7 @@ export type LoadedIssuePage = {
   sourceId: string
   issues: IssueSummary[]
   pageState: IssuePageState
+  sort?: ProjectListSort
 }
 
 export type RemoteSearchContext = WorkspaceSelection & Pick<AppState, "statuses"> & {
@@ -72,11 +74,12 @@ export type WorkspaceFixtureInput = WorkspaceSelection & {
   quickFilters?: QuickFilterDefinition[]
   selectedIssueKey?: string
   issuePageStateBySource?: Record<string, IssuePageState>
+  issueKeysBySource?: Record<string, string[]>
   notice?: string
 }
 
 export function createLoadedWorkspace(input: WorkspaceFixtureInput): LoadedWorkspace {
-  const activeSprintId = input.activeSprintId ?? input.sprints.find((sprint) => sprint.state === "active")?.id ?? input.sprints[0]?.id ?? ""
+  const activeSprintId = input.activeSprintId ?? input.sprints.find((sprint) => sprint.state === "active")?.id ?? ""
   const enrichedIssues = input.issues.map((issue, index) => enrichIssue(input.statuses, issue, index))
   const issues = Object.fromEntries(enrichedIssues.map((issue) => [issue.key, issue]))
   const selectedIssueKey = input.selectedIssueKey && issues[input.selectedIssueKey] ? input.selectedIssueKey : (enrichedIssues[0]?.key ?? "")
@@ -101,8 +104,17 @@ export function createLoadedWorkspace(input: WorkspaceFixtureInput): LoadedWorks
     stats: workspaceStats(input.statuses, enrichedIssues),
     selectedIssueKey,
     issuePageStateBySource: input.issuePageStateBySource ?? {},
+    issueKeysBySource: input.issueKeysBySource ?? inferredIssueKeysBySource(input.board.type, input.sprints, enrichedIssues),
     notice: input.notice,
   }
+}
+
+function inferredIssueKeysBySource(boardType: BoardSummary["type"], sprints: SprintSummary[], issues: IssueSummary[]) {
+  const keys: Record<string, string[]> = {}
+  for (const sprint of sprints) keys[sprintIssuePageSourceId(sprint.id)] = issues.filter((issue) => issue.sprintId === sprint.id).map((issue) => issue.key)
+  keys[backlogIssuePageSourceId] = issues.filter((issue) => !issue.sprintId).map((issue) => issue.key)
+  if (boardType === "kanban") keys[boardIssuePageSourceId] = issues.filter((issue) => !!issue.sprintId).map((issue) => issue.key)
+  return keys
 }
 
 export function defaultQuickFilters(): QuickFilterDefinition[] {

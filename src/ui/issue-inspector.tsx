@@ -135,7 +135,7 @@ function FieldEditor(props: { field: IssueFieldDefinition }) {
   const appState = useAppState()
   const { state } = appState
   const theme = useTheme()
-  if (props.field.id === "statusId" || props.field.id === "type" || props.field.id === "parentKey") return <ChoiceEditor field={props.field} />
+  if (props.field.id === "statusId" || props.field.id === "type" || props.field.id === "parentKey" || props.field.id === "sprintId") return <ChoiceEditor field={props.field} />
   if (props.field.id === "assignee" || props.field.id === "reporter") return <UserPickerEditor fieldId={props.field.id} />
   if (props.field.multiline) {
     let textarea: TextareaRenderable | undefined
@@ -222,7 +222,9 @@ function ChoiceEditor(props: { field: IssueFieldDefinition }) {
       ? configuredStatuses(state).map((status) => ({ value: status.id, label: status.name, color: status.color }))
       : props.field.id === "type"
         ? configuredIssueTypes(state).map((type) => ({ value: type.id, label: type.name, color: type.color }))
-        : [{ value: "", label: "No parent", color: theme.textSubtle }, ...(issueByKey(state, state.selectedIssueKey) ? parentIssueChoices(state, issueByKey(state, state.selectedIssueKey)!) : [])]
+        : props.field.id === "sprintId"
+          ? [{ value: "", label: "Backlog", color: theme.textSubtle }, ...state.sprints.filter((sprint) => sprint.state !== "closed").map((sprint) => ({ value: sprint.id, label: sprint.name, color: theme.accent }))]
+          : [{ value: "", label: "No parent", color: theme.textSubtle }, ...(issueByKey(state, state.selectedIssueKey) ? parentIssueChoices(state, issueByKey(state, state.selectedIssueKey)!) : [])]
 
   return (
     <box flexDirection="column" gap={1}>
@@ -231,7 +233,7 @@ function ChoiceEditor(props: { field: IssueFieldDefinition }) {
           const selected = () => state.inspectorEditValue === choice.value
           return (
             <text fg={choice.color} bg={selected() ? theme.selected : undefined} wrapMode="none">
-              {selected() ? ">" : " "} {props.field.id === "statusId" ? "●" : props.field.id === "type" ? "■" : "◆"} {choice.label}
+              {selected() ? ">" : " "} {props.field.id === "statusId" ? "●" : props.field.id === "type" ? "■" : props.field.id === "sprintId" ? "○" : "◆"} {choice.label}
             </text>
           )
         }}

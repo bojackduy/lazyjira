@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { packLegendRows } from "./backlog"
+import { backlogUsesCompactLayout, packLegendRows } from "./backlog"
 
 describe("backlog legend rows", () => {
   test("caps long status legends so the issue list starts below a fixed row count", () => {
@@ -26,5 +26,10 @@ describe("backlog legend rows", () => {
     const packed = packLegendRows([{ label: "● Ready for ACC/UAT", color: "#F472B6" }], 80, 2)
 
     expect(packed.rows[0]?.[0]).toMatchObject({ marker: "●", text: "Ready for ACC/UAT" })
+  })
+
+  test("switches to the stacked issue layout on narrow terminals", () => {
+    expect(backlogUsesCompactLayout(129)).toBe(true)
+    expect(backlogUsesCompactLayout(130)).toBe(false)
   })
 })

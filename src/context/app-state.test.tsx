@@ -3,11 +3,12 @@ import { createComponent, createRoot } from "solid-js"
 import { ToastProvider } from "./toast"
 import { AppStateProvider, useAppState, type AppStateContext } from "./app-state"
 import { createInitialAppState } from "../state/initial"
-import { backlogIssuePageSourceId, boardIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
+import { backlogIssuePageSourceId, boardIssuePageSourceId, projectListIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
 import { stagedChanges } from "../state/staged-changes"
 import { devBoardsByProjectKey, devProjects, loadDevWorkspaceFixture } from "../workspace/dev/fixtures"
 import type { LoadedIssueDetail, WorkspaceSelection, WorkspaceSource } from "../workspace/types"
 import type { JiraWorkspaceConfig } from "../auth/config"
+import { issueFields } from "../state/issue-fields"
 
 const disposers: Array<() => void> = []
 
@@ -93,7 +94,7 @@ describe("app state project picker", () => {
     await appState.selectProjectPickerItem()
 
     expect(loadWorkspaceCount).toBe(0)
-    expect(savedWorkspaces).toEqual([{ projectKey: "PROJ", projectName: "Product Platform", boardId: "dev-board-proj", boardName: "Product Kanban", boardType: "kanban" }])
+    expect(savedWorkspaces).toEqual([{ projectKey: "PROJ", projectName: "Product Platform", boardId: "dev-board-proj", boardName: "Product Kanban", boardType: "kanban", route: "board" }])
     expect(appState.state.jiraProjectReady).toBe(true)
     expect(appState.state.recentWorkspaces.map((workspace) => workspace.id)).toEqual(["PROJ:dev-board-proj"])
   })
@@ -140,6 +141,18 @@ describe("app state project picker", () => {
     expect(appState.state.configFocusedArea).toBe("rows")
     expect(appState.state.configSelectedSectionIndex).toBe(4)
     expect(appState.state.configSelectedRowIndex).toBe(1)
+  })
+
+  test("preserves sidebar quick-filter selection when toggling it", () => {
+    const appState = createTestAppState()
+    appState.setFocusedPane("sidebar")
+    appState.moveSidebarSelection(1)
+
+    expect(appState.state.sidebarSelectedIndex).toBe(5)
+    appState.toggleSidebarFilterSelection()
+
+    expect(appState.state.sidebarSelectedIndex).toBe(5)
+    expect(appState.state.activeQuickFilters).toEqual(["mine"])
   })
 
   test("loads issue detail when opening an issue", async () => {
@@ -233,6 +246,110 @@ describe("app state project picker", () => {
     expect(appState.state.issueDrafts["PROJ-128"]?.title).toBe("Local staged summary")
     expect(appState.state.issues["PROJ-999"]?.title).toBe("New page issue")
     expect(appState.state.issuePageStateBySource[boardIssuePageSourceId]).toMatchObject({ startAt: 2, total: 2, isLast: true, loading: false })
+    expect(appState.state.issueKeysBySource[boardIssuePageSourceId]?.filter((key) => key === "PROJ-999")).toEqual(["PROJ-999"])
+    expect(appState.state.issueKeysBySource[boardIssuePageSourceId]?.filter((key) => key === "PROJ-128")).toEqual(["PROJ-128"])
+    expect(appState.state.issueKeysBySource[backlogIssuePageSourceId]).not.toContain("PROJ-999")
+  })
+
+  test("loads project List on first entry, appends with dedupe, and preserves view state", async () => {
+    let calls = 0
+    const first = loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!
+    const second = loadDevWorkspaceFixture("PROJ").issues["PROJ-128"]!
+    const appState = createTestAppState({
+      async loadIssuePage(sourceId, context) {
+        calls += 1
+        expect(sourceId).toBe(projectListIssuePageSourceId)
+        if (calls === 1) return {
+          sourceId,
+          issues: [first],
+          pageState: { sourceId, startAt: 1, cursor: "list-2", maxResults: 50, total: 3, isLast: false, loading: false },
+          sort: "rank",
+        }
+        return {
+          sourceId,
+          issues: [{ ...first, title: "Fresh OAuth summary" }, second],
+          pageState: { sourceId, startAt: 3, maxResults: 50, total: 3, isLast: true, loading: false },
+          sort: "rank",
+        }
+      },
+    })
+
+    expect(appState.state.issuePageStateBySource[projectListIssuePageSourceId]).toBeUndefined()
+    const boardKeys = [...(appState.state.issueKeysBySource[boardIssuePageSourceId] ?? [])]
+    appState.setRoute("list")
+    await flushPromises()
+    appState.setProjectListSelection("PROJ-121")
+    appState.setProjectListHorizontalOffset(2)
+    appState.openSearch()
+    appState.updateSearchDraft("oauth")
+    appState.commitSearch()
+    await appState.loadIssuePage(projectListIssuePageSourceId)
+
+    expect(calls).toBe(2)
+    expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toEqual(["PROJ-121", "PROJ-128"])
+    expect(appState.state.issueKeysBySource[boardIssuePageSourceId]).toEqual(boardKeys)
+    expect(appState.state.projectListSelectedIssueKey).toBe("PROJ-121")
+    expect(appState.state.selectedIssueKey).toBe("PROJ-121")
+    expect(appState.state.projectListHorizontalOffset).toBe(2)
+    expect(appState.state.searchQuery).toBe("oauth")
+    expect(appState.state.issues["PROJ-121"]?.title).toBe("Fresh OAuth summary")
+  })
+
+  test("retains project List rows, selection, filter, and cursor after append failure", async () => {
+    let calls = 0
+    const issue = loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!
+    const appState = createTestAppState({
+      async loadIssuePage(sourceId) {
+        calls += 1
+        if (calls > 1) throw new Error("Jira 403: Project issue access denied")
+        return { sourceId, issues: [issue], pageState: { sourceId, startAt: 1, cursor: "retry-cursor", maxResults: 50, total: 2, isLast: false, loading: false } }
+      },
+    })
+
+    appState.setRoute("list")
+    await flushPromises()
+    appState.setProjectListSelection(issue.key)
+    appState.openSearch()
+    appState.updateSearchDraft("oauth")
+    appState.commitSearch()
+    await appState.loadIssuePage(projectListIssuePageSourceId)
+
+    expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toEqual([issue.key])
+    expect(appState.state.projectListSelectedIssueKey).toBe(issue.key)
+    expect(appState.state.searchQuery).toBe("oauth")
+    expect(appState.state.issuePageStateBySource[projectListIssuePageSourceId]).toMatchObject({ startAt: 1, cursor: "retry-cursor", error: "Jira 403: Project issue access denied", loading: false })
+  })
+
+  test("refreshes project List from page one while retaining rows and staged overlays", async () => {
+    const refresh = deferred<Awaited<ReturnType<WorkspaceSource["loadIssuePage"]>>>()
+    const selected = loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!
+    const removed = loadDevWorkspaceFixture("PROJ").issues["PROJ-128"]!
+    let calls = 0
+    const appState = createTestAppState({
+      async loadIssuePage(sourceId) {
+        calls += 1
+        if (calls === 1) return { sourceId, issues: [selected, removed], pageState: { sourceId, startAt: 2, cursor: "old", maxResults: 50, total: 3, isLast: false, loading: false } }
+        return refresh.promise
+      },
+    })
+
+    appState.setRoute("list")
+    await flushPromises()
+    appState.setProjectListSelection(selected.key)
+    appState.startInspectorEdit()
+    appState.updateInspectorEditValue("Locally staged title")
+    appState.commitInspectorEdit()
+    const promise = appState.loadIssuePage(projectListIssuePageSourceId, true)
+
+    expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toEqual([selected.key, removed.key])
+    expect(appState.state.issuePageStateBySource[projectListIssuePageSourceId]?.refreshing).toBe(true)
+    refresh.resolve({ sourceId: projectListIssuePageSourceId, issues: [{ ...selected, title: "Fresh Jira title" }], pageState: { sourceId: projectListIssuePageSourceId, startAt: 1, cursor: "new", maxResults: 50, total: 3, isLast: false, loading: false }, sort: "updated" })
+    await promise
+
+    expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toEqual([selected.key])
+    expect(appState.state.projectListSelectedIssueKey).toBe(selected.key)
+    expect(appState.state.issueDrafts[selected.key]?.title).toBe("Locally staged title")
+    expect(appState.state.projectListSort).toBe("updated")
   })
 
   test("tracks draft issue creation as staged and discards it", () => {
@@ -248,8 +365,23 @@ describe("app state project picker", () => {
 
     expect(appState.state.issues["DRAFT-1"]).toBeUndefined()
     expect(appState.state.issueDrafts["DRAFT-1"]).toBeUndefined()
+    expect(Object.values(appState.state.issueKeysBySource).flat()).not.toContain("DRAFT-1")
     expect(appState.state.selectedIssueKey).not.toBe("DRAFT-1")
     expect(stagedChanges(appState.state).some((change) => change.id === "create:DRAFT-1")).toBe(false)
+  })
+
+  test("adds List drafts only to project-list membership without an implied sprint", async () => {
+    const appState = createTestAppState()
+    appState.setRoute("list")
+    await flushPromises()
+    const draft = { ...loadDevWorkspaceFixture("PROJ").issues["PROJ-121"]!, key: "DRAFT-1", sprintId: undefined, isDraft: true }
+
+    appState.createDraftIssue(draft)
+
+    expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toContain("DRAFT-1")
+    expect(appState.state.issueKeysBySource[boardIssuePageSourceId]).not.toContain("DRAFT-1")
+    expect(appState.state.issues["DRAFT-1"]?.sprintId).toBeUndefined()
+    expect(appState.state.projectListSelectedIssueKey).toBe("DRAFT-1")
   })
 
   test("stages comments and backlog rank operations", () => {
@@ -262,6 +394,36 @@ describe("app state project picker", () => {
 
     expect(appState.state.commentDrafts).toEqual([{ id: "comment-1", issueKey: "PROJ-128", body: "Ready for review" }])
     expect(appState.state.rankDrafts["PROJ-128"]).toEqual({ issueKey: "PROJ-128", targetIssueKey: "PROJ-121", position: "after" })
+  })
+
+  test("tracks backlog collapse independently and resets it on workspace switch", async () => {
+    const appState = createTestAppState()
+
+    appState.toggleBacklogGroupCollapsed("backlog")
+    appState.toggleBacklogGroupCollapsed("sprint-25")
+    expect(appState.state.collapsedBacklogGroupIds).toEqual(["backlog", "sprint-25"])
+    appState.toggleBacklogGroupCollapsed("backlog")
+    expect(appState.state.collapsedBacklogGroupIds).toEqual(["sprint-25"])
+
+    await appState.browseRemoteProjects()
+    appState.moveProjectPickerSelection(1)
+    await appState.selectProjectPickerItem()
+    await appState.selectProjectPickerItem()
+    expect(appState.state.collapsedBacklogGroupIds).toEqual([])
+  })
+
+  test("uses loaded sprint choices for the existing safe move draft", () => {
+    const appState = createTestAppState()
+    const sprintFieldIndex = issueFields.findIndex((field) => field.id === "sprintId")
+
+    appState.moveInspectorSelection(sprintFieldIndex - appState.state.inspectorSelectedFieldIndex)
+    appState.startInspectorEdit()
+    expect(appState.state.inspectorEditingFieldId).toBe("sprintId")
+    expect(appState.state.inspectorEditValue).toBe("sprint-24")
+
+    appState.moveInspectorChoice(1)
+    appState.commitInspectorEdit()
+    expect(appState.state.issueDrafts["PROJ-128"]?.sprintId).toBe("sprint-25")
   })
 
   test("posts successful comments and keeps failed comments staged", async () => {
@@ -690,7 +852,7 @@ function savedWorkspaceSelection(): WorkspaceSelection {
 }
 
 function issueInSource(sprintId: string | undefined, sourceId: string) {
-  if (sourceId === boardIssuePageSourceId) return true
+  if (sourceId === boardIssuePageSourceId) return !!sprintId
   if (sourceId === backlogIssuePageSourceId) return !sprintId
   if (sourceId.startsWith("sprint:")) return sourceId === sprintIssuePageSourceId(sprintId ?? "")
   return false

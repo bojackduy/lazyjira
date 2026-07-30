@@ -1,9 +1,9 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
+import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage } from "../../jira/client"
 import { discoverJiraIssueFieldIds, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
 import { markdownToAdf } from "../../jira/adf"
-import type { IssuePageState, SprintSummary } from "../../state/app-state"
-import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
+import type { IssuePageState, IssueSummary, SprintSummary } from "../../state/app-state"
+import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, projectListIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
 import { issueTypeColorForName, issueTypeColors, statusColorForCategory } from "../../state/metadata-colors"
 import type { IssueTypeDefinition } from "../../state/app-state"
 import { createLoadedWorkspace, type WorkspaceSelection, type WorkspaceSource } from "../types"
@@ -56,15 +56,22 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
       const fieldIds = jiraFields
       const customFields = issueCustomFieldIds(fieldIds)
       const activeSprints = normalizedSprints.filter((sprint) => sprint.state === "active")
-      const [activeSprintIssuePages, backlogPage] = await Promise.all([
+      const [activeSprintIssuePages, boardPage, backlogLoad] = await Promise.all([
         Promise.all(activeSprints.map(async (sprint) => normalizeSprintIssues(await fetchSprintIssues(auth, sprint.id, fetchImpl, customFields), sprint.id, metadata.statuses, fieldIds))),
-        selection.board.type === "scrum" ? fetchBoardBacklogIssuePage(auth, selection.board.id, fetchImpl, customFields) : Promise.resolve(emptyJiraPage<JiraIssue>(0, 100)),
+        selection.board.type === "kanban" ? fetchBoardIssuePage(auth, selection.board.id, fetchImpl, customFields) : Promise.resolve(undefined),
+        selection.board.type === "scrum"
+          ? fetchBoardBacklogIssuePage(auth, selection.board.id, fetchImpl, customFields).then((page) => ({ page }))
+          : loadOptionalKanbanBacklog(auth, selection.board.id, customFields, fetchImpl),
       ])
+      const boardIssues = normalizeJiraIssues(boardPage?.items ?? [], metadata.statuses, { fieldIds })
+      const backlogIssues = normalizeJiraIssues(backlogLoad.page?.items ?? [], metadata.statuses, { fieldIds })
       const issues = uniqueIssues([
         ...activeSprintIssuePages.flat(),
-        ...normalizeJiraIssues(backlogPage.items, metadata.statuses, { fieldIds }),
+        ...boardIssues,
+        ...backlogIssues,
       ])
-      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, backlogPage), normalizeCreateIssueTypes(createIssueTypes))
+      const issueKeysBySource = initialIssueKeysBySource(normalizedSprints, activeSprintIssuePages, boardIssues, backlogIssues)
+      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, boardPage, backlogLoad), issueKeysBySource, normalizeCreateIssueTypes(createIssueTypes))
     },
     async loadIssueDetail(issueKey, context) {
       const auth = await requireJiraAuth(authLoader)
@@ -80,11 +87,14 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     async loadIssuePage(sourceId, context) {
       const auth = await requireJiraAuth(authLoader)
       const fieldIds = await issueFieldIds(auth)
-      const page = await fetchIssuePage(auth, sourceId, context.board.id, context.pageState.startAt, context.pageState.maxResults, issueCustomFieldIds(fieldIds), fetchImpl)
+      const page = sourceId === projectListIssuePageSourceId
+        ? await fetchJiraSearchIssuePage(auth, projectListJql(context.project.key, !!fieldIds.rank), fetchImpl, issueCustomFieldIds(fieldIds), context.pageState.startAt, context.pageState.maxResults, context.pageState.cursor)
+        : await fetchIssuePage(auth, sourceId, context.board.id, context.pageState.startAt, context.pageState.maxResults, issueCustomFieldIds(fieldIds), fetchImpl)
       return {
         sourceId,
         issues: normalizeJiraIssues(page.items, context.statuses, { fieldIds }),
         pageState: pageStateFromJiraPage(sourceId, page),
+        sort: sourceId === projectListIssuePageSourceId ? (fieldIds.rank ? "rank" : "updated") : undefined,
       }
     },
     async searchIssues(query, context) {
@@ -191,29 +201,34 @@ function normalizeCreateIssueTypes(types: Awaited<ReturnType<typeof fetchJiraCre
   return normalized.length ? normalized : prodPlaceholderIssueTypes
 }
 
-function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnType<typeof normalizeBoardConfiguration>, sprints: ReturnType<typeof normalizeBoardSprints> = [], issues: ReturnType<typeof normalizeSprintIssues> = [], issuePageStateBySource: Record<string, IssuePageState> = {}, issueTypes: IssueTypeDefinition[] = prodPlaceholderIssueTypes) {
+function createProdWorkspace(selection: WorkspaceSelection, metadata?: ReturnType<typeof normalizeBoardConfiguration>, sprints: ReturnType<typeof normalizeBoardSprints> = [], issues: ReturnType<typeof normalizeSprintIssues> = [], issuePageStateBySource: Record<string, IssuePageState> = {}, issueKeysBySource: Record<string, string[]> = {}, issueTypes: IssueTypeDefinition[] = prodPlaceholderIssueTypes) {
   const notice = selection.project.key === "JIRA"
     ? "Prod runtime is waiting for a Jira project selection. Tickets stay empty until a project is selected."
     : issues.length
-      ? "Prod active sprint and bounded backlog issues are loaded from Jira. Issue detail and comments load on open."
+      ? selection.board.type === "scrum"
+        ? "Prod active sprint and bounded backlog issues are loaded from Jira. Issue detail and comments load on open."
+        : "Prod bounded Kanban board issues are loaded from Jira. Issue detail and comments load on open."
       : metadata?.statuses.length
-        ? "Prod board metadata and sprints are loaded from Jira. Active sprint has no loaded issues yet."
+        ? selection.board.type === "scrum"
+          ? "Prod board metadata and sprints are loaded from Jira. Active sprint has no loaded issues yet."
+          : "Prod board metadata is loaded from Jira. The bounded Kanban board page returned no issues."
       : "Prod project and board selection are real. No Jira issues were loaded for this workspace yet."
   return createLoadedWorkspace({
     ...selection,
-    activeSprintId: sprints.find((sprint) => sprint.state === "active")?.id ?? sprints[0]?.id ?? "",
+    activeSprintId: sprints.find((sprint) => sprint.state === "active")?.id ?? "",
     sprints,
     statuses: metadata?.statuses.length ? metadata.statuses : prodPlaceholderStatuses,
     columns: metadata?.columns.length ? metadata.columns : undefined,
     issueTypes,
     issues,
     issuePageStateBySource,
+    issueKeysBySource,
     selectedIssueKey: "",
     notice,
   })
 }
 
-function initialIssuePageStates(boardType: WorkspaceSelection["board"]["type"], sprints: SprintSummary[], activeSprintIssuePages: JiraIssue[][], backlogPage: JiraPage<JiraIssue>): Record<string, IssuePageState> {
+function initialIssuePageStates(boardType: WorkspaceSelection["board"]["type"], sprints: SprintSummary[], activeSprintIssuePages: IssueSummary[][], boardPage: JiraPage<JiraIssue> | undefined, backlogLoad: OptionalPageLoad): Record<string, IssuePageState> {
   const states: Record<string, IssuePageState> = {}
   const activeSprints = sprints.filter((sprint) => sprint.state === "active")
   activeSprints.forEach((sprint, index) => {
@@ -221,17 +236,43 @@ function initialIssuePageStates(boardType: WorkspaceSelection["board"]["type"], 
     states[sprintIssuePageSourceId(sprint.id)] = { sourceId: sprintIssuePageSourceId(sprint.id), startAt: loaded, maxResults: 50, total: loaded, isLast: true, loading: false }
   })
   for (const sprint of sprints.filter((sprint) => sprint.state === "future")) states[sprintIssuePageSourceId(sprint.id)] = defaultIssuePageState(sprintIssuePageSourceId(sprint.id))
-  if (boardType === "scrum") states[backlogIssuePageSourceId] = pageStateFromJiraPage(backlogIssuePageSourceId, backlogPage)
-  else states[boardIssuePageSourceId] = defaultIssuePageState(boardIssuePageSourceId)
+  if (boardType === "kanban" && boardPage) states[boardIssuePageSourceId] = pageStateFromJiraPage(boardIssuePageSourceId, boardPage)
+  states[backlogIssuePageSourceId] = backlogLoad.page
+    ? pageStateFromJiraPage(backlogIssuePageSourceId, backlogLoad.page)
+    : { ...defaultIssuePageState(backlogIssuePageSourceId), isLast: !!backlogLoad.unsupported, error: backlogLoad.error }
   return states
+}
+
+type OptionalPageLoad = {
+  page?: JiraPage<JiraIssue>
+  error?: string
+  unsupported?: boolean
+}
+
+async function loadOptionalKanbanBacklog(auth: JiraAuthConfig, boardId: string, customFields: string[], fetchImpl: FetchLike): Promise<OptionalPageLoad> {
+  try {
+    return { page: await fetchBoardBacklogIssuePage(auth, boardId, fetchImpl, customFields) }
+  } catch (error) {
+    const unsupported = error instanceof JiraApiError && error.status === 404
+    const message = error instanceof Error ? error.message : String(error)
+    return { error: unsupported ? `Kanban backlog unavailable: ${message}` : `Kanban backlog load failed: ${message}`, unsupported }
+  }
+}
+
+function initialIssueKeysBySource(sprints: SprintSummary[], activeSprintIssuePages: IssueSummary[][], boardIssues: IssueSummary[], backlogIssues: IssueSummary[]) {
+  const keys: Record<string, string[]> = {
+    [boardIssuePageSourceId]: boardIssues.map((issue) => issue.key),
+    [backlogIssuePageSourceId]: backlogIssues.map((issue) => issue.key),
+  }
+  sprints.filter((sprint) => sprint.state === "active").forEach((sprint, index) => {
+    keys[sprintIssuePageSourceId(sprint.id)] = activeSprintIssuePages[index]?.map((issue) => issue.key) ?? []
+  })
+  for (const sprint of sprints.filter((sprint) => sprint.state === "future")) keys[sprintIssuePageSourceId(sprint.id)] = []
+  return keys
 }
 
 function pageStateFromJiraPage<T>(sourceId: string, page: JiraPage<T>): IssuePageState {
   return { sourceId, startAt: page.nextStartAt, cursor: page.cursor, maxResults: page.maxResults, total: page.total, isLast: page.isLast, loading: false }
-}
-
-function emptyJiraPage<T>(startAt: number, maxResults: number): JiraPage<T> {
-  return { items: [], startAt, maxResults, isLast: true, nextStartAt: startAt }
 }
 
 function fetchIssuePage(auth: JiraAuthConfig, sourceId: string, boardId: string, startAt: number, maxResults: number, customFields: string[], fetchImpl: FetchLike) {
@@ -243,6 +284,10 @@ function fetchIssuePage(auth: JiraAuthConfig, sourceId: string, boardId: string,
 
 function searchJql(projectKey: string, query: string) {
   return `project = ${jqlString(projectKey)} AND text ~ ${jqlString(query)} ORDER BY updated DESC`
+}
+
+export function projectListJql(projectKey: string, rankFieldUsable: boolean) {
+  return `project = ${jqlString(projectKey)} ORDER BY ${rankFieldUsable ? "Rank ASC" : "updated DESC, key DESC"}`
 }
 
 function jqlString(value: string) {

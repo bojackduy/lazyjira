@@ -3,6 +3,8 @@ import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { issueWithDraft } from "./issue-drafts"
 import { matchesIssueSearch } from "./issue-search"
 import { defaultIssueTypeColor, statusColorForCategory } from "./metadata-colors"
+import { boardCapabilities } from "./routes"
+import { backlogIssuePageSourceId, boardIssuePageSourceId, sprintIssuePageSourceId } from "./issue-pages"
 
 export const boardGroupModes: { id: BoardGroupBy; label: string }[] = [
   { id: "none", label: "None" },
@@ -31,7 +33,7 @@ export type IssueGroup = {
 }
 
 export function activeSprint(state: AppState) {
-  return state.sprints.find((sprint) => sprint.id === state.activeSprintId) ?? state.sprints[0]
+  return state.sprints.find((sprint) => sprint.id === state.activeSprintId && sprint.state === "active") ?? state.sprints.find((sprint) => sprint.state === "active")
 }
 
 export function allIssues(state: AppState) {
@@ -43,11 +45,11 @@ export function issueList(state: AppState) {
 }
 
 export function activeSprintIssues(state: AppState) {
-  return issueList(state).filter((issue) => issue.sprintId === state.activeSprintId)
+  return issuesForSource(state, sprintIssuePageSourceId(state.activeSprintId)).filter((issue) => issue.sprintId === state.activeSprintId)
 }
 
 export function kanbanIssues(state: AppState) {
-  return issueList(state).filter((issue) => configuredStatuses(state).some((status) => status.id === issue.statusId))
+  return issuesForSource(state, boardIssuePageSourceId).filter((issue) => configuredStatuses(state).some((status) => status.id === issue.statusId))
 }
 
 export function boardIssuesForMode(state: AppState, mode: "active-sprint" | "kanban") {
@@ -134,7 +136,10 @@ export function groupIssues(issues: IssueSummary[], groupBy: BoardGroupBy): Issu
 }
 
 export function groupBacklogIssues(state: AppState, groupBy: BacklogGroupBy): IssueGroup[] {
-  const issues = issueList(state)
+  if (!boardCapabilities(state.board).supportsSprintBacklog) {
+    return [{ id: "backlog", label: "Board backlog", issueKeys: issuesForSource(state, backlogIssuePageSourceId).map((issue) => issue.key) }]
+  }
+  const issues = planningIssues(state)
   if (groupBy !== "sprint") return groupIssues(issues, groupBy)
 
   const groups: IssueGroup[] = []
@@ -142,12 +147,32 @@ export function groupBacklogIssues(state: AppState, groupBy: BacklogGroupBy): Is
     const issueKeys = issues.filter((issue) => issue.sprintId === sprint.id).map((issue) => issue.key)
     groups.push({
       id: sprint.id,
-      label: `${sprint.name}${sprint.state === "active" ? " (active)" : ""}`,
+      label: `${sprint.state === "active" ? "Active" : "Future"} · ${sprint.name}${sprintDateRange(sprint.startDate, sprint.endDate)}`,
       issueKeys,
     })
   }
   groups.push({ id: "backlog", label: "Backlog", issueKeys: issues.filter((issue) => !issue.sprintId).map((issue) => issue.key) })
   return groups
+}
+
+export function issuesForSource(state: AppState, sourceId: string) {
+  return (state.issueKeysBySource[sourceId] ?? [])
+    .map((issueKey) => state.issues[issueKey])
+    .filter((issue): issue is IssueSummary => !!issue)
+    .map((issue) => issueWithDraft(state, issue))
+    .filter((issue) => matchesQuickFilters(state, issue) && matchesIssueSearch(state, issue))
+}
+
+function planningIssues(state: AppState) {
+  const keys = new Set<string>(state.issueKeysBySource[backlogIssuePageSourceId] ?? [])
+  for (const sprint of state.sprints) {
+    for (const issueKey of state.issueKeysBySource[sprintIssuePageSourceId(sprint.id)] ?? []) keys.add(issueKey)
+  }
+  return [...keys]
+    .map((issueKey) => state.issues[issueKey])
+    .filter((issue): issue is IssueSummary => !!issue)
+    .map((issue) => issueWithDraft(state, issue))
+    .filter((issue) => matchesQuickFilters(state, issue) && matchesIssueSearch(state, issue))
 }
 
 export function nextBoardGroupBy(current: BoardGroupBy) {
@@ -158,6 +183,24 @@ export function nextBoardGroupBy(current: BoardGroupBy) {
 export function nextBacklogGroupBy(current: BacklogGroupBy) {
   const index = backlogGroupModes.findIndex((mode) => mode.id === current)
   return backlogGroupModes[(index + 1) % backlogGroupModes.length]?.id ?? "sprint"
+}
+
+export function backlogCreateSprintId(state: AppState) {
+  if (!boardCapabilities(state.board).supportsSprintBacklog) return undefined
+  return state.selectedBacklogGroupId === "backlog" ? undefined : state.sprints.find((sprint) => sprint.id === state.selectedBacklogGroupId)?.id
+}
+
+export function sprintDateRange(startDate: string | undefined, endDate: string | undefined) {
+  if (!startDate && !endDate) return ""
+  if (!startDate) return ` · ends ${shortDate(endDate!)}`
+  if (!endDate) return ` · starts ${shortDate(startDate)}`
+  return ` · ${shortDate(startDate)}-${shortDate(endDate)}`
+}
+
+export function emptyLoadedIssuesText(state: AppState, surface: string) {
+  return state.activeQuickFilters.length || state.searchQuery.trim()
+    ? `No loaded ${surface} match the active filters.`
+    : `No ${surface} are loaded from Jira.`
 }
 
 export function groupModeLabel(groupBy: BoardGroupBy | BacklogGroupBy) {
@@ -179,4 +222,10 @@ function groupLabel(issue: IssueSummary, groupBy: Exclude<BoardGroupBy, "none">)
     case "priority":
       return issue.priority
   }
+}
+
+function shortDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
+  if (!match) return value
+  return `${match[2]}/${match[3]}`
 }

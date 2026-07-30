@@ -90,25 +90,25 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 
 ### N1: Route And Sidebar Foundation
 
-- [ ] `N1.1` Add route scope metadata for global, project, internal, and settings destinations.
-- [ ] `N1.2` Add board capabilities that resolve Scrum to Active sprints and Kanban to Board.
-- [ ] `N1.3` Split the sidebar into Global, Project, Quick Filters, and Pending sections without changing its terminal-first layout.
-- [ ] `N1.4` Add Timeline, Backlog, List, and board-aware board entries in Jira order.
-- [ ] `N1.5` Remove Config from primary project destinations while retaining command-palette access.
-- [ ] `N1.6` Migrate persisted `active-sprint` and `kanban` route values safely to the unified board destination.
-- [ ] `N1.7` Rebind numeric navigation to `1` Workspace, `2` Timeline, `3` Backlog, `4` List, `5` Active sprints/Board.
-- [ ] `N1.8` Keep `;`/`:` for command palette, restore `p` to issue Priority, and update context help, footer hints, and route labels from shared command metadata.
-- [ ] `N1.9` Add route/sidebar tests for Scrum, Kanban, legacy persistence, quick-filter indexing, and selection preservation.
+- [x] `N1.1` Add route scope metadata for global, project, internal, and settings destinations.
+- [x] `N1.2` Add board capabilities that resolve Scrum to Active sprints and Kanban to Board.
+- [x] `N1.3` Split the sidebar into Global, Project, Quick Filters, and Pending sections without changing its terminal-first layout.
+- [x] `N1.4` Add Timeline, Backlog, List, and board-aware board entries in Jira order.
+- [x] `N1.5` Remove Config from primary project destinations while retaining command-palette access.
+- [x] `N1.6` Migrate persisted `active-sprint` and `kanban` route values safely to the unified board destination.
+- [x] `N1.7` Rebind numeric navigation to `1` Workspace, `2` Timeline, `3` Backlog, `4` List, `5` Active sprints/Board.
+- [x] `N1.8` Keep `;`/`:` for command palette, restore `p` to issue Priority, and update context help, footer hints, and route labels from shared command metadata.
+- [x] `N1.9` Add route/sidebar tests for Scrum, Kanban, legacy persistence, quick-filter indexing, and selection preservation.
 
 ### N2: Existing Board And Backlog Alignment
 
-- [ ] `N2.1` Unify Active Sprint and Kanban route composition behind one board route without merging their API loading policies.
-- [ ] `N2.2` Preserve Scrum active sprint goal, dates, complete active-sprint loading, board navigation, grouping, and draft creation.
-- [ ] `N2.3` Preserve Kanban bounded board paging, load-more, grouping, board navigation, and draft creation.
-- [ ] `N2.4` Make Backlog sprint-aware for Scrum and non-sprint-aware for Kanban.
-- [ ] `N2.5` Add collapse/expand behavior for backlog groups while keeping empty planning groups focusable.
-- [ ] `N2.6` Preserve `J/K` rank staging, move picker behavior, parent badges, inspector integration, and safe writes.
-- [ ] `N2.7` Add board/backlog regression tests for wide, narrow, empty, loading, partial, and error states.
+- [x] `N2.1` Unify Active Sprint and Kanban route composition behind one board route without merging their API loading policies.
+- [x] `N2.2` Preserve Scrum active sprint goal, dates, complete active-sprint loading, board navigation, grouping, and draft creation.
+- [x] `N2.3` Preserve Kanban bounded board paging, load-more, grouping, board navigation, and draft creation.
+- [x] `N2.4` Make Backlog sprint-aware for Scrum and non-sprint-aware for Kanban.
+- [x] `N2.5` Add collapse/expand behavior for backlog groups while keeping empty planning groups focusable.
+- [x] `N2.6` Preserve `J/K` rank staging, move picker behavior, parent badges, inspector integration, and safe writes.
+- [x] `N2.7` Add board/backlog regression tests for wide, narrow, empty, loading, partial, and error states.
 
 ### N3: Project List Data And Surface
 

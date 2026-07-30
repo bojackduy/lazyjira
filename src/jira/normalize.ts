@@ -71,7 +71,14 @@ export function normalizeBoardConfiguration(config: JiraBoardConfiguration, stat
 export function normalizeBoardSprints(sprints: JiraSprint[]): SprintSummary[] {
   return sprints.flatMap((sprint) => {
     if (!sprint.id || !sprint.name || !isSprintState(sprint.state)) return []
-    return [{ id: String(sprint.id), name: sprint.name, goal: sprint.goal ?? "", state: sprint.state }]
+    return [{
+      id: String(sprint.id),
+      name: sprint.name,
+      goal: sprint.goal ?? "",
+      state: sprint.state,
+      startDate: sprint.startDate,
+      endDate: sprint.endDate,
+    }]
   })
 }
 

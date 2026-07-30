@@ -273,13 +273,13 @@ describe("Jira discovery client", () => {
 
   test("normalizes board sprints", () => {
     const sprints = normalizeBoardSprints([
-      { id: 7, state: "active", name: "Sprint 7", goal: "Finish read path" },
+      { id: 7, state: "active", name: "Sprint 7", goal: "Finish read path", startDate: "2026-07-27T00:00:00.000Z", endDate: "2026-08-07T00:00:00.000Z" },
       { id: "8", state: "future", name: "Sprint 8" },
       { id: 9, state: "unknown", name: "Ignored" },
     ])
 
     expect(sprints).toEqual([
-      { id: "7", name: "Sprint 7", goal: "Finish read path", state: "active" },
+      { id: "7", name: "Sprint 7", goal: "Finish read path", state: "active", startDate: "2026-07-27T00:00:00.000Z", endDate: "2026-08-07T00:00:00.000Z" },
       { id: "8", name: "Sprint 8", goal: "", state: "future" },
     ])
   })

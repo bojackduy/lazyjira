@@ -11,6 +11,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 - [x] Dev runtime remains fixture-backed and credential-free.
 - [x] Prod runtime has local auth configuration and saved project/board workspaces.
 - [x] Local-first `P` workspace switcher; remote project discovery only begins after explicit `a`.
+- [x] Wave 5 N1 Jira-style navigation foundation: scoped sidebar sections, Timeline/List placeholders, unified board route, Scrum/Kanban labels, legacy route migration, numeric navigation, and palette/settings separation.
 
 ## Jira Read Integration
 
@@ -58,7 +59,7 @@ Status legend: `[x]` complete, `[~]` in progress, `[ ]` planned, `[!]` blocked.
 - [x] A7.11 Draft creation resolves an allowed project issue type through Jira create metadata before posting.
 - [ ] Add A8 real-Jira smoke checklist using a non-production project.
 - [ ] Complete Wave 3: render, narrow-terminal, loading, empty, and error-state coverage.
-- [ ] Wave 5 Jira-style project navigation is planned in `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`: retain the terminal sidebar, add Timeline/Backlog/List/board-aware project destinations, and move Config out of normal project navigation.
+- [~] Wave 5 Jira-style project navigation is in progress: N1 and N2 are complete; N3 project List is next. Scope remains in `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 
 ## Verification Standard
 

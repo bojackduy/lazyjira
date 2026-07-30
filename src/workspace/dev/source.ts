@@ -1,6 +1,6 @@
 import type { WorkspaceSelection, WorkspaceSource } from "../types"
 import { devBoardsByProjectKey, devProjects, loadDevWorkspaceFixture } from "./fixtures"
-import { backlogIssuePageSourceId, boardIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
+import { backlogIssuePageSourceId, boardIssuePageSourceId, projectListIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
 
 export function createDevWorkspaceSource(): WorkspaceSource {
   return {
@@ -30,6 +30,7 @@ export function createDevWorkspaceSource(): WorkspaceSource {
         sourceId,
         issues: items,
         pageState: { sourceId, startAt: nextStartAt, maxResults, total: issues.length, isLast: nextStartAt >= issues.length, loading: false },
+        sort: sourceId === projectListIssuePageSourceId ? "rank" : undefined,
       }
     },
     async searchIssues(query, context) {
@@ -84,7 +85,8 @@ export function createDevWorkspaceSource(): WorkspaceSource {
 }
 
 function issueInSource(sprintId: string | undefined, sourceId: string) {
-  if (sourceId === boardIssuePageSourceId) return true
+  if (sourceId === projectListIssuePageSourceId) return true
+  if (sourceId === boardIssuePageSourceId) return !!sprintId
   if (sourceId === backlogIssuePageSourceId) return !sprintId
   if (sourceId.startsWith("sprint:")) return sourceId === sprintIssuePageSourceId(sprintId ?? "")
   return false

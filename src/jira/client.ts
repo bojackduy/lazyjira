@@ -49,6 +49,8 @@ export type JiraSprint = {
   state?: string
   name?: string
   goal?: string
+  startDate?: string
+  endDate?: string
 }
 
 export type JiraField = {
