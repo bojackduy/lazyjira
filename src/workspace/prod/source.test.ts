@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { createProdWorkspaceSource, parentHydrationJql, projectListJql } from "./source"
+import { createProdWorkspaceSource, parentHydrationJql, projectListJql, searchJql } from "./source"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, projectListIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
 
 describe("prod workspace source", () => {
@@ -237,6 +237,12 @@ describe("prod workspace source", () => {
     expect(requests.some((url) => url.includes("/rest/api/3/search/jql?") && url.includes("jql=project%20%3D%20%22REAL%22%20AND%20text%20~%20%22login%22%20ORDER%20BY%20updated%20DESC"))).toBe(true)
     expect(result.issues[0]).toMatchObject({ key: "REAL-7", title: "Login remote result" })
     expect(result.pageState).toMatchObject({ sourceId: "remote-search", startAt: 1, cursor: "cursor-2", isLast: false })
+  })
+
+  test("searches numeric and full current-project issue keys exactly", () => {
+    expect(searchJql("HPCE", "1812")).toBe('key = "HPCE-1812"')
+    expect(searchJql("HPCE", "hpce-1812")).toBe('key = "HPCE-1812"')
+    expect(searchJql("HPCE", "asset library")).toBe('project = "HPCE" AND text ~ "asset library" ORDER BY updated DESC')
   })
 
   test("escapes project List JQL and uses the documented ordering fallback", () => {

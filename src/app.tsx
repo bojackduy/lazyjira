@@ -147,6 +147,7 @@ export function App() {
       { name: "issue.assign", run: () => assignSelectedIssue() },
       { name: "issue.status", run: () => editSelectedIssueStatus() },
       { name: "issue.open-browser", run: () => openSelectedIssueInBrowser() },
+      { name: "issue.open-parent", run: () => (canRunGlobalShortcut() ? appState.openParentIssue() : false) },
       { name: "issue.priority", run: () => editSelectedIssuePriority() },
       { name: "issue.rank-down", run: () => rankSelectedBacklogIssue("after") },
       { name: "issue.rank-up", run: () => rankSelectedBacklogIssue("before") },
@@ -272,6 +273,10 @@ export function App() {
       return
     }
     if (state.focusedPane !== "main") return
+    if (state.route === "issue-detail") {
+      appState.openParentIssue()
+      return
+    }
     if (state.route === "workspace") {
       appState.moveWorkspaceSelection(delta)
       return

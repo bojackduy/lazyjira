@@ -306,8 +306,16 @@ function fetchIssuePage(auth: JiraAuthConfig, sourceId: string, boardId: string,
   throw new Error(`Unknown Jira issue page source ${sourceId}`)
 }
 
-function searchJql(projectKey: string, query: string) {
-  return `project = ${jqlString(projectKey)} AND text ~ ${jqlString(query)} ORDER BY updated DESC`
+export function searchJql(projectKey: string, query: string) {
+  const trimmed = query.trim()
+  const project = projectKey.toUpperCase()
+  const fullKey = trimmed.toUpperCase().match(/^([A-Z][A-Z0-9_]*)-(\d+)$/)
+  const issueKey = /^\d+$/.test(trimmed)
+    ? `${project}-${trimmed}`
+    : fullKey?.[1] === project ? `${fullKey[1]}-${fullKey[2]}` : undefined
+  return issueKey
+    ? `key = ${jqlString(issueKey)}`
+    : `project = ${jqlString(projectKey)} AND text ~ ${jqlString(trimmed)} ORDER BY updated DESC`
 }
 
 export function projectListJql(projectKey: string, rankFieldUsable: boolean) {

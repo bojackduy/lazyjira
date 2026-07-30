@@ -48,6 +48,7 @@ export type ParentIssueSummary = {
   title?: string
   type?: IssueType
   typeName?: string
+  typeHierarchyLevel?: number
 }
 
 export type IssueComment = {
@@ -230,6 +231,7 @@ export type IssueSummary = {
   title: string
   type: IssueType
   typeName?: string
+  typeHierarchyLevel?: number
   priority: IssuePriority
   statusId: string
   assignee: string
@@ -354,6 +356,7 @@ export type AppState = {
   issueDetailErrorByKey: Record<string, string | undefined>
   issueDetailLoadedAtByKey: Record<string, string>
   issueDetailRequestId: number
+  issueDetailHistory: string[]
   issuePageStateBySource: Record<string, IssuePageState>
   issueKeysBySource: Record<string, string[]>
   issuePageRequestIdBySource: Record<string, number>

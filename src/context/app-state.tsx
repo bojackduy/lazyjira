@@ -81,6 +81,7 @@ export type AppStateContext = {
   stageConfigRemove: () => void
   selectIssue: (issueKey: string) => void
   openIssueDetail: (issueKey?: string) => void
+  openParentIssue: () => void
   loadIssueDetail: (issueKey?: string) => Promise<void>
   loadIssuePage: (sourceId: string, refresh?: boolean) => Promise<void>
   setProjectListSelection: (issueKey: string | undefined) => void
@@ -264,6 +265,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("issueDetailErrorByKey", reconcile({}))
     setState("issueDetailLoadedAtByKey", reconcile({}))
     setState("issueDetailRequestId", 0)
+    setState("issueDetailHistory", [])
     setState("issuePageStateBySource", reconcile(workspace.issuePageStateBySource))
     setState("issueKeysBySource", reconcile(workspace.issueKeysBySource))
     setState("issuePageRequestIdBySource", reconcile({}))
@@ -796,10 +798,30 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     openIssueDetail(issueKey) {
       const targetIssueKey = issueKey ?? state.selectedIssueKey
       if (issueKey) setState("selectedIssueKey", issueKey)
-      if (state.route !== "issue-detail") setState("previousRoute", state.route)
+      if (state.route !== "issue-detail") {
+        setState("previousRoute", state.route)
+        setState("issueDetailHistory", [])
+      }
       setState("route", "issue-detail")
       setState("focusedPane", "main")
       void context.loadIssueDetail(targetIssueKey)
+    },
+    openParentIssue() {
+      if (state.route !== "issue-detail") return
+      const issue = issueByKey(state, state.selectedIssueKey)
+      const parentKey = issue?.parentKey ?? issue?.parent?.key
+      if (!parentKey) {
+        toast.show(`${state.selectedIssueKey} has no parent issue`)
+        return
+      }
+      if (parentKey === state.selectedIssueKey || state.issueDetailHistory.includes(parentKey)) {
+        toast.show(`Cannot open cyclic parent ${parentKey}`)
+        return
+      }
+      setState("issueDetailHistory", (history) => [...history, state.selectedIssueKey])
+      setState("selectedIssueKey", parentKey)
+      setState("focusedPane", "main")
+      void context.loadIssueDetail(parentKey)
     },
     async loadIssueDetail(issueKey = state.selectedIssueKey) {
       if (!issueKey) return
@@ -911,6 +933,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     closeIssueDetail() {
       if (state.route !== "issue-detail") return
+      const previousIssueKey = state.issueDetailHistory.at(-1)
+      if (previousIssueKey) {
+        setState("issueDetailHistory", (history) => history.slice(0, -1))
+        setState("selectedIssueKey", previousIssueKey)
+        setState("focusedPane", "main")
+        if (!state.issues[previousIssueKey]) void context.loadIssueDetail(previousIssueKey)
+        return
+      }
       setState("route", state.previousRoute ?? "board")
       setState("previousRoute", undefined)
       setState("focusedPane", "main")

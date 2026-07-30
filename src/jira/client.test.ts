@@ -376,10 +376,10 @@ describe("Jira discovery client", () => {
       key: "PROJ-9",
       fields: {
         summary: "Scheduled child",
-        issuetype: { id: "10009", name: "Story" },
+        issuetype: { id: "10009", name: "Story", hierarchyLevel: 0 },
         status: { id: "todo" },
         assignee: { accountId: "account-1", displayName: "Duy Trinh" },
-        parent: { key: "PROJ-1", fields: { summary: "Parent initiative", issuetype: { id: "10000", name: "Initiative" } } },
+        parent: { key: "PROJ-1", fields: { summary: "Parent initiative", issuetype: { id: "10000", name: "Initiative", hierarchyLevel: 1 } } },
         duedate: "2026-09-30",
         customfield_12345: "2026-08-01",
       },
@@ -390,9 +390,10 @@ describe("Jira discovery client", () => {
       dueDate: "2026-09-30",
       type: "10009",
       typeName: "Story",
+      typeHierarchyLevel: 0,
       assigneeAccountId: "account-1",
       parentKey: "PROJ-1",
-      parent: { key: "PROJ-1", title: "Parent initiative", type: "10000", typeName: "Initiative" },
+      parent: { key: "PROJ-1", title: "Parent initiative", type: "10000", typeName: "Initiative", typeHierarchyLevel: 1 },
     })
   })
 

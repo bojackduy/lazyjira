@@ -54,7 +54,7 @@ export function IssueDetailRoute() {
   }
 
   return (
-    <Show when={issue()} fallback={<text fg={theme.textMuted}>No issue selected</text>}>
+    <Show when={issue()} fallback={<PendingIssueDetail issueKey={state.selectedIssueKey} />}>
       {(selectedIssue) => (
         <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} width="100%" height={bodyHeight()} scrollY={true} scrollX viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
           <IssueHeader issue={selectedIssue()} />
@@ -95,6 +95,22 @@ export function IssueDetailRoute() {
         </scrollbox>
       )}
     </Show>
+  )
+}
+
+function PendingIssueDetail(props: { issueKey: string }) {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const loading = () => state.issueDetailLoadingByKey[props.issueKey]
+  const error = () => state.issueDetailErrorByKey[props.issueKey]
+  return (
+    <box flexGrow={1} alignItems="center" justifyContent="center" flexDirection="column" gap={1}>
+      <text attributes={TextAttributes.BOLD} fg={error() ? theme.danger : theme.accent}>{props.issueKey}</text>
+      <Show when={error()} fallback={<text fg={loading() ? theme.warning : theme.textMuted}>Loading Jira issue detail...</text>}>
+        {(message) => <text fg={theme.danger}>Detail load failed: {message()}</text>}
+      </Show>
+      <text fg={theme.textSubtle}>q/Esc back</text>
+    </box>
   )
 }
 
@@ -181,7 +197,7 @@ function IssueHeader(props: { issue: IssueSummary }) {
         <text fg={props.issue.staleDays >= 7 ? theme.warning : theme.textSubtle} wrapMode="none">Stale {props.issue.staleDays}d</text>
        </box>
        <ParentBadge issue={props.issue} />
-      <text fg={theme.textSubtle}>j/k line scroll · d/u half page · e edit body · q/Esc back</text>
+      <text fg={theme.textSubtle}>{props.issue.parentKey ? "Enter parent · " : ""}j/k line scroll · d/u half page · e edit body · q/Esc back</text>
     </box>
   )
 }

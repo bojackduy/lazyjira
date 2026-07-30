@@ -140,6 +140,14 @@ describe("board selectors", () => {
 
     state.issues.PARENT = { ...state.issues.PARENT!, type: "Story", parentKey: undefined }
     expect(topLevelLoadedAncestor(state, issue)).toBeUndefined()
+
+    state.issueTypes = []
+    state.issues.PARENT = { ...state.issues.PARENT!, typeHierarchyLevel: 1 }
+    expect(topLevelLoadedAncestor(state, issue)?.title).toBe("Middle epic")
+    state.issues.PARENT = { ...state.issues.PARENT!, typeHierarchyLevel: 0 }
+    expect(topLevelLoadedAncestor(state, issue)).toBeUndefined()
+    delete state.issues.PARENT
+    expect(topLevelLoadedAncestor(state, { ...issue, parent: { ...issue.parent!, typeHierarchyLevel: 1 } })?.title).toBe("Middle epic")
   })
 
   test("repairs Backlog focus after another route leaves an empty group selected", () => {

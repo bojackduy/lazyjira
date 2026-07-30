@@ -69,12 +69,12 @@ export type JiraIssue = {
   key?: string
   fields?: {
     summary?: string
-    issuetype?: { id?: string; name?: string }
+    issuetype?: { id?: string; name?: string; hierarchyLevel?: number }
     priority?: { name?: string }
     status?: { id?: string; name?: string }
     assignee?: { accountId?: string; displayName?: string } | null
     reporter?: { displayName?: string } | null
-    parent?: { key?: string; fields?: { summary?: string; issuetype?: { id?: string; name?: string } } }
+    parent?: { key?: string; fields?: { summary?: string; issuetype?: { id?: string; name?: string; hierarchyLevel?: number } } }
     labels?: string[]
     components?: Array<{ name?: string }>
     fixVersions?: Array<{ name?: string }>

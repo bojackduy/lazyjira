@@ -23,6 +23,8 @@ Before starting:
 - [ ] Press `4` for List; confirm it represents project-wide issues rather than only the active sprint/backlog cache, and Key/Summary remain visible at a narrow terminal width.
 - [ ] Verify List `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, independent `Space` hierarchy collapse, `/`, clear-filter behavior, and `L` paging. Confirm `S` remote search remains isolated from List membership and cursor state.
 - [ ] Open detail from Timeline, Backlog, List, and Active sprints, then return with `Esc`; confirm each originating row/card, group/column, Timeline window, and List horizontal offset are preserved.
+- [ ] From a child detail, press `Enter` to load its parent even when the parent is absent from Board/Backlog membership. Confirm `Esc` returns to the child, then to the originating view.
+- [ ] Press `S` and search both a numeric issue suffix and its full current-project key; confirm both resolve the exact Jira issue rather than text matches.
 - [ ] Press `5` for Active sprints; confirm sprint name, dates, goal, complete active-sprint issue set, status columns, create cards, and no Kanban `L` paging claim.
 - [ ] Apply and clear a quick filter from the sidebar on every project view; confirm it filters loaded data only and preserves the selected issue when still visible.
 - [ ] Stage a reversible field or comment change from a project view. Confirm the `Pending` count updates, `w` renders only the local overlay, `W` shows exact planned/blocked Jira operations, and `Esc` closes review without applying or clearing the stage.

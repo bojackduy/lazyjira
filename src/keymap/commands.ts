@@ -33,6 +33,7 @@ export function paletteCommandsForBoard(board: BoardType | { type: BoardType } =
     command("issue.comment", "Add comment", "Stage a comment on the selected issue.", "c", "Jira"),
     command("issue.priority", "Change priority", "Edit the selected issue priority.", "p", "Jira"),
     command("issue.open-browser", "Open in Jira", "Open the selected issue in the configured Jira site.", "o", "Jira"),
+    command("issue.open-parent", "Open parent issue", "Open the selected child issue's parent from issue detail.", "Enter in detail", "Jira"),
     command("issue.edit", "Edit issue", "Edit the selected issue field or detail body.", "e", "Jira"),
     command("issue.apply", "Render staged changes", "Apply staged changes to the local workspace view.", "w", "Jira"),
     command("issue.remote-apply", "Apply to Jira", "Review and apply staged Jira changes.", "W", "Jira"),

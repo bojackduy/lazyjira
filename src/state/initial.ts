@@ -92,6 +92,7 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     issueDetailErrorByKey: {},
     issueDetailLoadedAtByKey: {},
     issueDetailRequestId: 0,
+    issueDetailHistory: [],
     issuePageStateBySource: workspace.issuePageStateBySource,
     issueKeysBySource: workspace.issueKeysBySource,
     issuePageRequestIdBySource: {},

@@ -126,7 +126,7 @@ Should show:
 - Colored type/status fields that match board/backlog rendering.
 - Status/type multiple-choice editing from the current board/Jira metadata.
 
-The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. Body editing lives in the detail route, not the inspector: in detail, `e` edits body, `j/k` scroll one line, and `d/u` scroll half a page. Assignee and Reporter use the same searchable Jira assignable-user picker for the current issue. Typing filters results, Up/Down selects an option, and Enter stages the selected Jira account rather than free text. In text edit mode, printable keys go to the editor and `Ctrl-Enter` stages the current edit. `n` creates a draft issue with context-aware defaults, `x` asks to stage an issue delete, `X` opens a staged-discard popup, `w` applies staged edits/deletes locally, and `W` opens the Jira write review popup. Inside the Jira write popup, `W` is the final remote-apply key: planned and blocked operations remain visible, successful writes clear only their staged rows, and failed writes stay staged with the Jira error. `Enter` opens the full issue detail route for reading; `q`/`Esc` returns to the previous overview.
+The right inspector pane is the quick issue/status/edit surface and stays visible, including while the full issue detail route is open. Body editing lives in the detail route, not the inspector: in detail, `Enter` opens the current issue's parent directly from Jira, `e` edits body, `j/k` scroll one line, and `d/u` scroll half a page. Parent jumps keep issue history, so `q`/`Esc` returns through the child before returning to the originating overview. Assignee and Reporter use the same searchable Jira assignable-user picker for the current issue. Typing filters results, Up/Down selects an option, and Enter stages the selected Jira account rather than free text. In text edit mode, printable keys go to the editor and `Ctrl-Enter` stages the current edit. `n` creates a draft issue with context-aware defaults, `x` asks to stage an issue delete, `X` opens a staged-discard popup, `w` applies staged edits/deletes locally, and `W` opens the Jira write review popup. Inside the Jira write popup, `W` is the final remote-apply key: planned and blocked operations remain visible, successful writes clear only their staged rows, and failed writes stay staged with the Jira error. `Enter` opens the full issue detail route for reading; `q`/`Esc` returns to the previous overview.
 
 Board cells always include a trailing `+ New issue` placeholder, even when a column or grouped swimlane is otherwise empty. Selecting that placeholder makes empty columns reachable with `h/l`; pressing `Enter` or `n` creates a draft issue in that exact status and group context.
 
@@ -144,6 +144,7 @@ Should support:
 
 - Search issues.
 - Search Jira remotely with an explicit command.
+- Resolve a numeric key such as `1812` to the current project's issue and match a full key such as `HPCE-1812` exactly.
 - Search boards/projects.
 - Search Confluence/docs links.
 - Run actions by name.

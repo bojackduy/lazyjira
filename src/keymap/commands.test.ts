@@ -13,6 +13,7 @@ describe("command palette registry", () => {
       "issue.assign",
       "issue.status",
       "issue.open-browser",
+      "issue.open-parent",
     ]))
   })
 

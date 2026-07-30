@@ -222,6 +222,36 @@ describe("app state project picker", () => {
     expect(appState.state.issues["PROJ-128"]?.comments[0]?.body).toBe("Ready to verify")
   })
 
+  test("opens an unloaded parent from detail and returns through issue history", async () => {
+    const childKey = "PROJ-121"
+    const parentKey = "PROJ-999"
+    const loadedKeys: string[] = []
+    const appState = createTestAppState({
+      async loadIssueDetail(issueKey, context) {
+        loadedKeys.push(issueKey)
+        if (issueKey === childKey) return { issue: { ...context.existingIssue!, parentKey, parent: { key: parentKey, title: "Direct parent", type: "Feature", typeHierarchyLevel: 1 } } }
+        return { issue: { ...loadDevWorkspaceFixture("PROJ").issues["PROJ-101"]!, key: parentKey, title: "Direct parent", type: "Feature", typeHierarchyLevel: 1 } }
+      },
+    })
+    const originalRoute = appState.state.route
+
+    appState.openIssueDetail(childKey)
+    await flushPromises()
+    appState.openParentIssue()
+    await flushPromises()
+
+    expect(loadedKeys).toEqual([childKey, parentKey])
+    expect(appState.state.selectedIssueKey).toBe(parentKey)
+    expect(appState.state.issueDetailHistory).toEqual([childKey])
+    expect(Object.values(appState.state.issueKeysBySource).flat()).not.toContain(parentKey)
+
+    appState.closeIssueDetail()
+    expect(appState.state.route).toBe("issue-detail")
+    expect(appState.state.selectedIssueKey).toBe(childKey)
+    appState.closeIssueDetail()
+    expect(appState.state.route).toBe(originalRoute)
+  })
+
   test("keeps staged overlays after issue detail refresh", async () => {
     const appState = createTestAppState({
       async loadIssueDetail(issueKey, context) {

@@ -120,7 +120,7 @@ export function topLevelLoadedAncestor(state: AppState, issue: IssueSummary): Is
   const ancestor = highestLoadedAncestor(state, issue)
   if (!ancestor?.type) return undefined
   const issueType = configuredIssueTypes(state).find((type) => type.id === ancestor.type || type.name === ancestor.type || type.name === ancestor.typeName)
-  return (issueType?.hierarchyLevel ?? 0) > 0 ? ancestor : undefined
+  return (ancestor.typeHierarchyLevel ?? issueType?.hierarchyLevel ?? 0) > 0 ? ancestor : undefined
 }
 
 export function highestLevelIssueType(state: AppState) {
