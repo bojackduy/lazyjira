@@ -262,12 +262,13 @@ describe("Jira discovery client", () => {
     }, statusLookup)
 
     expect(metadata.columns.map((column) => column.name)).toEqual(["To Do", "In Progress", "Done"])
+    expect(metadata.columns.map((column) => column.color)).toEqual(["#94A3B8", "#38BDF8", "#22C55E"])
     expect(metadata.columns[1]?.statusIds).toEqual(["3", "10001"])
     expect(metadata.statuses).toEqual([
-      { id: "10000", name: "Ready", category: "todo", color: "#6B778C" },
-      { id: "3", name: "Development", category: "in-progress", color: "#FFAB00" },
-      { id: "10001", name: "Code Review", category: "in-progress", color: "#FFAB00" },
-      { id: "10002", name: "Released", category: "done", color: "#36B37E" },
+      { id: "10000", name: "Ready", category: "todo", color: "#22D3EE" },
+      { id: "3", name: "Development", category: "in-progress", color: "#38BDF8" },
+      { id: "10001", name: "Code Review", category: "in-progress", color: "#A78BFA" },
+      { id: "10002", name: "Released", category: "done", color: "#22C55E" },
     ])
   })
 

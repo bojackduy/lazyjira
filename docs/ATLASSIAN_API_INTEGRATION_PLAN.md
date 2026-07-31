@@ -355,7 +355,7 @@ Status: in progress. Board configuration, columns, status IDs, and project statu
 Implementation:
 
 - Read board configuration and normalize Jira columns/statuses into `StatusDefinition[]` and `StatusColumn[]`, enriched by project workflow status names.
-- Keep Jira `statusCategory.colorName` as a fallback color signal, but prefer app semantic status colors for readable terminal contrast.
+- Jira does not expose an independent color for each workflow status. Prefer semantic terminal colors derived from the status and column names, then use `statusCategory.colorName` only as the coarse gray/blue/green fallback.
 - Discover issue type and important custom field metadata needed by issue normalization.
 
 Verification:

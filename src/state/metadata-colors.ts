@@ -9,9 +9,9 @@ export const statusCategoryColors: Record<StatusCategory, string> = {
 }
 
 const jiraStatusCategoryColors: Record<string, string> = {
-  "blue-gray": "#6B778C",
-  yellow: "#FFAB00",
-  green: "#36B37E",
+  "blue-gray": statusCategoryColors.todo,
+  yellow: statusCategoryColors["in-progress"],
+  green: statusCategoryColors.done,
 }
 
 const jiraIssueColors: Record<string, string> = {
@@ -73,14 +73,43 @@ export const priorityColors: Record<IssuePriority, string> = {
   Low: "#3FB950",
 }
 
+const statusIntentColors = {
+  ready: "#22D3EE",
+  review: "#A78BFA",
+  qa: "#F472B6",
+  planned: "#FBBF24",
+  reopened: "#F59E0B",
+  rejected: "#F97316",
+  progress: "#38BDF8",
+  done: "#22C55E",
+  blocked: "#EF4444",
+}
+
 export function statusColorForCategory(category: StatusCategory) {
   return statusCategoryColors[category]
 }
 
 export function statusColorForStatus(name: string, category: StatusCategory, context = "", jiraColorName?: string) {
-  void name
-  void context
+  const normalizedName = name.toLowerCase()
+  const normalizedContext = context.toLowerCase()
+  const directColor = colorForStatusText(normalizedName)
+  if (directColor) return directColor
+  const contextColor = colorForStatusText(normalizedContext)
+  if (contextColor) return contextColor
   return statusColorForJiraColorName(jiraColorName, category)
+}
+
+function colorForStatusText(value: string) {
+  if (/(block|impediment|hold)/.test(value)) return statusIntentColors.blocked
+  if (/(reject|declin|cancel|won't|wont)/.test(value)) return statusIntentColors.rejected
+  if (/(reopen|returned)/.test(value)) return statusIntentColors.reopened
+  if (/(done|fixed|resolved|closed|released|complete)/.test(value)) return statusIntentColors.done
+  if (/(qa|test|uat|verify|verified)/.test(value)) return statusIntentColors.qa
+  if (/(review|approval|approve)/.test(value)) return statusIntentColors.review
+  if (/(plan|selected)/.test(value)) return statusIntentColors.planned
+  if (/(ready|prepared)/.test(value)) return statusIntentColors.ready
+  if (/(progress|doing|dev|develop|implement)/.test(value)) return statusIntentColors.progress
+  return undefined
 }
 
 export function jiraMetadataColor(value: unknown) {
