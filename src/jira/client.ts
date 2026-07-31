@@ -70,7 +70,7 @@ export type JiraIssue = {
   fields?: {
     summary?: string
     issuetype?: { id?: string; name?: string; hierarchyLevel?: number }
-    priority?: { name?: string }
+    priority?: { name?: string; statusColor?: string; iconUrl?: string }
     status?: { id?: string; name?: string }
     assignee?: { accountId?: string; displayName?: string } | null
     reporter?: { displayName?: string } | null
@@ -114,6 +114,8 @@ export type JiraEditMetadata = {
 
 export type JiraCreateIssueType = { id?: string; name?: string; hierarchyLevel?: number; subtask?: boolean; iconUrl?: string }
 
+export type JiraPriority = { id?: string; name?: string; statusColor?: string; iconUrl?: string }
+
 export type JiraUser = {
   accountId?: string
   displayName?: string
@@ -140,6 +142,11 @@ const jiraIssueFields = [
   "duedate",
   "resolution",
 ]
+
+export async function fetchJiraPriorities(auth: JiraAuthConfig, fetchImpl: FetchLike = fetch): Promise<JiraPriority[]> {
+  const response = await jiraRequest<JiraPriority[] | { values?: JiraPriority[] }>(auth, "/rest/api/3/priority", { endpoint: "Jira priorities" }, fetchImpl)
+  return Array.isArray(response) ? response : response.values ?? []
+}
 
 export type JiraErrorCategory = "auth" | "permission" | "not-found" | "rate-limit" | "network" | "invalid-response" | "http"
 

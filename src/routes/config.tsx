@@ -101,7 +101,7 @@ export function ConfigRoute() {
             <text fg={theme.textSubtle} wrapMode="none">Remote: {selectedSection().remote}</text>
           </box>
           <text fg={theme.textMuted} wrapMode="none">{selectedSection().subtitle}</text>
-          <text fg={writableConfigSection(selectedSection().id) ? theme.warning : theme.textSubtle} wrapMode="none">{sectionHint(selectedSection().id)}</text>
+          <text fg={writableConfigSection(selectedSection().id) ? theme.warning : theme.textSubtle} wrapMode="none">{sectionHint(state, selectedSection().id)}</text>
           <ConfigRows section={selectedSection()} focused={rowsFocused()} />
           <ConfigEditor />
           <ConfigDraftList />
@@ -216,7 +216,7 @@ function configSections(state: AppState): ConfigSection[] {
         label: column.name,
         detail: columnDetail(column, statuses, issues),
         color: column.color ?? firstColumnStatus(column, statuses)?.color,
-        capability: "local add/rename/color/remove",
+        capability: state.runtimeEnv === "prod" ? "color from Jira" : "local add/rename/color/remove",
       })),
     },
     {
@@ -229,7 +229,7 @@ function configSections(state: AppState): ConfigSection[] {
         label: status.name,
         detail: `${containingColumnName(columns, status.id)} · ${status.category} · ${issues.filter((issue) => issue.statusId === status.id).length} issues · id ${status.id}`,
         color: status.color,
-        capability: "local add/rename/color/remove",
+        capability: state.runtimeEnv === "prod" ? "color from Jira status category" : "local add/rename/color/remove",
       })),
     },
     {
@@ -242,7 +242,7 @@ function configSections(state: AppState): ConfigSection[] {
         label: issueType.name,
         detail: `${issues.filter((issue) => issue.type === issueType.id).length} issues · color ${issueType.color}`,
         color: issueType.color,
-        capability: "local add/rename/color/remove",
+        capability: state.runtimeEnv === "prod" ? "color from Jira icon" : "local add/rename/color/remove",
       })),
     },
     {
@@ -254,7 +254,7 @@ function configSections(state: AppState): ConfigSection[] {
         id: priority,
         label: priority,
         detail: `${count} issues`,
-        color: priorityColor(priority),
+        color: issues.find((issue) => issue.priority === priority)?.priorityColor ?? priorityColor(priority),
         capability: "read-only until priority model exists",
       })),
     },
@@ -285,9 +285,10 @@ function configSections(state: AppState): ConfigSection[] {
   ]
 }
 
-function sectionHint(sectionId: ConfigSectionId) {
+function sectionHint(state: AppState, sectionId: ConfigSectionId) {
   if (!writableConfigSection(sectionId)) return "Read-only for now. j/k choose · d/u page; edits wait for real model/API support."
-  return colorableConfigSection(sectionId)
+  if (state.runtimeEnv === "prod") return "Jira metadata is authoritative · j/k choose · d/u page"
+  return colorableConfigSection(state, sectionId)
     ? "j/k choose · d/u page · a add · e/enter rename · c color · x remove · X discard"
     : "j/k choose · d/u page · a add · e/enter rename · x remove · X discard"
 }

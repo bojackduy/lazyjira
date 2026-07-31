@@ -751,8 +751,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     startConfigColor() {
       const sectionId = configSectionIdAt(state.configSelectedSectionIndex)
       const targetId = selectedConfigTargetId(state)
-      if (!colorableConfigSection(sectionId) || !targetId) {
-        toast.show("Select a colorable config row first")
+      if (!colorableConfigSection(state, sectionId) || !targetId) {
+        toast.show(state.runtimeEnv === "prod" ? "Jira metadata colors are read-only" : "Select a colorable config row first")
         return
       }
       setState("configEditing", { action: "color", sectionId, targetId })
@@ -839,7 +839,9 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           existingIssue,
         })
         if (state.issueDetailRequestId !== requestId) return
-        setState("issues", loaded.issue.key, reconcile(loaded.issue))
+        const nextIssues = { ...state.issues, [loaded.issue.key]: loaded.issue }
+        for (const relatedIssue of loaded.relatedIssues ?? []) nextIssues[relatedIssue.key] = mergeLoadedPageIssue(nextIssues[relatedIssue.key], relatedIssue)
+        setState("issues", reconcile(nextIssues))
         setState("issueDetailLoadedAtByKey", loaded.issue.key, new Date().toISOString())
       } catch (error) {
         if (state.issueDetailRequestId !== requestId) return
@@ -871,12 +873,10 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           statuses: state.statuses,
           pageState: currentPage,
           knownIssueKeys: Object.keys(state.issues),
-          missingParentKeys: sourceId === projectListIssuePageSourceId
-            ? (state.issueKeysBySource[sourceId] ?? []).flatMap((issueKey) => {
-                const parentKey = state.issues[issueKey]?.parentKey
-                return parentKey && !state.issues[parentKey] ? [parentKey] : []
-              })
-            : undefined,
+          missingParentKeys: (state.issueKeysBySource[sourceId] ?? []).flatMap((issueKey) => {
+            const parentKey = state.issues[issueKey]?.parentKey
+            return parentKey && !state.issues[parentKey] ? [parentKey] : []
+          }),
         })
         if (state.issuePageRequestIdBySource[sourceId] !== requestId || state.workspaceRequestId !== workspaceGeneration || state.project.key !== projectKey || state.board.id !== boardId) return
         const nextIssues = { ...state.issues }

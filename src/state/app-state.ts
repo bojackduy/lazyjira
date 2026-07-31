@@ -49,6 +49,7 @@ export type ParentIssueSummary = {
   type?: IssueType
   typeName?: string
   typeHierarchyLevel?: number
+  issueColor?: string
 }
 
 export type IssueComment = {
@@ -233,6 +234,8 @@ export type IssueSummary = {
   typeName?: string
   typeHierarchyLevel?: number
   priority: IssuePriority
+  priorityColor?: string
+  issueColor?: string
   statusId: string
   assignee: string
   assigneeAccountId?: string

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { configuredColumns, configuredIssueTypes, configuredStatuses, configRowIds } from "./config-drafts"
+import { colorableConfigSection, configuredColumns, configuredIssueTypes, configuredStatuses, configRowIds } from "./config-drafts"
 import { loadDevWorkspaceState } from "./dev"
 import { stagedChanges } from "./staged-changes"
 import { workspacePendingItem } from "./workspace"
@@ -64,6 +64,16 @@ describe("config draft overlay", () => {
     expect(configRowIds(state, "fields").length).toBeGreaterThan(0)
     expect(configRowIds(state, "priorities")).toEqual(["Critical", "High", "Medium", "Low"])
     expect(configRowIds(state, "quick-filters")).toEqual(["mine", "blocked", "stale", "unassigned"])
+  })
+
+  test("keeps Jira metadata colors authoritative in production", () => {
+    const state = loadDevWorkspaceState()
+    state.runtimeEnv = "prod"
+    const jiraColor = state.statuses.find((status) => status.id === "blocked")!.color
+    state.configDrafts = [{ id: "config-1", sectionId: "statuses", action: "color", targetId: "blocked", color: "#111111" }]
+
+    expect(colorableConfigSection(state, "statuses")).toBe(false)
+    expect(configuredStatuses(state).find((status) => status.id === "blocked")?.color).toBe(jiraColor)
   })
 
   test("includes config drafts in the shared staged queue", () => {

@@ -5,7 +5,7 @@ import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { projectListCell, projectListColumns, projectListRows, projectListSelection, projectListStateText, projectListViewportWidth, type ProjectListColumn } from "../state/project-list"
-import { issueTypeColor, statusColor } from "../state/selectors"
+import { issueColor, issueTypeColor, priorityColor, statusColor } from "../state/selectors"
 
 export function ProjectListRoute() {
   const appState = useAppState()
@@ -57,7 +57,7 @@ export function ProjectListRoute() {
                   <text fg={state.projectListSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selectedText : theme.text} wrapMode="none">
                     <span>{state.projectListSelectedIssueKey === row.issue.key ? ">" : " "}</span>
                     <For each={columns()}>
-                      {(column) => <span style={{ fg: column.id === "type" ? issueTypeColor(state, row.issue) : column.id === "status" ? statusColor(state, row.issue) : undefined }}>{formatCell(column.id === "summary" ? `${"  ".repeat(row.depth)}${row.hasChildren ? row.collapsed ? ">" : "v" : "·"} ${row.issue.title}` : projectListCell(row.issue, column.id, state), column)}</span>}
+                      {(column) => <span style={{ fg: column.id === "key" ? issueColor(state, row.issue) : column.id === "type" ? issueTypeColor(state, row.issue) : column.id === "status" ? statusColor(state, row.issue) : column.id === "priority" ? priorityColor(row.issue) : undefined }}>{formatCell(column.id === "summary" ? `${"  ".repeat(row.depth)}${row.hasChildren ? row.collapsed ? ">" : "v" : "·"} ${row.issue.title}` : projectListCell(row.issue, column.id, state), column)}</span>}
                     </For>
                   </text>
                 </box>

@@ -2,7 +2,7 @@ import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, I
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { issueWithDraft } from "./issue-drafts"
 import { matchesIssueSearch } from "./issue-search"
-import { issueTypeColorForName, statusColorForCategory } from "./metadata-colors"
+import { issueTypeColorForName, priorityColors, statusColorForCategory } from "./metadata-colors"
 import { boardCapabilities } from "./routes"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, sprintIssuePageSourceId } from "./issue-pages"
 
@@ -98,12 +98,26 @@ export function issueTypeColor(state: AppState, issue: IssueSummary) {
   return issueTypeColorByIdentity(state, issue.type, issue.typeName)
 }
 
+export function issueColor(state: AppState, issue: IssueSummary) {
+  return issue.issueColor ?? issueTypeColor(state, issue)
+}
+
+export function priorityColor(issue: IssueSummary) {
+  return issue.priorityColor ?? priorityColors[issue.priority]
+}
+
 export function issueTypeColorByIdentity(state: AppState, type: string, typeName?: string) {
   return configuredIssueTypes(state).find((candidate) => candidate.id === type || candidate.name === type || candidate.name === typeName)?.color ?? issueTypeColorForName(typeName ?? type)
 }
 
 export function issueTypeName(state: AppState, issue: IssueSummary) {
   return configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type || type.name === issue.typeName)?.name ?? issue.typeName ?? issue.type
+}
+
+export function parentIssueColor(state: AppState, parent: IssueSummary | ParentIssueSummary) {
+  const loadedParent = state.issues[parent.key]
+  if (loadedParent) return issueColor(state, loadedParent)
+  return parent.issueColor ?? (parent.type ? issueTypeColorByIdentity(state, parent.type, parent.typeName) : statusColorForCategory("todo"))
 }
 
 export function highestLoadedAncestor(state: AppState, issue: IssueSummary): IssueSummary | ParentIssueSummary | undefined {

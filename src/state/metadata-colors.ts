@@ -9,9 +9,40 @@ export const statusCategoryColors: Record<StatusCategory, string> = {
 }
 
 const jiraStatusCategoryColors: Record<string, string> = {
-  "blue-gray": statusCategoryColors.todo,
-  yellow: statusCategoryColors["in-progress"],
-  green: statusCategoryColors.done,
+  "blue-gray": "#6B778C",
+  yellow: "#FFAB00",
+  green: "#36B37E",
+}
+
+const jiraIssueColors: Record<string, string> = {
+  dark_grey: "#42526E",
+  grey: "#97A0AF",
+  dark_blue: "#0747A6",
+  blue: "#4C9AFF",
+  teal: "#00B8D9",
+  green: "#36B37E",
+  dark_yellow: "#FF991F",
+  yellow: "#FFC400",
+  dark_orange: "#DE350B",
+  orange: "#FF8B00",
+  dark_purple: "#403294",
+  purple: "#6554C0",
+  dark_red: "#BF2600",
+  red: "#FF5630",
+  "ghx-label-1": "#42526E",
+  "ghx-label-2": "#FF991F",
+  "ghx-label-3": "#FFC400",
+  "ghx-label-4": "#0747A6",
+  "ghx-label-5": "#4C9AFF",
+  "ghx-label-6": "#36B37E",
+  "ghx-label-7": "#6554C0",
+  "ghx-label-8": "#403294",
+  "ghx-label-9": "#FF8B00",
+  "ghx-label-10": "#FF5630",
+  "ghx-label-11": "#00B8D9",
+  "ghx-label-12": "#97A0AF",
+  "ghx-label-13": "#BF2600",
+  "ghx-label-14": "#DE350B",
 }
 
 export const defaultIssueTypeColor = "#58A6FF"
@@ -25,38 +56,6 @@ export const issueTypeColors = {
   bug: "#F85149",
 }
 
-export function parentColorForKey(key: string) {
-  let hash = 2_166_136_261
-  for (const character of key.toUpperCase()) {
-    hash ^= character.charCodeAt(0)
-    hash = Math.imul(hash, 16_777_619)
-  }
-  const value = hash >>> 0
-  const hue = value % 360
-  const saturation = 68 + ((value >>> 9) % 17)
-  const lightness = 58 + ((value >>> 17) % 11)
-  return hslToHex(hue, saturation, lightness)
-}
-
-function hslToHex(hue: number, saturation: number, lightness: number) {
-  const s = saturation / 100
-  const l = lightness / 100
-  const chroma = (1 - Math.abs(2 * l - 1)) * s
-  const segment = hue / 60
-  const secondary = chroma * (1 - Math.abs((segment % 2) - 1))
-  const [red, green, blue] = segment < 1 ? [chroma, secondary, 0]
-    : segment < 2 ? [secondary, chroma, 0]
-      : segment < 3 ? [0, chroma, secondary]
-        : segment < 4 ? [0, secondary, chroma]
-          : segment < 5 ? [secondary, 0, chroma]
-            : [chroma, 0, secondary]
-  const match = l - chroma / 2
-  return `#${[red, green, blue]
-    .map((channel) => Math.round((channel + match) * 255).toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase()}`
-}
-
 export function issueTypeColorForName(name: string) {
   const normalized = name.toLowerCase()
   if (normalized.includes("epic")) return issueTypeColors.epic
@@ -65,18 +64,6 @@ export function issueTypeColorForName(name: string) {
   if (normalized.includes("subtask") || normalized.includes("sub-task")) return issueTypeColors.subtask
   if (normalized.includes("bug")) return issueTypeColors.bug
   return issueTypeColors.task
-}
-
-const statusIntentColors = {
-  ready: "#22D3EE",
-  review: "#A78BFA",
-  qa: "#F472B6",
-  planned: "#FBBF24",
-  reopened: "#F59E0B",
-  rejected: "#F97316",
-  progress: "#38BDF8",
-  done: "#22C55E",
-  blocked: "#EF4444",
 }
 
 export const priorityColors: Record<IssuePriority, string> = {
@@ -91,28 +78,16 @@ export function statusColorForCategory(category: StatusCategory) {
 }
 
 export function statusColorForStatus(name: string, category: StatusCategory, context = "", jiraColorName?: string) {
-  const normalizedName = name.toLowerCase()
-  const normalizedContext = context.toLowerCase()
-  const normalized = `${normalizedName} ${normalizedContext}`
-  const directColor = colorForStatusText(normalizedName)
-  if (directColor) return directColor
-  const contextColor = colorForStatusText(normalizedContext)
-  if (contextColor) return contextColor
-  if (/(block|impediment|hold)/.test(normalized)) return statusIntentColors.blocked
+  void name
+  void context
   return statusColorForJiraColorName(jiraColorName, category)
 }
 
-function colorForStatusText(value: string) {
-  if (/(block|impediment|hold)/.test(value)) return statusIntentColors.blocked
-  if (/(reject|declin|cancel|won't|wont)/.test(value)) return statusIntentColors.rejected
-  if (/(reopen|returned)/.test(value)) return statusIntentColors.reopened
-  if (/(done|fixed|resolved|closed|released|complete)/.test(value)) return statusIntentColors.done
-  if (/(qa|test|uat|verify|verified)/.test(value)) return statusIntentColors.qa
-  if (/(review|approval|approve)/.test(value)) return statusIntentColors.review
-  if (/(plan|selected)/.test(value)) return statusIntentColors.planned
-  if (/(ready|prepared)/.test(value)) return statusIntentColors.ready
-  if (/(progress|doing|dev|develop|implement)/.test(value)) return statusIntentColors.progress
-  return undefined
+export function jiraMetadataColor(value: unknown) {
+  if (typeof value !== "string") return undefined
+  const normalized = value.trim().toLowerCase()
+  if (/^#[0-9a-f]{6}$/.test(normalized)) return normalized.toUpperCase()
+  return jiraIssueColors[normalized]
 }
 
 function statusColorForJiraColorName(colorName: string | undefined, fallbackCategory: StatusCategory) {

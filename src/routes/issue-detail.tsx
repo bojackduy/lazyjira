@@ -7,7 +7,7 @@ import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { IssueSummary } from "../state/app-state"
 import { issueByKey } from "../state/issue-drafts"
-import { issueTypeColor, statusColor, statusName } from "../state/selectors"
+import { issueColor, issueTypeColor, priorityColor, statusColor, statusName } from "../state/selectors"
 import { RichText } from "../ui/rich-text"
 import { ParentBadge } from "../ui/parent-badge"
 
@@ -194,11 +194,12 @@ function IssueHeader(props: { issue: IssueSummary }) {
 
   return (
     <box flexDirection="column" gap={1} marginBottom={1}>
-      <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">{props.issue.key}{props.issue.isDraft ? " draft" : ""}</text>
+      <text attributes={TextAttributes.BOLD} fg={issueColor(state, props.issue)} wrapMode="none">{props.issue.key}{props.issue.isDraft ? " draft" : ""}</text>
       <text attributes={TextAttributes.BOLD} fg={theme.text}>{props.issue.title}</text>
        <box flexDirection="row" gap={1}>
-        <text fg={issueTypeColor(state, props.issue)} wrapMode="none">■ {props.issue.type}</text>
-        <text fg={statusColor(state, props.issue)} wrapMode="none">● {statusName(state, props.issue)}</text>
+         <text fg={issueTypeColor(state, props.issue)} wrapMode="none">■ {props.issue.type}</text>
+         <text fg={statusColor(state, props.issue)} wrapMode="none">● {statusName(state, props.issue)}</text>
+         <text fg={priorityColor(props.issue)} wrapMode="none">◆ {props.issue.priority}</text>
         <text fg={props.issue.blocked ? theme.danger : theme.textSubtle} wrapMode="none">{props.issue.blocked ? "Blocked" : "Not blocked"}</text>
         <text fg={props.issue.staleDays >= 7 ? theme.warning : theme.textSubtle} wrapMode="none">Stale {props.issue.staleDays}d</text>
        </box>

@@ -20,8 +20,10 @@ import {
   boardStatusWindowSize,
   groupModeLabel,
   emptyLoadedIssuesText,
+  issueColor,
   issueTypeColor,
   issueTypeName,
+  priorityColor,
   sprintDateRange,
   statusColor,
   visibleStatusesForBoard,
@@ -166,11 +168,11 @@ function IssueCard(props: { issue: IssueSummary; selected: boolean; id: string }
     <box id={props.id} width={19} height={5} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined} border={["left"]} borderColor={borderColor()} overflow="hidden">
       <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">
         <span style={{ fg: typeColor() }}>■ </span>
-        <span>{props.issue.key}</span>
+        <span style={{ fg: issueColor(state, props.issue) }}>{props.issue.key}</span>
       </text>
       <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">{props.issue.title}</text>
       <text fg={theme.textSubtle} wrapMode="none">
-        {issueTypeName(state, props.issue)} · {props.issue.priority}{signal()}
+        {issueTypeName(state, props.issue)} · <span style={{ fg: priorityColor(props.issue) }}>{props.issue.priority}</span>{signal()}
       </text>
       <ParentBadge issue={props.issue} />
     </box>

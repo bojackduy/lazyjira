@@ -1,7 +1,7 @@
 import type { AppState, IssueEditableField, IssueSummary } from "./app-state"
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { applyIssueDraft, issueWithDraft } from "./issue-drafts"
-import { issueTypeColor, statusColor, statusName } from "./selectors"
+import { issueColor, issueTypeColor, parentIssueColor, priorityColor, statusColor, statusName } from "./selectors"
 
 export { applyIssueDraft }
 
@@ -52,7 +52,12 @@ export function issueFieldColor(state: AppState, issue: IssueSummary, field: Iss
   const renderedIssue = issueWithDraft(state, issue)
   if (field.id === "statusId") return statusColor(state, renderedIssue)
   if (field.id === "type") return issueTypeColor(state, renderedIssue)
-  if (field.id === "parentKey" && renderedIssue.parent?.type) return configuredIssueTypes(state).find((type) => type.id === renderedIssue.parent?.type || type.name === renderedIssue.parent?.type)?.color
+  if (field.id === "priority") return priorityColor(renderedIssue)
+  if (field.id === "parentKey") {
+    const parentKey = renderedIssue.parentKey ?? renderedIssue.parent?.key
+    const parent = parentKey ? state.issues[parentKey] ?? renderedIssue.parent : undefined
+    return parent ? parentIssueColor(state, parent) : undefined
+  }
   return undefined
 }
 
@@ -64,7 +69,7 @@ export function parentIssueChoices(state: AppState, issue: IssueSummary) {
       const candidateType = configuredIssueTypes(state).find((type) => type.id === candidate.type || type.name === candidate.type)
       return issueType?.hierarchyLevel === undefined || candidateType?.hierarchyLevel === undefined || candidateType.hierarchyLevel > issueType.hierarchyLevel
     })
-    .map((candidate) => ({ value: candidate.key, label: `${candidate.key} ${candidate.title}`, color: issueTypeColor(state, candidate) }))
+    .map((candidate) => ({ value: candidate.key, label: `${candidate.key} ${candidate.title}`, color: issueColor(state, candidate) }))
 }
 
 export function selectedIssueField(state: AppState) {

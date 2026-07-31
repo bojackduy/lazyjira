@@ -38,6 +38,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [~] A2 Board metadata loader for columns, statuses, issue types, and fields.
 - [x] A2.1 Board configuration columns/status IDs wired.
 - [~] A2.2 Issue type and custom field discovery.
+- [x] A2.3 Jira-native status, priority, issue-type icon, Issue color, Epic Color, and parent color normalization.
 - [~] A3 Active sprint, future sprint, and bounded backlog issue loading.
 - [x] A3.1 Active/future sprint discovery wired.
 - [x] A3.2 Active sprint issue loading wired.

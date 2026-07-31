@@ -1,10 +1,11 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchCurrentJiraUser, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage, type JiraUser } from "../../jira/client"
+import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchCurrentJiraUser, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraPriorities, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage, type JiraUser } from "../../jira/client"
 import { discoverJiraIssueFieldIds, discoverJiraStartDateField, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
 import { markdownToAdf } from "../../jira/adf"
+import { fetchJiraIconColor } from "../../jira/icon-color"
 import type { IssuePageState, IssueSummary, SprintSummary, TimelineStartDateField } from "../../state/app-state"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, projectListIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../../state/issue-pages"
-import { issueTypeColorForName, issueTypeColors, statusColorForCategory } from "../../state/metadata-colors"
+import { issueTypeColorForName, issueTypeColors, jiraMetadataColor, statusColorForCategory } from "../../state/metadata-colors"
 import type { IssueTypeDefinition } from "../../state/app-state"
 import { createLoadedWorkspace, type WorkspaceSelection, type WorkspaceSource } from "../types"
 
@@ -24,6 +25,8 @@ const maxHydratedParents = 200
 
 export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConfig | undefined> = loadJiraAuthConfig, fetchImpl: FetchLike = fetch): WorkspaceSource {
   let cachedFields: { ids: JiraIssueFieldIds; startDate: TimelineStartDateField } | undefined
+  let cachedPriorityColors = new Map<string, string>()
+  const issueTypeColorCache = new Map<string, string>()
 
   async function issueFields(auth: JiraAuthConfig) {
     if (!cachedFields) {
@@ -44,14 +47,19 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     async loadWorkspace(selection) {
       if (!selection.board.id) return createProdWorkspace(selection)
       const auth = await requireJiraAuth(authLoader)
-      const [boardConfig, statusIssueTypes, createIssueTypes, sprints, jiraFields, currentUser] = await Promise.all([
+      const [boardConfig, statusIssueTypes, createIssueTypes, sprints, jiraFields, currentUser, priorities] = await Promise.all([
         fetchBoardConfiguration(auth, selection.board.id, fetchImpl),
         fetchProjectStatuses(auth, selection.project.key, fetchImpl),
         fetchJiraCreateIssueTypes(auth, selection.project.key, fetchImpl),
         selection.board.type === "scrum" ? fetchBoardSprints(auth, selection.board.id, fetchImpl) : Promise.resolve([]),
         issueFields(auth),
         fetchCurrentJiraUser(auth, fetchImpl),
+        fetchJiraPriorities(auth, fetchImpl).catch(() => []),
       ])
+      cachedPriorityColors = new Map(priorities.flatMap((priority) => {
+        const color = jiraMetadataColor(priority.statusColor)
+        return priority.name && color ? [[priority.name, color] as const] : []
+      }))
       const statusLookup = normalizeProjectStatuses(statusIssueTypes)
       const missingStatusIds = boardStatusIds(boardConfig).filter((statusId) => !statusLookup.has(statusId))
       if (missingStatusIds.length) {
@@ -64,21 +72,23 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
       const customFields = issueCustomFieldIds(fieldIds)
       const activeSprints = normalizedSprints.filter((sprint) => sprint.state === "active")
       const [activeSprintIssuePages, boardPage, backlogLoad] = await Promise.all([
-        Promise.all(activeSprints.map(async (sprint) => normalizeSprintIssues(await fetchSprintIssues(auth, sprint.id, fetchImpl, customFields), sprint.id, metadata.statuses, fieldIds))),
+        Promise.all(activeSprints.map(async (sprint) => normalizeSprintIssues(await fetchSprintIssues(auth, sprint.id, fetchImpl, customFields), sprint.id, metadata.statuses, fieldIds, cachedPriorityColors))),
         selection.board.type === "kanban" ? fetchBoardIssuePage(auth, selection.board.id, fetchImpl, customFields) : Promise.resolve(undefined),
         selection.board.type === "scrum"
           ? fetchBoardBacklogIssuePage(auth, selection.board.id, fetchImpl, customFields).then((page) => ({ page }))
           : loadOptionalKanbanBacklog(auth, selection.board.id, customFields, fetchImpl),
       ])
-      const boardIssues = normalizeJiraIssues(boardPage?.items ?? [], metadata.statuses, { fieldIds })
-      const backlogIssues = normalizeJiraIssues(backlogLoad.page?.items ?? [], metadata.statuses, { fieldIds })
-      const issues = uniqueIssues([
+      const boardIssues = normalizeJiraIssues(boardPage?.items ?? [], metadata.statuses, { fieldIds, priorityColors: cachedPriorityColors })
+      const backlogIssues = normalizeJiraIssues(backlogLoad.page?.items ?? [], metadata.statuses, { fieldIds, priorityColors: cachedPriorityColors })
+      const loadedIssues = uniqueIssues([
         ...activeSprintIssuePages.flat(),
         ...boardIssues,
         ...backlogIssues,
       ])
+      const relatedIssues = await hydrateMissingParents(auth, loadedIssues, [], [], metadata.statuses, fieldIds, cachedPriorityColors, fetchImpl).catch(() => [])
+      const issues = uniqueIssues([...loadedIssues, ...relatedIssues])
       const issueKeysBySource = initialIssueKeysBySource(normalizedSprints, activeSprintIssuePages, boardIssues, backlogIssues)
-      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, boardPage, backlogLoad), issueKeysBySource, normalizeCreateIssueTypes(createIssueTypes), jiraFields.startDate, currentUser)
+      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, boardPage, backlogLoad), issueKeysBySource, await normalizeCreateIssueTypes(createIssueTypes, auth, issueTypeColorCache, fetchImpl), jiraFields.startDate, currentUser)
     },
     async loadIssueDetail(issueKey, context) {
       const auth = await requireJiraAuth(authLoader)
@@ -87,9 +97,10 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
         fetchIssueDetail(auth, issueKey, fetchImpl, issueCustomFieldIds(fieldIds)),
         fetchIssueComments(auth, issueKey, fetchImpl),
       ])
-      const detail = normalizeJiraIssues([issue], context.statuses, { fallbackSprintId: context.existingIssue?.sprintId, fieldIds })[0]
+      const detail = normalizeJiraIssues([issue], context.statuses, { fallbackSprintId: context.existingIssue?.sprintId, fieldIds, priorityColors: cachedPriorityColors })[0]
       if (!detail) throw new Error(`Jira issue ${issueKey} did not include readable issue fields`)
-      return { issue: mergeIssueDetail(context.existingIssue, detail, normalizeJiraComments(comments)) }
+      const relatedIssues = await hydrateMissingParents(auth, [detail], [detail.key], [], context.statuses, fieldIds, cachedPriorityColors, fetchImpl).catch(() => [])
+      return { issue: mergeIssueDetail(context.existingIssue, detail, normalizeJiraComments(comments)), relatedIssues }
     },
     async loadIssuePage(sourceId, context) {
       const auth = await requireJiraAuth(authLoader)
@@ -98,12 +109,12 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
       const page = sourceId === projectListIssuePageSourceId
         ? await fetchJiraSearchIssuePage(auth, projectListJql(context.project.key, !!fieldIds.rank), fetchImpl, issueCustomFieldIds(fieldIds), context.pageState.startAt, context.pageState.maxResults, context.pageState.cursor)
         : await fetchIssuePage(auth, sourceId, context.board.id, context.pageState.startAt, context.pageState.maxResults, issueCustomFieldIds(fieldIds), fetchImpl)
-      const issues = normalizeJiraIssues(page.items, context.statuses, { fieldIds })
+      const issues = normalizeJiraIssues(page.items, context.statuses, { fieldIds, priorityColors: cachedPriorityColors })
       let relatedIssues: IssueSummary[] | undefined
       let parentHydrationError: string | undefined
-      if (sourceId === projectListIssuePageSourceId) {
+      if (issues.some((issue) => issue.parentKey && !(context.knownIssueKeys ?? []).includes(issue.parentKey)) || context.missingParentKeys?.length) {
         try {
-          relatedIssues = await hydrateMissingParents(auth, issues, context.knownIssueKeys ?? [], context.missingParentKeys ?? [], context.statuses, fieldIds, fetchImpl)
+          relatedIssues = await hydrateMissingParents(auth, issues, context.knownIssueKeys ?? [], context.missingParentKeys ?? [], context.statuses, fieldIds, cachedPriorityColors, fetchImpl)
         } catch (error) {
           parentHydrationError = `Parent hydration failed: ${error instanceof Error ? error.message : String(error)}`
         }
@@ -124,7 +135,7 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
       const page = await fetchJiraSearchIssuePage(auth, searchJql(context.project.key, query), fetchImpl, issueCustomFieldIds(fieldIds), context.pageState.startAt, context.pageState.maxResults, context.pageState.cursor)
       return {
         query,
-        issues: normalizeJiraIssues(page.items, context.statuses, { fieldIds }),
+        issues: normalizeJiraIssues(page.items, context.statuses, { fieldIds, priorityColors: cachedPriorityColors }),
         pageState: pageStateFromJiraPage(remoteSearchIssuePageSourceId, page),
       }
     },
@@ -207,18 +218,23 @@ export function createProdWorkspacePlaceholder(selection: WorkspaceSelection) {
   return createProdWorkspace(selection)
 }
 
-function normalizeCreateIssueTypes(types: Awaited<ReturnType<typeof fetchJiraCreateIssueTypes>>): IssueTypeDefinition[] {
-  const normalized = types.flatMap((type) => {
+async function normalizeCreateIssueTypes(types: Awaited<ReturnType<typeof fetchJiraCreateIssueTypes>>, auth: JiraAuthConfig, colorCache: Map<string, string>, fetchImpl: FetchLike): Promise<IssueTypeDefinition[]> {
+  const normalized = (await Promise.all(types.map(async (type) => {
     if (!type.id || !type.name) return []
+    let color = type.iconUrl ? colorCache.get(type.iconUrl) : undefined
+    if (!color && type.iconUrl) {
+      color = await fetchJiraIconColor(auth, type.iconUrl, fetchImpl).catch(() => undefined)
+      if (color) colorCache.set(type.iconUrl, color)
+    }
     return [{
       id: type.id,
       name: type.name,
-      color: issueTypeColorForName(type.name),
+      color: color ?? issueTypeColorForName(type.name),
       hierarchyLevel: type.hierarchyLevel,
       subtask: type.subtask,
       iconUrl: type.iconUrl,
     }]
-  })
+  }))).flat()
   return normalized.length ? normalized : prodPlaceholderIssueTypes
 }
 
@@ -354,7 +370,7 @@ function uniqueIssues<T extends { key: string }>(issues: T[]): T[] {
   return [...byKey.values()]
 }
 
-async function hydrateMissingParents(auth: JiraAuthConfig, pageIssues: IssueSummary[], knownIssueKeys: string[], priorMissingParentKeys: string[], statuses: Parameters<typeof normalizeJiraIssues>[1], fieldIds: JiraIssueFieldIds, fetchImpl: FetchLike) {
+async function hydrateMissingParents(auth: JiraAuthConfig, pageIssues: IssueSummary[], knownIssueKeys: string[], priorMissingParentKeys: string[], statuses: Parameters<typeof normalizeJiraIssues>[1], fieldIds: JiraIssueFieldIds, priorityColors: ReadonlyMap<string, string>, fetchImpl: FetchLike) {
   const known = new Set([...knownIssueKeys, ...pageIssues.map((issue) => issue.key)])
   const pending = uniqueStrings([...priorMissingParentKeys, ...pageIssues.flatMap((issue) => issue.parentKey ? [issue.parentKey] : [])]).filter((key) => !known.has(key))
   const hydrated: IssueSummary[] = []
@@ -364,7 +380,7 @@ async function hydrateMissingParents(auth: JiraAuthConfig, pageIssues: IssueSumm
     const batch = pending.splice(0, Math.min(parentHydrationChunkSize, maxHydratedParents - attempted))
     attempted += batch.length
     const page = await fetchJiraSearchIssuePage(auth, parentHydrationJql(batch), fetchImpl, issueCustomFieldIds(fieldIds), 0, batch.length)
-    const parents = normalizeJiraIssues(page.items, statuses, { fieldIds })
+    const parents = normalizeJiraIssues(page.items, statuses, { fieldIds, priorityColors })
     for (const parent of parents) {
       if (known.has(parent.key)) continue
       known.add(parent.key)

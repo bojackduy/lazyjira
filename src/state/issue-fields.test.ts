@@ -35,6 +35,20 @@ describe("issue fields", () => {
     expect(issueFieldColor(state, issue, statusField)).toBe("#A78BFA")
   })
 
+  test("colors the parent field and picker choices by parent key", () => {
+    const state = loadDevWorkspaceState()
+    state.issueTypes = [
+      { id: "Feature", name: "Feature", color: "#22C55E", hierarchyLevel: 1 },
+      { id: "Story", name: "Story", color: "#3B82F6", hierarchyLevel: 0 },
+    ]
+    const issue = { ...state.issues[state.selectedIssueKey]!, type: "Story", parentKey: "PARENT-1", parent: { key: "PARENT-1", title: "Parent feature", type: "Feature" } }
+    const parentField = issueFields.find((field) => field.id === "parentKey")!
+    state.issues["PARENT-1"] = { ...issue, key: "PARENT-1", type: "Feature", issueColor: "#00B8D9", parentKey: undefined, parent: undefined }
+
+    expect(issueFieldColor(state, issue, parentField)).toBe("#00B8D9")
+    expect(parentIssueChoices(state, issue).find((choice) => choice.value === "PARENT-1")?.color).toBe("#00B8D9")
+  })
+
   test("opens body editor with existing issue body", () => {
     const state = loadDevWorkspaceState()
     const issue = state.issues[state.selectedIssueKey]!

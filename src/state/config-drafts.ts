@@ -12,8 +12,8 @@ export function writableConfigSection(sectionId: ConfigSectionId) {
   return sectionId === "columns" || sectionId === "statuses" || sectionId === "issue-types"
 }
 
-export function colorableConfigSection(sectionId: ConfigSectionId) {
-  return sectionId === "columns" || sectionId === "statuses" || sectionId === "issue-types"
+export function colorableConfigSection(state: AppState, sectionId: ConfigSectionId) {
+  return state.runtimeEnv !== "prod" && (sectionId === "columns" || sectionId === "statuses" || sectionId === "issue-types")
 }
 
 export function configuredStatuses(state: AppState): StatusDefinition[] {
@@ -32,7 +32,7 @@ export function configuredStatuses(state: AppState): StatusDefinition[] {
       const name = draft.name
       statuses = statuses.map((status) => status.id === draft.targetId ? { ...status, name } : status)
     }
-    if (draft.action === "color" && draft.color) {
+    if (state.runtimeEnv !== "prod" && draft.action === "color" && draft.color) {
       const color = draft.color
       statuses = statuses.map((status) => status.id === draft.targetId ? { ...status, color } : status)
     }
@@ -56,7 +56,7 @@ export function configuredColumns(state: AppState): StatusColumn[] {
       const name = draft.name
       columns = columns.map((column) => column.id === draft.targetId ? { ...column, name } : column)
     }
-    if (draft.action === "color" && draft.color) {
+    if (state.runtimeEnv !== "prod" && draft.action === "color" && draft.color) {
       const color = draft.color
       columns = columns.map((column) => column.id === draft.targetId ? { ...column, color } : column)
     }
@@ -79,7 +79,7 @@ export function configuredIssueTypes(state: AppState): IssueTypeDefinition[] {
       const name = draft.name
       issueTypes = issueTypes.map((issueType) => issueType.id === draft.targetId ? { ...issueType, name } : issueType)
     }
-    if (draft.action === "color" && draft.color) {
+    if (state.runtimeEnv !== "prod" && draft.action === "color" && draft.color) {
       const color = draft.color
       issueTypes = issueTypes.map((issueType) => issueType.id === draft.targetId ? { ...issueType, color } : issueType)
     }

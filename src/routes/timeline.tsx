@@ -4,7 +4,7 @@ import { createEffect, createMemo, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
-import { highestLevelIssueType, issueTypeColor, statusById } from "../state/selectors"
+import { highestLevelIssueType, issueColor, statusById } from "../state/selectors"
 import {
   cycleTimelineZoom,
   formatTimelineDate,
@@ -125,7 +125,7 @@ function WideTimelineRow(props: { row: TimelineProjectedRow; previousGroup?: Tim
   const sprint = () => state.sprints.find((candidate) => candidate.id === props.row.issue.sprintId)
   const schedule = () => timelineSchedule(props.row.issue, props.cells, sprint())
   const done = () => statusById(state, props.row.issue.statusId)?.category === "done"
-  const scheduleColor = () => props.row.issue.blocked ? theme.warning : done() ? theme.success : issueTypeColor(state, props.row.issue)
+  const scheduleColor = () => props.row.issue.blocked ? theme.warning : done() ? theme.success : issueColor(state, props.row.issue)
 
   return (
     <>
@@ -136,7 +136,7 @@ function WideTimelineRow(props: { row: TimelineProjectedRow; previousGroup?: Tim
         <text fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.text} width={props.identityWidth} wrapMode="none">
           <span>{selected() ? ">" : " "}</span>
           <span>{" ".repeat(props.row.depth * 2)}</span>
-          <span style={{ fg: issueTypeColor(state, props.row.issue) }}>{disclosure(props.row)} </span>
+          <span style={{ fg: issueColor(state, props.row.issue) }}>{disclosure(props.row)} </span>
           <span>{fit(`${props.row.issue.key} ${props.row.issue.title}`, Math.max(1, props.identityWidth - props.row.depth * 2 - 4))}</span>
         </text>
         <Show when={schedule().kind !== "text"} fallback={<text fg={scheduleColor()} wrapMode="none">{fit(timelineRowCopy(props.row, sprint()), props.cells.length * props.cellWidth)}</text>}>
@@ -165,7 +165,7 @@ function NarrowTimeline(props: { rows: TimelineProjectedRow[] }) {
           </Show>
           <box id={`timeline-${row.issue.key}`} flexDirection="column" flexShrink={0} paddingLeft={1 + row.depth * 2} backgroundColor={state.timelineSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selected : undefined}>
             <text fg={state.timelineSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selectedText : theme.text} wrapMode="none">
-              {state.timelineSelectedIssueKey === row.issue.key ? ">" : " "} <span style={{ fg: issueTypeColor(state, row.issue) }}>{disclosure(row)}</span> {row.issue.key} {row.issue.title}
+              {state.timelineSelectedIssueKey === row.issue.key ? ">" : " "} <span style={{ fg: issueColor(state, row.issue) }}>{disclosure(row)}</span> {row.issue.key} {row.issue.title}
             </text>
             <NarrowTimelineSchedule row={row} />
           </box>
@@ -182,7 +182,7 @@ function NarrowTimelineSchedule(props: { row: TimelineProjectedRow }) {
   const sprint = () => state.sprints.find((candidate) => candidate.id === props.row.issue.sprintId)
   const schedule = () => timelineSchedule(props.row.issue, [], sprint())
   const done = () => statusById(state, props.row.issue.statusId)?.category === "done"
-  const color = () => props.row.group === "invalid-hierarchy" ? theme.danger : props.row.issue.blocked ? theme.warning : done() ? theme.success : issueTypeColor(state, props.row.issue)
+  const color = () => props.row.group === "invalid-hierarchy" ? theme.danger : props.row.issue.blocked ? theme.warning : done() ? theme.success : issueColor(state, props.row.issue)
   const marker = () => schedule().kind === "bar" ? "━━" : schedule().kind === "sprint" ? "┄┄" : schedule().kind === "marker" ? "◆" : "·"
   return <text fg={schedule().kind === "text" ? theme.textMuted : color()} wrapMode="none">  {marker()} {timelineRowCopy(props.row, sprint())}</text>
 }

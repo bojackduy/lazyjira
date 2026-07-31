@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { loadDevWorkspaceState } from "./dev"
-import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, highestLevelIssueType, highestLoadedAncestor, issueTypeColorByIdentity, issueTypeName, kanbanIssues, matchesQuickFilters, resolvedBacklogSelection, sprintDateRange, topLevelLoadedAncestor, visibleStatusesForBoard } from "./selectors"
-import { issueTypeColors, parentColorForKey } from "./metadata-colors"
+import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, highestLevelIssueType, highestLoadedAncestor, issueTypeColorByIdentity, issueTypeName, kanbanIssues, matchesQuickFilters, parentIssueColor, resolvedBacklogSelection, sprintDateRange, topLevelLoadedAncestor, visibleStatusesForBoard } from "./selectors"
+import { issueTypeColors } from "./metadata-colors"
 
 describe("board selectors", () => {
   test("shows all statuses when the board is wide enough", () => {
@@ -128,11 +128,9 @@ describe("board selectors", () => {
 
     expect(issueTypeName(state, issue)).toBe("Story")
     expect(issueTypeColorByIdentity(state, "10000", "Feature")).toBe(issueTypeColors.feature)
-    expect(parentColorForKey("HPCE-1812")).toMatch(/^#[0-9A-F]{6}$/)
-    expect(parentColorForKey("hpce-1812")).toBe(parentColorForKey("HPCE-1812"))
-    expect(parentColorForKey("HPCE-1812")).not.toBe(parentColorForKey("HPCE-1813"))
-    const parentColors = new Set(Array.from({ length: 250 }, (_, index) => parentColorForKey(`HPCE-${1_000 + index}`)))
-    expect(parentColors.size).toBe(250)
+    state.issues["HPCE-1296"] = { ...issue, key: "HPCE-1296", type: "Feature", issueColor: "#36B37E" }
+    expect(parentIssueColor(state, { key: "HPCE-1296", type: "Feature" })).toBe("#36B37E")
+    expect(parentIssueColor(state, { key: "HPCE-1488", type: "Feature" })).toBe(issueTypeColors.feature)
   })
 
   test("resolves the highest loaded ancestor and highest configured create level", () => {

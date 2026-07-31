@@ -6,7 +6,7 @@ import { useTheme } from "../context/theme"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldColor, issueFieldDisplayValue, issueFields, parentIssueChoices, type IssueFieldDefinition } from "../state/issue-fields"
-import { issueTypeColor, issueTypeName, statusColor, statusName } from "../state/selectors"
+import { issueColor, issueTypeColor, issueTypeName, statusColor, statusName } from "../state/selectors"
 import { stagedChanges } from "../state/staged-changes"
 import { RichText } from "./rich-text"
 
@@ -54,7 +54,7 @@ export function IssueInspector(props: { compact: boolean }) {
         {(selectedIssue) => (
           <box paddingTop={1} flexDirection="column" gap={1} flexGrow={1} minHeight={0}>
             <box flexDirection="column" flexShrink={0}>
-              <text fg={theme.accent} wrapMode="none">{selectedIssue().key}{selectedIssue().isDraft ? " draft" : ""}</text>
+              <text fg={issueColor(state, selectedIssue())} wrapMode="none">{selectedIssue().key}{selectedIssue().isDraft ? " draft" : ""}</text>
               <text fg={theme.text} wrapMode="none">{selectedIssue().title}</text>
                <text fg={issueTypeColor(state, selectedIssue())} wrapMode="none">■ {issueTypeName(state, selectedIssue())} <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span></text>
               <Show when={state.issueDeletes.includes(selectedIssue().key)}>

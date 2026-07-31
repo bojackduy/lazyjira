@@ -20,6 +20,7 @@ export type IssueDetailContext = WorkspaceSelection & Pick<AppState, "statuses">
 
 export type LoadedIssueDetail = {
   issue: IssueSummary
+  relatedIssues?: IssueSummary[]
 }
 
 export type IssuePageContext = WorkspaceSelection & Pick<AppState, "statuses"> & {

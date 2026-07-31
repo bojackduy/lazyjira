@@ -26,7 +26,7 @@ Use `lazyjira dev` to run with bundled fixture data and no Jira credentials.
 - **Context stays visible:** inspect an issue beside the board instead of losing your place in the browser.
 - **Keyboard-native:** `j/k`, `h/l`, `/`, `?`, `q`, `Tab`, and focused Jira actions keep daily work fast.
 - **Safe writes:** stage changes locally, review the exact Jira operations, then apply them deliberately.
-- **Stable hierarchy colors:** each loaded parent gets a deterministic high-range color by issue key, distinct from status and issue-type colors.
+- **Jira-native metadata colors:** statuses, priorities, issue types, tickets, and hierarchy badges use Jira metadata whenever Jira exposes it.
 
 ## Product Direction
 
@@ -135,7 +135,7 @@ Board cells always include a trailing `+ New issue` placeholder, even when a col
 
 Purpose: inspect board/project metadata without turning the app into a Jira admin console.
 
-In dev/local mode, Board Columns, Statuses, and Issue Types can be staged with `a` add, `e` rename, `c` color, and `x` remove. Board Columns summarize Jira board lanes and their mapped workflow statuses; Statuses shows the detailed workflow state list. Status colors use app semantic rules for readable terminal contrast, with Jira `statusCategory.colorName` only as a fallback signal; issue types, priorities, and blocked signals use app semantic colors. `j/k` moves row by row, `d/u` pages through long metadata lists, `w` renders staged metadata locally while keeping it discardable, `X` discards staged changes, and `W` opens the Jira write review with planned and blocked operation previews. Priorities, Fields, and Quick Filters stay read-only but focusable until the model and API support are real.
+In dev/local mode, Board Columns, Statuses, and Issue Types can be staged with `a` add, `e` rename, `c` color, and `x` remove. In production, Jira metadata is authoritative and colors are read-only: statuses use Jira status-category colors, priorities use Jira priority colors, issue types use their Jira icon color, and tickets or hierarchy badges use Jira Issue color/Epic Color fields. `j/k` moves row by row, `d/u` pages through long metadata lists, `w` renders staged metadata locally while keeping it discardable, `X` discards staged changes, and `W` opens the Jira write review with planned and blocked operation previews. Fields and Quick Filters stay read-only but focusable until the model and API support are real.
 
 ### 8. Search And Command Palette
 

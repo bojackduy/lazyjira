@@ -5,7 +5,7 @@ import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { issueByKey } from "../state/issue-drafts"
-import { activeSprint, issueTypeColor, statusColor, statusName } from "../state/selectors"
+import { activeSprint, issueColor, issueTypeColor, priorityColor, statusColor, statusName } from "../state/selectors"
 import {
   workspaceAttentionQueues,
   workspaceCurrentResults,
@@ -164,7 +164,7 @@ function WorkspaceResultRow(props: { result: WorkspaceResult; selected: boolean 
         {props.selected ? ">" : " "} <Show when={issue()} fallback={props.result.title}>{(selectedIssue) => (
           <>
             <span style={{ fg: issueTypeColor(state, selectedIssue()) }}>■ </span>
-            <span>{selectedIssue().key}</span>
+            <span style={{ fg: issueColor(state, selectedIssue()) }}>{selectedIssue().key}</span>
             <span> {selectedIssue().title}</span>
           </>
         )}</Show>
@@ -173,7 +173,7 @@ function WorkspaceResultRow(props: { result: WorkspaceResult; selected: boolean 
         <Show when={issue()} fallback={props.result.subtitle}>{(selectedIssue) => (
           <>
             <span style={{ fg: issueTypeColor(state, selectedIssue()) }}>{selectedIssue().type}</span>
-            <span> · {selectedIssue().priority} · {selectedIssue().assignee} · </span>
+            <span> · </span><span style={{ fg: priorityColor(selectedIssue()) }}>{selectedIssue().priority}</span><span> · {selectedIssue().assignee} · </span>
             <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span>
             <span>{selectedIssue().staleDays >= 7 ? ` · stale ${selectedIssue().staleDays}d` : ""}</span>
           </>
@@ -195,7 +195,7 @@ function WorkspaceCard(props: { item: WorkspaceItem; selected: boolean; active: 
           {props.selected ? ">" : " "} <Show when={issue()} fallback={props.item.title}>{(selectedIssue) => (
             <>
               <span style={{ fg: issueTypeColor(state, selectedIssue()) }}>■ </span>
-              <span>{selectedIssue().key}</span>
+              <span style={{ fg: issueColor(state, selectedIssue()) }}>{selectedIssue().key}</span>
             </>
           )}</Show>
         </text>

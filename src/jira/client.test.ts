@@ -264,10 +264,10 @@ describe("Jira discovery client", () => {
     expect(metadata.columns.map((column) => column.name)).toEqual(["To Do", "In Progress", "Done"])
     expect(metadata.columns[1]?.statusIds).toEqual(["3", "10001"])
     expect(metadata.statuses).toEqual([
-      { id: "10000", name: "Ready", category: "todo", color: "#22D3EE" },
-      { id: "3", name: "Development", category: "in-progress", color: "#38BDF8" },
-      { id: "10001", name: "Code Review", category: "in-progress", color: "#A78BFA" },
-      { id: "10002", name: "Released", category: "done", color: "#22C55E" },
+      { id: "10000", name: "Ready", category: "todo", color: "#6B778C" },
+      { id: "3", name: "Development", category: "in-progress", color: "#FFAB00" },
+      { id: "10001", name: "Code Review", category: "in-progress", color: "#FFAB00" },
+      { id: "10002", name: "Released", category: "done", color: "#36B37E" },
     ])
   })
 
@@ -355,6 +355,23 @@ describe("Jira discovery client", () => {
       estimate: 13,
       rank: "1|hyfa07:",
     })
+  })
+
+  test("discovers Jira issue colors and keeps Jira Feature colors distinct", () => {
+    const fieldIds = discoverJiraIssueFieldIds([
+      { id: "customfield_10017", name: "Issue color" },
+      { id: "customfield_10013", name: "Epic Color" },
+    ])
+    const issues = normalizeJiraIssues([
+      { key: "HPCE-1296", fields: { summary: "Perfect Forecast", status: { id: "todo" }, customfield_10017: "green", customfield_10013: "ghx-label-6" } },
+      { key: "HPCE-1488", fields: { summary: "List of enhancement", status: { id: "todo" }, customfield_10017: "teal", customfield_10013: "ghx-label-11" } },
+    ], [{ id: "todo", name: "To Do", category: "todo", color: "#6B778C" }], { fieldIds })
+
+    expect(fieldIds).toEqual({ issueColor: "customfield_10017", epicColor: "customfield_10013" })
+    expect(issues.map((issue) => [issue.key, issue.issueColor])).toEqual([
+      ["HPCE-1296", "#36B37E"],
+      ["HPCE-1488", "#00B8D9"],
+    ])
   })
 
   test("discovers Start date by system schema precedence and rejects ambiguous named date fields", () => {

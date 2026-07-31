@@ -28,10 +28,12 @@ describe("prod workspace source", () => {
       async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
       async (url) => {
         requests.push(url)
+        if (url.endsWith("/story.svg")) return new Response('<svg><path fill="#36B37E"/></svg>', { headers: { "content-type": "image/svg+xml" } })
         if (url.endsWith("/rest/api/3/myself")) return jsonResponse({ accountId: "me-1", displayName: "Duy Trinh" })
+        if (url.endsWith("/rest/api/3/priority")) return jsonResponse([{ id: "2", name: "High", statusColor: "#FF5630" }])
         if (url.includes("/project/REAL/statuses")) return jsonResponse([{ name: "Task", statuses: [{ id: "10000", name: "Selected for Work" }] }])
         if (url.includes("/issue/createmeta/REAL/issuetypes")) return jsonResponse({ values: [
-          { id: "10001", name: "Story", hierarchyLevel: 0 },
+          { id: "10001", name: "Story", hierarchyLevel: 0, iconUrl: "https://team.atlassian.net/story.svg" },
           { id: "10002", name: "Sub-task", hierarchyLevel: -1, subtask: true },
         ] })
         if (url.includes("/field")) return jsonResponse([
@@ -65,15 +67,17 @@ describe("prod workspace source", () => {
       "https://team.atlassian.net/rest/api/3/field",
     ])
     expect(requests[5]).toBe("https://team.atlassian.net/rest/api/3/myself")
-    expect(requests[6]).toBe("https://team.atlassian.net/rest/api/2/status/10001")
-    expect(requests[7]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/12/issue?fields=")).toBe(true)
-    expect(requests[7]).toContain("customfield_10020%2Ccustomfield_10036%2Ccustomfield_10016%2Ccustomfield_10019")
-    expect(requests[8]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/13/issue?fields=")).toBe(true)
-    expect(requests[9]?.startsWith("https://team.atlassian.net/rest/agile/1.0/board/100/backlog?fields=")).toBe(true)
+    expect(requests[6]).toBe("https://team.atlassian.net/rest/api/3/priority")
+    expect(requests[7]).toBe("https://team.atlassian.net/rest/api/2/status/10001")
+    expect(requests[8]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/12/issue?fields=")).toBe(true)
+    expect(requests[8]).toContain("customfield_10020%2Ccustomfield_10036%2Ccustomfield_10016%2Ccustomfield_10019")
+    expect(requests[9]?.startsWith("https://team.atlassian.net/rest/agile/1.0/sprint/13/issue?fields=")).toBe(true)
+    expect(requests[10]?.startsWith("https://team.atlassian.net/rest/agile/1.0/board/100/backlog?fields=")).toBe(true)
     expect(workspace.project.key).toBe("REAL")
     expect(workspace).toMatchObject({ currentUser: "Duy Trinh", currentUserAccountId: "me-1" })
     expect(workspace.statuses.map((status) => status.name)).toEqual(["Selected for Work", "Released"])
     expect(workspace.issueTypes).toMatchObject([{ id: "10001", name: "Story", hierarchyLevel: 0 }, { id: "10002", name: "Sub-task", subtask: true }])
+    expect(workspace.issueTypes[0]?.color).toBe("#36B37E")
     expect(workspace.columns.map((column) => ({ name: column.name, statusIds: column.statusIds }))).toEqual([
       { name: "Selected", statusIds: ["10000"] },
       { name: "Done", statusIds: ["10001"] },
@@ -87,6 +91,7 @@ describe("prod workspace source", () => {
     expect(Object.keys(workspace.issues)).toEqual(["REAL-1", "REAL-2", "REAL-3"])
     expect(workspace.issues["REAL-1"]?.sprintId).toBe("12")
     expect(workspace.issues["REAL-1"]?.storyPoints).toBe(5)
+    expect(workspace.issues["REAL-1"]?.priorityColor).toBe("#FF5630")
     expect(workspace.issues["REAL-2"]?.sprintId).toBe("13")
     expect(workspace.issues["REAL-2"]?.storyPoints).toBe(3)
     expect(workspace.issues["REAL-3"]?.sprintId).toBeUndefined()
@@ -292,6 +297,7 @@ describe("prod workspace source", () => {
       async (url) => {
         if (url.endsWith("/rest/api/3/field")) return jsonResponse([
           { id: "customfield_start", name: "Start date", schema: { type: "date" } },
+          { id: "customfield_color", name: "Issue color" },
         ])
         const jql = new URL(url).searchParams.get("jql") ?? ""
         searchJqls.push(jql)
@@ -302,7 +308,7 @@ describe("prod workspace source", () => {
           })) })
         }
         const keys = [...jql.matchAll(/"(REAL-P\d+)"/g)].map((match) => match[1]!)
-        return jsonResponse({ total: keys.length, isLast: true, issues: keys.map((key) => ({ key, fields: { summary: key, status: { id: "todo" } } })) })
+        return jsonResponse({ total: keys.length, isLast: true, issues: keys.map((key) => ({ key, fields: { summary: key, status: { id: "todo" }, customfield_color: key === "REAL-P1" ? "teal" : "green" } })) })
       },
     )
 
@@ -316,6 +322,7 @@ describe("prod workspace source", () => {
 
     expect(searchJqls.filter((jql) => jql.startsWith("key IN"))).toHaveLength(3)
     expect(result.relatedIssues).toHaveLength(51)
+    expect(result.relatedIssues?.find((issue) => issue.key === "REAL-P1")?.issueColor).toBe("#00B8D9")
     expect(result.timelineStartDateField).toEqual({ status: "available", fieldId: "customfield_start" })
     expect(result.issues[0]?.startDate).toBe("2026-08-01")
   })

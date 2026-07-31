@@ -1,5 +1,5 @@
 import type { IssueComment, IssuePriority, IssueSummary, SprintSummary, StatusCategory, StatusColumn, StatusDefinition, TimelineStartDateField } from "../state/app-state"
-import { statusColorForStatus } from "../state/metadata-colors"
+import { jiraMetadataColor, statusColorForStatus } from "../state/metadata-colors"
 import type { JiraBoardConfiguration, JiraComment, JiraField, JiraIssue, JiraProjectStatusesByIssueType, JiraSprint } from "./client"
 import { adfToRichText } from "./adf"
 
@@ -11,9 +11,11 @@ export type JiraIssueFieldIds = {
   storyPointEstimate?: string
   rank?: string
   startDate?: string
+  issueColor?: string
+  epicColor?: string
 }
 
-export const fallbackJiraIssueFieldIds: Required<Omit<JiraIssueFieldIds, "startDate">> = {
+export const fallbackJiraIssueFieldIds: Required<Pick<JiraIssueFieldIds, "sprint" | "storyPoints" | "storyPointEstimate" | "rank">> = {
   sprint: "customfield_10020",
   storyPoints: "customfield_10036",
   storyPointEstimate: "customfield_10016",
@@ -47,9 +49,11 @@ export function normalizeBoardConfiguration(config: JiraBoardConfiguration, stat
     const column = columns[columnIndex]
     if (!column) continue
     const columnName = column.name?.trim() || `Column ${columnIndex + 1}`
-    const category = statusCategoryForColumn(columnName, columnIndex, columns.length)
     const statusIds = (column.statuses ?? []).flatMap((status) => status.id ? [status.id] : [])
-    const columnColor = statusColorForStatus(columnName, category)
+    const jiraCategories = [...new Set(statusIds.flatMap((statusId) => statusLookup.get(statusId)?.category ?? []))]
+    const jiraColorNames = [...new Set(statusIds.flatMap((statusId) => statusLookup.get(statusId)?.colorName ?? []))]
+    const category = jiraCategories.length === 1 ? jiraCategories[0]! : statusCategoryForColumn(columnName, columnIndex, columns.length)
+    const columnColor = statusColorForStatus(columnName, category, "", jiraColorNames.length === 1 ? jiraColorNames[0] : undefined)
 
     statusColumns.push({ id: columnId(columnName, columnIndex), name: columnName, issueKeys: [], statusIds, category, color: columnColor })
 
@@ -57,11 +61,12 @@ export function normalizeBoardConfiguration(config: JiraBoardConfiguration, stat
       const statusId = statusIds[statusIndex]!
       const knownStatus = statusLookup.get(statusId)
       const statusName = knownStatus?.name ?? statusNameForColumn(columnName, statusIndex, statusIds.length)
+      const statusCategory = knownStatus?.category ?? category
       statuses.push({
         id: statusId,
         name: statusName,
-        category,
-        color: statusColorForStatus(statusName, category, columnName, knownStatus?.colorName),
+        category: statusCategory,
+        color: statusColorForStatus(statusName, statusCategory, columnName, knownStatus?.colorName),
       })
     }
   }
@@ -90,6 +95,8 @@ export function discoverJiraIssueFieldIds(fields: JiraField[]): JiraIssueFieldId
     storyPoints: fieldId(fields, isStoryPointsField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.storyPoints),
     storyPointEstimate: fieldId(fields, isStoryPointEstimateField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.storyPointEstimate),
     rank: fieldId(fields, isRankField) ?? knownFieldId(fields, fallbackJiraIssueFieldIds.rank),
+    issueColor: fieldId(fields, (field) => normalizedFieldName(field) === "issue color"),
+    epicColor: fieldId(fields, (field) => normalizedFieldName(field) === "epic color"),
     ...(startDate.status === "available" ? { startDate: startDate.fieldId } : {}),
   }
 }
@@ -106,14 +113,14 @@ export function discoverJiraStartDateField(fields: JiraField[]): TimelineStartDa
 }
 
 export function issueCustomFieldIds(fieldIds: JiraIssueFieldIds): string[] {
-  return [fieldIds.sprint, fieldIds.storyPoints, fieldIds.storyPointEstimate, fieldIds.rank, fieldIds.startDate].filter((fieldId): fieldId is string => !!fieldId)
+  return [fieldIds.sprint, fieldIds.storyPoints, fieldIds.storyPointEstimate, fieldIds.rank, fieldIds.startDate, fieldIds.issueColor, fieldIds.epicColor].filter((fieldId): fieldId is string => !!fieldId)
 }
 
-export function normalizeSprintIssues(issues: JiraIssue[], sprintId: string, statuses: StatusDefinition[], fieldIds: JiraIssueFieldIds = {}): IssueSummary[] {
-  return normalizeJiraIssues(issues, statuses, { fallbackSprintId: sprintId, fieldIds })
+export function normalizeSprintIssues(issues: JiraIssue[], sprintId: string, statuses: StatusDefinition[], fieldIds: JiraIssueFieldIds = {}, priorityColors?: ReadonlyMap<string, string>): IssueSummary[] {
+  return normalizeJiraIssues(issues, statuses, { fallbackSprintId: sprintId, fieldIds, priorityColors })
 }
 
-export function normalizeJiraIssues(issues: JiraIssue[], statuses: StatusDefinition[], options: { fallbackSprintId?: string; fieldIds?: JiraIssueFieldIds } = {}): IssueSummary[] {
+export function normalizeJiraIssues(issues: JiraIssue[], statuses: StatusDefinition[], options: { fallbackSprintId?: string; fieldIds?: JiraIssueFieldIds; priorityColors?: ReadonlyMap<string, string> } = {}): IssueSummary[] {
   const fieldIds = options.fieldIds ?? {}
   return issues.flatMap((issue) => {
     if (!issue.key) return []
@@ -131,6 +138,8 @@ export function normalizeJiraIssues(issues: JiraIssue[], statuses: StatusDefinit
       typeName: fields.issuetype?.name,
       typeHierarchyLevel: fields.issuetype?.hierarchyLevel,
       priority: normalizePriority(fields.priority?.name),
+      priorityColor: jiraMetadataColor(fields.priority?.statusColor) ?? (fields.priority?.name ? options.priorityColors?.get(fields.priority.name) : undefined),
+      issueColor: jiraMetadataColor(stringField(fields, fieldIds.issueColor)) ?? jiraMetadataColor(stringField(fields, fieldIds.epicColor)),
       statusId,
       assignee: fields.assignee?.displayName ?? "Unassigned",
       assigneeAccountId: fields.assignee?.accountId,

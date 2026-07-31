@@ -9,7 +9,7 @@ import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts
 import { issueByKey } from "../state/issue-drafts"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageStatusText, sprintIssuePageSourceId } from "../state/issue-pages"
 import { boardCapabilities } from "../state/routes"
-import { emptyLoadedIssuesText, groupBacklogIssues, groupModeLabel, issueTypeColor, issueTypeName, statusColor, statusName } from "../state/selectors"
+import { emptyLoadedIssuesText, groupBacklogIssues, groupModeLabel, issueColor, issueTypeColor, issueTypeName, priorityColor, statusColor, statusName } from "../state/selectors"
 import { ParentBadge } from "../ui/parent-badge"
 
 export function BacklogRoute() {
@@ -214,12 +214,12 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: bo
       <box id={`issue-${props.issue.key}`} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
         <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">
           <span style={{ fg: issueTypeColor(state, props.issue) }}>■ </span>
-          <span>{props.issue.key}</span>
+          <span style={{ fg: issueColor(state, props.issue) }}>{props.issue.key}</span>
            <span style={{ fg: theme.textSubtle }}> {issueTypeName(state, props.issue)}</span>
           <span> {props.issue.title}</span>
         </text>
         <text fg={statusColor(state, props.issue)} wrapMode="none">
-          {statusName(state, props.issue)} · {props.issue.priority} · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
+          {statusName(state, props.issue)} · <span style={{ fg: priorityColor(props.issue) }}>{props.issue.priority}</span> · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
         </text>
         <ParentBadge issue={props.issue} topLevelOnly />
       </box>
@@ -231,13 +231,13 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: bo
       <box flexDirection="row" gap={1}>
         <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexGrow={1} flexShrink={1} minWidth={0}>
           <span style={{ fg: issueTypeColor(state, props.issue) }}>■ </span>
-          <span>{props.issue.key}</span>
+          <span style={{ fg: issueColor(state, props.issue) }}>{props.issue.key}</span>
           <span style={{ fg: theme.textSubtle }}> {issueTypeName(state, props.issue)}</span>
           <span> {props.issue.title}</span>
         </text>
         <box width={28} flexShrink={0}><ParentBadge issue={props.issue} width={28} topLevelOnly /></box>
         <text fg={statusColor(state, props.issue)} wrapMode="none" width={34} flexShrink={0}>
-          {statusName(state, props.issue)} · {props.issue.priority} · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
+          {statusName(state, props.issue)} · <span style={{ fg: priorityColor(props.issue) }}>{props.issue.priority}</span> · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
         </text>
       </box>
     </box>
