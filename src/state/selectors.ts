@@ -95,7 +95,11 @@ export function statusById(state: AppState, statusId: string): StatusDefinition 
 }
 
 export function issueTypeColor(state: AppState, issue: IssueSummary) {
-  return configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type || type.name === issue.typeName)?.color ?? issueTypeColorForName(issue.typeName ?? issue.type)
+  return issueTypeColorByIdentity(state, issue.type, issue.typeName)
+}
+
+export function issueTypeColorByIdentity(state: AppState, type: string, typeName?: string) {
+  return configuredIssueTypes(state).find((candidate) => candidate.id === type || candidate.name === type || candidate.name === typeName)?.color ?? issueTypeColorForName(typeName ?? type)
 }
 
 export function issueTypeName(state: AppState, issue: IssueSummary) {

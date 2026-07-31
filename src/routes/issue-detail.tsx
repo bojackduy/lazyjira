@@ -26,6 +26,7 @@ export function IssueDetailRoute() {
       { name: "detail.scroll.up", run: () => scrollLine(-1) },
       { name: "detail.scroll.half-down", run: () => scrollHalfPage(1) },
       { name: "detail.scroll.half-up", run: () => scrollHalfPage(-1) },
+      { name: "detail.open-parent", run: () => appState.openParentIssue() },
     ],
     bindings: state.searchOpen ? [] : [
       { key: "j", cmd: "detail.scroll.down", preventDefault: false },
@@ -36,6 +37,7 @@ export function IssueDetailRoute() {
       { key: { name: "d", ctrl: true }, cmd: "detail.scroll.half-down" },
       { key: "u", cmd: "detail.scroll.half-up", preventDefault: false },
       { key: { name: "u", ctrl: true }, cmd: "detail.scroll.half-up" },
+      ...(canOpenParent() ? [{ key: "return", cmd: "detail.open-parent", preventDefault: false }] : []),
     ],
   }))
 
@@ -51,6 +53,10 @@ export function IssueDetailRoute() {
 
   function canScrollDetail() {
     return state.route === "issue-detail" && state.focusedPane === "main" && !state.detailBodyEditing && !state.remoteApplyOpen && !state.stagedDiscardOpen
+  }
+
+  function canOpenParent() {
+    return state.route === "issue-detail" && state.focusedPane === "main" && !state.detailBodyEditing && !state.searchOpen && !state.remoteApplyOpen && !state.stagedDiscardOpen && !state.commandPaletteOpen && !state.helpOpen && !state.projectPicker.open && !state.commentEditing
   }
 
   return (

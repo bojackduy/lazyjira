@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { loadDevWorkspaceState } from "./dev"
-import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, highestLevelIssueType, highestLoadedAncestor, issueTypeName, kanbanIssues, matchesQuickFilters, resolvedBacklogSelection, sprintDateRange, topLevelLoadedAncestor, visibleStatusesForBoard } from "./selectors"
+import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, highestLevelIssueType, highestLoadedAncestor, issueTypeColorByIdentity, issueTypeName, kanbanIssues, matchesQuickFilters, resolvedBacklogSelection, sprintDateRange, topLevelLoadedAncestor, visibleStatusesForBoard } from "./selectors"
+import { issueTypeColors } from "./metadata-colors"
 
 describe("board selectors", () => {
   test("shows all statuses when the board is wide enough", () => {
@@ -126,6 +127,7 @@ describe("board selectors", () => {
     state.issueTypes = []
 
     expect(issueTypeName(state, issue)).toBe("Story")
+    expect(issueTypeColorByIdentity(state, "10000", "Feature")).toBe(issueTypeColors.feature)
   })
 
   test("resolves the highest loaded ancestor and highest configured create level", () => {

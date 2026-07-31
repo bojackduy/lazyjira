@@ -273,10 +273,6 @@ export function App() {
       return
     }
     if (state.focusedPane !== "main") return
-    if (state.route === "issue-detail") {
-      appState.openParentIssue()
-      return
-    }
     if (state.route === "workspace") {
       appState.moveWorkspaceSelection(delta)
       return
