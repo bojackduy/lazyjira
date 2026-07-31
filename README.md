@@ -26,7 +26,7 @@ Use `lazyjira dev` to run with bundled fixture data and no Jira credentials.
 - **Context stays visible:** inspect an issue beside the board instead of losing your place in the browser.
 - **Keyboard-native:** `j/k`, `h/l`, `/`, `?`, `q`, `Tab`, and focused Jira actions keep daily work fast.
 - **Safe writes:** stage changes locally, review the exact Jira operations, then apply them deliberately.
-- **Stable hierarchy colors:** each loaded parent gets a deterministic color by issue key, distinct from status and issue-type colors.
+- **Stable hierarchy colors:** each loaded parent gets a deterministic high-range color by issue key, distinct from status and issue-type colors.
 
 ## Product Direction
 

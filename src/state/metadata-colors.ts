@@ -25,24 +25,36 @@ export const issueTypeColors = {
   bug: "#F85149",
 }
 
-export const parentColors = [
-  "#A371F7",
-  "#39C5CF",
-  "#F2CC60",
-  "#FF7B72",
-  "#DB61A2",
-  "#58A6FF",
-  "#3FB950",
-  "#D29922",
-] as const
-
 export function parentColorForKey(key: string) {
   let hash = 2_166_136_261
   for (const character of key.toUpperCase()) {
     hash ^= character.charCodeAt(0)
     hash = Math.imul(hash, 16_777_619)
   }
-  return parentColors[(hash >>> 0) % parentColors.length]!
+  const value = hash >>> 0
+  const hue = value % 360
+  const saturation = 68 + ((value >>> 9) % 17)
+  const lightness = 58 + ((value >>> 17) % 11)
+  return hslToHex(hue, saturation, lightness)
+}
+
+function hslToHex(hue: number, saturation: number, lightness: number) {
+  const s = saturation / 100
+  const l = lightness / 100
+  const chroma = (1 - Math.abs(2 * l - 1)) * s
+  const segment = hue / 60
+  const secondary = chroma * (1 - Math.abs((segment % 2) - 1))
+  const [red, green, blue] = segment < 1 ? [chroma, secondary, 0]
+    : segment < 2 ? [secondary, chroma, 0]
+      : segment < 3 ? [0, chroma, secondary]
+        : segment < 4 ? [0, secondary, chroma]
+          : segment < 5 ? [secondary, 0, chroma]
+            : [chroma, 0, secondary]
+  const match = l - chroma / 2
+  return `#${[red, green, blue]
+    .map((channel) => Math.round((channel + match) * 255).toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase()}`
 }
 
 export function issueTypeColorForName(name: string) {
