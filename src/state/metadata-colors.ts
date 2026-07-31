@@ -25,6 +25,26 @@ export const issueTypeColors = {
   bug: "#F85149",
 }
 
+export const parentColors = [
+  "#A371F7",
+  "#39C5CF",
+  "#F2CC60",
+  "#FF7B72",
+  "#DB61A2",
+  "#58A6FF",
+  "#3FB950",
+  "#D29922",
+] as const
+
+export function parentColorForKey(key: string) {
+  let hash = 2_166_136_261
+  for (const character of key.toUpperCase()) {
+    hash ^= character.charCodeAt(0)
+    hash = Math.imul(hash, 16_777_619)
+  }
+  return parentColors[(hash >>> 0) % parentColors.length]!
+}
+
 export function issueTypeColorForName(name: string) {
   const normalized = name.toLowerCase()
   if (normalized.includes("epic")) return issueTypeColors.epic

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { loadDevWorkspaceState } from "./dev"
 import { activeSprint, activeSprintIssues, backlogCreateSprintId, boardStatusWindowSize, emptyLoadedIssuesText, groupBacklogIssues, highestLevelIssueType, highestLoadedAncestor, issueTypeColorByIdentity, issueTypeName, kanbanIssues, matchesQuickFilters, resolvedBacklogSelection, sprintDateRange, topLevelLoadedAncestor, visibleStatusesForBoard } from "./selectors"
-import { issueTypeColors } from "./metadata-colors"
+import { issueTypeColors, parentColorForKey, parentColors } from "./metadata-colors"
 
 describe("board selectors", () => {
   test("shows all statuses when the board is wide enough", () => {
@@ -128,6 +128,9 @@ describe("board selectors", () => {
 
     expect(issueTypeName(state, issue)).toBe("Story")
     expect(issueTypeColorByIdentity(state, "10000", "Feature")).toBe(issueTypeColors.feature)
+    expect(parentColors).toContain(parentColorForKey("HPCE-1812"))
+    expect(parentColorForKey("hpce-1812")).toBe(parentColorForKey("HPCE-1812"))
+    expect(parentColorForKey("HPCE-1812")).not.toBe(parentColorForKey("HPCE-1813"))
   })
 
   test("resolves the highest loaded ancestor and highest configured create level", () => {
