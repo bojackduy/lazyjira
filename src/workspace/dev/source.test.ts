@@ -5,7 +5,7 @@ import { backlogIssuePageSourceId, boardIssuePageSourceId, projectListIssuePageS
 describe("dev workspace source", () => {
   test("loads different fixture tickets per project", async () => {
     const source = createDevWorkspaceSource()
-    const projects = await source.fetchProjects()
+    const projects = (await source.fetchProjectPage({ query: "", startAt: 0, maxResults: 50 })).items
 
     const product = await source.loadWorkspace({ project: projects[0]!, board: (await source.fetchBoards(projects[0]!.key))[0]! })
     const mobile = await source.loadWorkspace({ project: projects[1]!, board: (await source.fetchBoards(projects[1]!.key))[0]! })
@@ -18,7 +18,7 @@ describe("dev workspace source", () => {
 
   test("provides deterministic disjoint Kanban board and backlog membership", async () => {
     const source = createDevWorkspaceSource()
-    const project = (await source.fetchProjects())[0]!
+    const project = (await source.fetchProjectPage({ query: "", startAt: 0, maxResults: 50 })).items[0]!
     const workspace = await source.loadWorkspace({ project, board: (await source.fetchBoards(project.key))[0]! })
 
     expect(workspace.issueKeysBySource[boardIssuePageSourceId]?.length).toBeGreaterThan(0)
@@ -28,7 +28,7 @@ describe("dev workspace source", () => {
 
   test("loads deterministic bounded project List pages without Jira credentials", async () => {
     const source = createDevWorkspaceSource()
-    const project = (await source.fetchProjects())[0]!
+    const project = (await source.fetchProjectPage({ query: "", startAt: 0, maxResults: 50 })).items[0]!
     const context = {
       project,
       board: (await source.fetchBoards(project.key))[0]!,
@@ -43,5 +43,18 @@ describe("dev workspace source", () => {
     expect(second.issues.map((issue) => issue.key)).toEqual(["PROJ-128", "PROJ-142"])
     expect(first.pageState).toMatchObject({ startAt: 2, maxResults: 2, isLast: false })
     expect(first.sort).toBe("rank")
+  })
+
+  test("pages and searches projects like the production source", async () => {
+    const source = createDevWorkspaceSource()
+
+    const first = await source.fetchProjectPage({ query: "", startAt: 0, maxResults: 2 })
+    const second = await source.fetchProjectPage({ query: "", startAt: 2, maxResults: 2 })
+    const search = await source.fetchProjectPage({ query: "mobile", startAt: 0, maxResults: 50 })
+
+    expect(first).toMatchObject({ startAt: 0, maxResults: 2, total: 3, isLast: false })
+    expect(first.items.map((project) => project.key)).toEqual(["PROJ", "MOB"])
+    expect(second.items.map((project) => project.key)).toEqual(["OPS"])
+    expect(search.items.map((project) => project.key)).toEqual(["MOB"])
   })
 })

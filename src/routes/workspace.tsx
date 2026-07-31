@@ -5,7 +5,7 @@ import { useAppState } from "../context/app-state"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { issueByKey } from "../state/issue-drafts"
-import { activeSprint, issueColor, issueTypeColor, priorityColor, statusColor, statusName } from "../state/selectors"
+import { activeSprint, issueColor, issueTypeColor, issueTypeName, priorityColor, statusColor, statusName } from "../state/selectors"
 import {
   workspaceAttentionQueues,
   workspaceCurrentResults,
@@ -172,7 +172,7 @@ function WorkspaceResultRow(props: { result: WorkspaceResult; selected: boolean 
       <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">
         <Show when={issue()} fallback={props.result.subtitle}>{(selectedIssue) => (
           <>
-            <span style={{ fg: issueTypeColor(state, selectedIssue()) }}>{selectedIssue().type}</span>
+            <span style={{ fg: issueTypeColor(state, selectedIssue()) }}>{issueTypeName(state, selectedIssue())}</span>
             <span> · </span><span style={{ fg: priorityColor(selectedIssue()) }}>{selectedIssue().priority}</span><span> · {selectedIssue().assignee} · </span>
             <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span>
             <span>{selectedIssue().staleDays >= 7 ? ` · stale ${selectedIssue().staleDays}d` : ""}</span>

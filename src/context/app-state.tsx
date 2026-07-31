@@ -21,10 +21,11 @@ import { defaultIssueTypeColor, statusColorForCategory } from "../state/metadata
 import { normalizePersistedRoute, sidebarEntryCount, sidebarQuickFilterIndex, sidebarRoutesForBoard, type AppRoute } from "../state/routes"
 import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldDisplayValue, issueFields, parentIssueChoices, selectedIssueField } from "../state/issue-fields"
-import { filteredProjectPickerBoards, filteredProjectPickerOptions, filteredProjectPickerProjects, filteredProjectPickerWorkspaces } from "../state/project-picker"
+import { filteredProjectPickerBoards, filteredProjectPickerOptions, filteredProjectPickerProjects, filteredProjectPickerWorkspaces, normalizedProjectQuery, projectPageCacheKey } from "../state/project-picker"
 import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from "../state/staged-changes"
 import { workspaceCurrentResults, workspaceItems, workspaceSelectedItem } from "../state/workspace"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, projectListIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
+import { timelineCreateRowKey, timelineUnparentedSectionKey } from "../state/timeline"
 import { planJiraWrites, writePlanCounts } from "../state/jira-write-plan"
 import { groupBacklogIssues, resolvedBacklogSelection } from "../state/selectors"
 import { markdownToAdf } from "../jira/adf"
@@ -40,6 +41,7 @@ export type AppStateContext = {
   closeProjectPicker: () => void
   browseRemoteProjects: () => Promise<void>
   refreshProjectPicker: () => Promise<void>
+  changeProjectPickerPage: (delta: -1 | 1) => Promise<void>
   openProjectPickerSearch: () => void
   updateProjectPickerSearch: (query: string) => void
   clearProjectPickerSearch: () => void
@@ -142,6 +144,57 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
   const toast = useToast()
   let userPickerTimer: ReturnType<typeof setTimeout> | undefined
   let userPickerRequestId = 0
+  let projectPickerTimer: ReturnType<typeof setTimeout> | undefined
+  let projectPickerRequestId = 0
+
+  function applyProjectPage(query: string, page: AppState["projectPicker"]["remoteProjectPage"]) {
+    if (!page) return
+    const key = projectPageCacheKey(query, page.startAt)
+    setState("projectPicker", "remoteProjectPages", { ...state.projectPicker.remoteProjectPages, [key]: page })
+    setState("projectPicker", "remoteProjectPage", page)
+    setState("projectPicker", "projectSearchQuery", query)
+    setState("projectPicker", "searchQuery", query)
+    setState("projectPicker", "selectedIndex", 0)
+    setState("projectPicker", "projectSelectedIndex", 0)
+    setState("projectPicker", "error", undefined)
+  }
+
+  async function loadProjectPage(query: string, startAt: number, force = false, requestId = ++projectPickerRequestId) {
+    const normalizedQuery = normalizedProjectQuery(query)
+    const cacheKey = projectPageCacheKey(normalizedQuery, startAt)
+    const cached = state.projectPicker.remoteProjectPages[cacheKey]
+    if (cached && !force) {
+      applyProjectPage(normalizedQuery, cached)
+      setState("projectPicker", "loading", false)
+      return
+    }
+    setState("projectPicker", "loading", true)
+    setState("projectPicker", "error", undefined)
+    try {
+      const page = await props.source.fetchProjectPage({ query: normalizedQuery, startAt, maxResults: 50 })
+      if (requestId !== projectPickerRequestId) return
+      applyProjectPage(normalizedQuery, page)
+    } catch (error) {
+      if (requestId !== projectPickerRequestId) return
+      setState("projectPicker", "searchQuery", state.projectPicker.projectSearchQuery)
+      setState("projectPicker", "error", error instanceof Error ? error.message : String(error))
+    } finally {
+      if (requestId === projectPickerRequestId) setState("projectPicker", "loading", false)
+    }
+  }
+
+  function scheduleProjectSearch(query: string) {
+    if (projectPickerTimer) clearTimeout(projectPickerTimer)
+    const requestId = ++projectPickerRequestId
+    const cached = state.projectPicker.remoteProjectPages[projectPageCacheKey(query, 0)]
+    if (cached) {
+      applyProjectPage(normalizedProjectQuery(query), cached)
+      setState("projectPicker", "loading", false)
+      return
+    }
+    setState("projectPicker", "loading", true)
+    projectPickerTimer = setTimeout(() => void loadProjectPage(query, 0, false, requestId), 250)
+  }
 
   async function loadWorkspace(selection: WorkspaceSelection, applyOnSuccess: boolean) {
     const requestId = state.workspaceRequestId + 1
@@ -422,7 +475,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         setState("projectPicker", "searchOpen", false)
         setState("projectPicker", "searchQuery", "")
         setState("projectPicker", "selectedIndex", 0)
-        toast.show("Jira credentials saved. Press a in the workspace switcher to browse Jira projects.")
+        toast.show("Jira credentials saved. Press a in the workspace switcher to choose a Jira project.")
       } catch (error) {
         setState("authOnboarding", "saving", false)
         setState("authOnboarding", "error", error instanceof Error ? error.message : String(error))
@@ -437,6 +490,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("projectPicker", "selectedIndex", activeRecentWorkspaceIndex(state))
     },
     closeProjectPicker() {
+      if (projectPickerTimer) clearTimeout(projectPickerTimer)
+      projectPickerRequestId += 1
       setState("projectPicker", "open", false)
       setState("projectPicker", "loading", false)
       setState("projectPicker", "saving", false)
@@ -456,13 +511,24 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("projectPicker", "error", undefined)
       setState("projectPicker", "searchOpen", false)
       setState("projectPicker", "searchQuery", "")
+      setState("projectPicker", "projectSearchQuery", "")
       setState("projectPicker", "selectedIndex", 0)
+      setState("projectPicker", "projectSelectedIndex", 0)
       setState("projectPicker", "selectedProject", undefined)
-      if (!state.projectPicker.remoteProjectCache) await context.refreshProjectPicker()
+      const cached = state.projectPicker.remoteProjectPages[projectPageCacheKey("", 0)]
+      if (cached) applyProjectPage("", cached)
+      else await loadProjectPage("", 0)
     },
     async refreshProjectPicker() {
       if (state.projectPicker.mode === "local") return
       if (state.projectPicker.loading) return
+      if (state.projectPicker.mode === "remote-projects") {
+        const displayedQuery = state.projectPicker.projectSearchQuery
+        const requestedQuery = state.projectPicker.searchQuery
+        const startAt = normalizedProjectQuery(displayedQuery) === normalizedProjectQuery(requestedQuery) ? (state.projectPicker.remoteProjectPage?.startAt ?? 0) : 0
+        await loadProjectPage(requestedQuery, startAt, true)
+        return
+      }
       setState("projectPicker", "loading", true)
       setState("projectPicker", "error", undefined)
       try {
@@ -473,10 +539,6 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           if (!boards.length) setState("projectPicker", "error", `No Jira Software boards found for ${state.projectPicker.selectedProject.key}`)
           return
         }
-        const projects = await props.source.fetchProjects()
-        setState("projectPicker", "remoteProjectCache", projects)
-        setState("projectPicker", "selectedIndex", 0)
-        if (!projects.length) setState("projectPicker", "error", "No accessible Jira projects found")
       } catch (error) {
         setState("projectPicker", "error", error instanceof Error ? error.message : String(error))
       } finally {
@@ -489,11 +551,13 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     updateProjectPickerSearch(query) {
       setState("projectPicker", "searchQuery", query)
       setState("projectPicker", "selectedIndex", 0)
+      if (state.projectPicker.mode === "remote-projects") scheduleProjectSearch(query)
     },
     clearProjectPickerSearch() {
       setState("projectPicker", "searchOpen", false)
       setState("projectPicker", "searchQuery", "")
       setState("projectPicker", "selectedIndex", 0)
+      if (state.projectPicker.mode === "remote-projects") scheduleProjectSearch("")
     },
     backProjectPickerStep() {
       if (state.projectPicker.mode === "local") return
@@ -510,8 +574,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("projectPicker", "mode", "remote-projects")
       setState("projectPicker", "selectedProject", undefined)
       setState("projectPicker", "searchOpen", false)
-      setState("projectPicker", "searchQuery", "")
-      const selectedIndex = selectedProject ? Math.max(0, filteredProjectPickerProjects(state).findIndex((project) => project.key === selectedProject.key)) : 0
+      setState("projectPicker", "searchQuery", state.projectPicker.projectSearchQuery)
+      const selectedIndex = selectedProject ? state.projectPicker.projectSelectedIndex : 0
       setState("projectPicker", "selectedIndex", selectedIndex)
       setState("projectPicker", "error", undefined)
     },
@@ -519,6 +583,15 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const options = filteredProjectPickerOptions(state)
       if (!options.length) return
       setState("projectPicker", "selectedIndex", (state.projectPicker.selectedIndex + delta + options.length) % options.length)
+    },
+    async changeProjectPickerPage(delta) {
+      if (state.projectPicker.mode !== "remote-projects" || state.projectPicker.loading) return
+      const page = state.projectPicker.remoteProjectPage
+      if (!page) return
+      if (delta < 0 && page.startAt === 0) return
+      if (delta > 0 && page.isLast) return
+      const startAt = delta < 0 ? Math.max(0, page.startAt - page.maxResults) : page.startAt + page.maxResults
+      await loadProjectPage(state.projectPicker.projectSearchQuery, startAt)
     },
     async selectProjectPickerItem() {
       if (state.projectPicker.loading || state.projectPicker.saving) return
@@ -533,15 +606,21 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         if (state.projectPicker.mode === "remote-projects") {
           const project = filteredProjectPickerProjects(state)[state.projectPicker.selectedIndex]
           if (!project) return
+          const projectSelectedIndex = state.projectPicker.selectedIndex
           setState("projectPicker", "loading", true)
           setState("projectPicker", "error", undefined)
           const boards = state.projectPicker.remoteBoardsByProject[project.key] ?? await props.source.fetchBoards(project.key)
-          setState("projectPicker", "remoteBoardsByProject", project.key, boards)
           if (!boards.length) {
             setState("projectPicker", "error", `No Jira Software boards found for ${project.key}`)
             return
           }
+          setState("projectPicker", "remoteBoardsByProject", project.key, boards)
           setState("projectPicker", "selectedProject", project)
+          setState("projectPicker", "projectSelectedIndex", projectSelectedIndex)
+          if (boards.length === 1) {
+            await saveSelectedProjectContext(project, boards[0]!)
+            return
+          }
           setState("projectPicker", "mode", "remote-boards")
           setState("projectPicker", "searchOpen", false)
           setState("projectPicker", "searchQuery", "")
@@ -920,7 +999,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     setTimelineSelection(issueKey) {
       setState("timelineSelectedIssueKey", issueKey)
-      if (issueKey) setState("selectedIssueKey", issueKey)
+      if (issueKey && issueKey !== timelineUnparentedSectionKey && issueKey !== timelineCreateRowKey) setState("selectedIssueKey", issueKey)
     },
     setTimelineWindowStart(date) {
       setState("timelineWindowStart", date)

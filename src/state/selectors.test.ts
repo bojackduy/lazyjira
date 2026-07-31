@@ -133,6 +133,14 @@ describe("board selectors", () => {
     expect(parentIssueColor(state, { key: "HPCE-1488", type: "Feature" })).toBe(issueTypeColors.feature)
   })
 
+  test("resolves canonical Jira type IDs through issue type metadata", () => {
+    const state = loadDevWorkspaceState()
+    const issue = { ...state.issues[state.selectedIssueKey]!, type: "10009", typeName: undefined }
+    state.issueTypes = [{ id: "10009", name: "Story", color: "#3B82F6" }]
+
+    expect(issueTypeName(state, issue)).toBe("Story")
+  })
+
   test("resolves the highest loaded ancestor and highest configured create level", () => {
     const state = loadDevWorkspaceState()
     state.issues.ROOT = { ...state.issues[state.selectedIssueKey]!, key: "ROOT", title: "Top initiative", type: "Initiative", parentKey: undefined }

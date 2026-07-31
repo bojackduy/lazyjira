@@ -9,6 +9,7 @@ import { devBoardsByProjectKey, devProjects, loadDevWorkspaceFixture } from "../
 import type { LoadedIssueDetail, WorkspaceSelection, WorkspaceSource } from "../workspace/types"
 import type { JiraWorkspaceConfig } from "../auth/config"
 import { issueFields } from "../state/issue-fields"
+import { timelineCreateRowKey, timelineUnparentedSectionKey } from "../state/timeline"
 
 const disposers: Array<() => void> = []
 
@@ -65,11 +66,11 @@ describe("app state project picker", () => {
   })
 
   test("opens local workspace switcher without fetching remote projects", () => {
-    let fetchProjectsCount = 0
+    let projectPageFetchCount = 0
     const appState = createTestAppState({
-      async fetchProjects() {
-        fetchProjectsCount += 1
-        return [...devProjects]
+      async fetchProjectPage({ query, startAt, maxResults }) {
+        projectPageFetchCount += 1
+        return projectPage(query, startAt, maxResults)
       },
     })
 
@@ -77,16 +78,16 @@ describe("app state project picker", () => {
 
     expect(appState.state.projectPicker.open).toBe(true)
     expect(appState.state.projectPicker.mode).toBe("local")
-    expect(fetchProjectsCount).toBe(0)
+    expect(projectPageFetchCount).toBe(0)
   })
 
   test("opens local workspace switcher even before prod auth is ready", () => {
-    let fetchProjectsCount = 0
+    let projectPageFetchCount = 0
     const appState = createTestAppState({
       env: "prod",
-      async fetchProjects() {
-        fetchProjectsCount += 1
-        return [...devProjects]
+      async fetchProjectPage({ query, startAt, maxResults }) {
+        projectPageFetchCount += 1
+        return projectPage(query, startAt, maxResults)
       },
     })
 
@@ -95,15 +96,15 @@ describe("app state project picker", () => {
     expect(appState.state.projectPicker.open).toBe(true)
     expect(appState.state.projectPicker.mode).toBe("local")
     expect(appState.state.authOnboarding.open).toBe(false)
-    expect(fetchProjectsCount).toBe(0)
+    expect(projectPageFetchCount).toBe(0)
   })
 
   test("remote browse fetches project cache only on demand", async () => {
-    let fetchProjectsCount = 0
+    let projectPageFetchCount = 0
     const appState = createTestAppState({
-      async fetchProjects() {
-        fetchProjectsCount += 1
-        return [...devProjects]
+      async fetchProjectPage({ query, startAt, maxResults }) {
+        projectPageFetchCount += 1
+        return projectPage(query, startAt, maxResults)
       },
     })
 
@@ -111,8 +112,8 @@ describe("app state project picker", () => {
     await appState.browseRemoteProjects()
 
     expect(appState.state.projectPicker.mode).toBe("remote-projects")
-    expect(appState.state.projectPicker.remoteProjectCache?.map((project) => project.key)).toEqual(["PROJ", "MOB", "OPS"])
-    expect(fetchProjectsCount).toBe(1)
+    expect(appState.state.projectPicker.remoteProjectPage?.items.map((project) => project.key)).toEqual(["PROJ", "MOB", "OPS"])
+    expect(projectPageFetchCount).toBe(1)
   })
 
   test("remote selection of the already loaded default workspace still persists config", async () => {
@@ -131,14 +132,10 @@ describe("app state project picker", () => {
     )
 
     await appState.browseRemoteProjects()
-    appState.updateProjectPickerSearch("Product")
-    expect(appState.state.projectPicker.remoteProjectCache?.map((project) => project.key)).toEqual(["PROJ", "MOB", "OPS"])
-    expect(appState.state.projectPicker.searchQuery).toBe("Product")
+    expect(appState.state.projectPicker.remoteProjectPage?.items.map((project) => project.key)).toEqual(["PROJ", "MOB", "OPS"])
     expect(appState.state.projectPicker.selectedIndex).toBe(0)
     await appState.selectProjectPickerItem()
-    expect(appState.state.projectPicker.selectedProject?.key).toBe("PROJ")
     expect(appState.state.projectPicker.remoteBoardsByProject.PROJ?.map((board) => board.id)).toEqual(["dev-board-proj"])
-    await appState.selectProjectPickerItem()
 
     expect(loadWorkspaceCount).toBe(0)
     expect(savedWorkspaces).toEqual([{ projectKey: "PROJ", projectName: "Product Platform", boardId: "dev-board-proj", boardName: "Product Kanban", boardType: "kanban", route: "board" }])
@@ -153,7 +150,7 @@ describe("app state project picker", () => {
       async fetchBoards(projectKeyOrId) {
         fetchBoardsCount += 1
         expect(projectKeyOrId).toBe("MOB")
-        return [...devBoardsByProjectKey.MOB!]
+        return [...devBoardsByProjectKey.MOB!, { id: "dev-board-mob-scrum", name: "Mobile Scrum", type: "scrum" }]
       },
       async loadWorkspace(selection) {
         loadWorkspaceCount += 1
@@ -175,6 +172,142 @@ describe("app state project picker", () => {
 
     expect(loadWorkspaceCount).toBe(1)
     expect(appState.state.project.key).toBe("MOB")
+  })
+
+  test("auto-selects the observed HPCE Scrum board 8608", async () => {
+    const savedWorkspaces: JiraWorkspaceConfig[] = []
+    const appState = createTestAppState({
+      async fetchProjectPage({ startAt, maxResults }) {
+        return { items: [{ id: "10000", key: "HPCE", name: "Health Platform" }], startAt, maxResults, total: 1, isLast: true }
+      },
+      async fetchBoards(projectKeyOrId) {
+        expect(projectKeyOrId).toBe("HPCE")
+        return [{ id: "8608", name: "HPCE Scrum", type: "scrum" }]
+      },
+      async loadWorkspace(selection) {
+        return { ...loadDevWorkspaceFixture("PROJ"), project: selection.project, board: selection.board }
+      },
+    }, async (workspace) => savedWorkspaces.push(workspace))
+
+    await appState.browseRemoteProjects()
+    await appState.selectProjectPickerItem()
+
+    expect(appState.state.projectPicker.open).toBe(false)
+    expect(appState.state.project.key).toBe("HPCE")
+    expect(appState.state.board).toMatchObject({ id: "8608", type: "scrum" })
+    expect(savedWorkspaces[0]).toMatchObject({ projectKey: "HPCE", boardId: "8608", boardType: "scrum" })
+  })
+
+  test("keeps zero-board projects blocked with a clear retryable error", async () => {
+    let boardLoads = 0
+    let workspaceLoads = 0
+    const appState = createTestAppState({
+      async fetchBoards() {
+        boardLoads += 1
+        return []
+      },
+      async loadWorkspace(selection) {
+        workspaceLoads += 1
+        return loadDevWorkspaceFixture(selection.project.key)
+      },
+    })
+
+    await appState.browseRemoteProjects()
+    await appState.selectProjectPickerItem()
+    await appState.selectProjectPickerItem()
+
+    expect(appState.state.projectPicker.mode).toBe("remote-projects")
+    expect(appState.state.projectPicker.error).toBe("No Jira Software boards found for PROJ")
+    expect(boardLoads).toBe(2)
+    expect(workspaceLoads).toBe(0)
+  })
+
+  test("caches visited project pages and restores project selection after the board chooser", async () => {
+    const offsets: number[] = []
+    const projects = Array.from({ length: 75 }, (_, index) => ({ id: String(index), key: `P${index}`, name: `Project ${index}` }))
+    const appState = createTestAppState({
+      async fetchProjectPage({ query, startAt, maxResults }) {
+        offsets.push(startAt)
+        const items = projects.slice(startAt, startAt + maxResults)
+        return { items, startAt, maxResults, total: projects.length, isLast: startAt + items.length >= projects.length }
+      },
+      async fetchBoards() {
+        return [{ id: "1", name: "Scrum", type: "scrum" }, { id: "2", name: "Kanban", type: "kanban" }]
+      },
+    })
+
+    await appState.browseRemoteProjects()
+    await appState.changeProjectPickerPage(1)
+    appState.moveProjectPickerSelection(4)
+    await appState.selectProjectPickerItem()
+    expect(appState.state.projectPicker.mode).toBe("remote-boards")
+
+    appState.backProjectPickerStep()
+    expect(appState.state.projectPicker.remoteProjectPage?.startAt).toBe(50)
+    expect(appState.state.projectPicker.selectedIndex).toBe(4)
+    await appState.changeProjectPickerPage(-1)
+    await appState.changeProjectPickerPage(1)
+    expect(offsets).toEqual([0, 50])
+  })
+
+  test("debounces server-side project search and ignores stale responses", async () => {
+    const searches: string[] = []
+    const first = deferred<ReturnType<typeof projectPage>>()
+    const appState = createTestAppState({
+      async fetchProjectPage({ query, startAt, maxResults }) {
+        if (!query) return projectPage(query, startAt, maxResults)
+        searches.push(query)
+        if (query === "mobile") return first.promise
+        return { items: [{ id: "ops", key: "OPS", name: "Operations" }], startAt: 0, maxResults, total: 1, isLast: true }
+      },
+    })
+
+    await appState.browseRemoteProjects()
+    appState.updateProjectPickerSearch("mob")
+    appState.updateProjectPickerSearch("mobile")
+    await delay(300)
+    appState.updateProjectPickerSearch("operations")
+    await delay(300)
+
+    expect(searches).toEqual(["mobile", "operations"])
+    expect(appState.state.projectPicker.remoteProjectPage?.items[0]?.key).toBe("OPS")
+    first.resolve({ items: [{ id: "mob", key: "MOB", name: "Mobile" }], startAt: 0, maxResults: 50, total: 1, isLast: true })
+    await flushPromises()
+    expect(appState.state.projectPicker.remoteProjectPage?.items[0]?.key).toBe("OPS")
+  })
+
+  test("keeps the previous successful project page when paging fails", async () => {
+    const appState = createTestAppState({
+      async fetchProjectPage({ query, startAt, maxResults }) {
+        if (startAt) throw new Error("Project page unavailable")
+        return { ...projectPage(query, startAt, maxResults), total: 75, isLast: false }
+      },
+    })
+
+    await appState.browseRemoteProjects()
+    const keys = appState.state.projectPicker.remoteProjectPage?.items.map((project) => project.key)
+    await appState.changeProjectPickerPage(1)
+
+    expect(appState.state.projectPicker.remoteProjectPage?.items.map((project) => project.key)).toEqual(keys)
+    expect(appState.state.projectPicker.error).toBe("Project page unavailable")
+  })
+
+  test("treats an empty server-side project search as a valid result", async () => {
+    const appState = createTestAppState({
+      async fetchProjectPage({ query, startAt, maxResults }) {
+        if (!query) return projectPage(query, startAt, maxResults)
+        return { items: [], startAt, maxResults, total: 0, isLast: true }
+      },
+    })
+
+    await appState.browseRemoteProjects()
+    appState.updateProjectPickerSearch("no matching project")
+    await delay(300)
+
+    expect(appState.state.projectPicker.remoteProjectPage?.items).toEqual([])
+    expect(appState.state.projectPicker.remoteProjectPage?.total).toBe(0)
+    expect(appState.state.projectPicker.remoteProjectPage?.isLast).toBe(true)
+    expect(appState.state.projectPicker.error).toBeUndefined()
   })
 
   test("allows focusing read-only config rows for scrolling", () => {
@@ -445,6 +578,19 @@ describe("app state project picker", () => {
     expect(appState.state.timelineWindowStart).toBe("2026-08-03")
     expect(appState.state.timelineZoom).toBe("month")
     expect(appState.state.collapsedTimelineParentKeys).not.toContain("PROJ-301")
+  })
+
+  test("keeps virtual Timeline rows out of shared issue selection", () => {
+    const appState = createTestAppState()
+    const selectedIssueKey = appState.state.selectedIssueKey
+
+    appState.setTimelineSelection(timelineUnparentedSectionKey)
+    expect(appState.state.timelineSelectedIssueKey).toBe(timelineUnparentedSectionKey)
+    expect(appState.state.selectedIssueKey).toBe(selectedIssueKey)
+
+    appState.setTimelineSelection(timelineCreateRowKey)
+    expect(appState.state.timelineSelectedIssueKey).toBe(timelineCreateRowKey)
+    expect(appState.state.selectedIssueKey).toBe(selectedIssueKey)
   })
 
   test("resets independent Timeline view state after switching projects", async () => {
@@ -798,7 +944,6 @@ describe("app state project picker", () => {
 
     await appState.browseRemoteProjects()
     appState.moveProjectPickerSelection(1)
-    await appState.selectProjectPickerItem()
     const switchPromise = appState.selectProjectPickerItem()
     switchedLoad.resolve(loadDevWorkspaceFixture("MOB"))
     await switchPromise
@@ -867,7 +1012,6 @@ describe("app state project picker", () => {
     await appState.browseRemoteProjects()
     appState.moveProjectPickerSelection(1)
     await appState.selectProjectPickerItem()
-    await appState.selectProjectPickerItem()
 
     expect(loadCalls).toBe(1)
     expect(appState.state.project.key).toBe("PROJ")
@@ -928,8 +1072,8 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
     }
     const source: WorkspaceSource = {
       env: "dev",
-      async fetchProjects() {
-        return [...devProjects]
+      async fetchProjectPage({ query, startAt, maxResults }) {
+        return projectPage(query, startAt, maxResults)
       },
       async fetchBoards(projectKeyOrId) {
         const project = devProjects.find((candidate) => candidate.key === projectKeyOrId || candidate.id === projectKeyOrId)
@@ -1036,6 +1180,17 @@ function issueInSource(sprintId: string | undefined, sourceId: string) {
 
 function flushPromises() {
   return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+function delay(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
+
+function projectPage(query: string, startAt: number, maxResults: number) {
+  const normalized = query.trim().toLowerCase()
+  const matches = devProjects.filter((project) => !normalized || `${project.key} ${project.name}`.toLowerCase().includes(normalized))
+  const items = matches.slice(startAt, startAt + maxResults)
+  return { items, startAt, maxResults, total: matches.length, isLast: startAt + items.length >= matches.length }
 }
 
 function deferred<T>() {

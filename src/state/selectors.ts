@@ -107,11 +107,20 @@ export function priorityColor(issue: IssueSummary) {
 }
 
 export function issueTypeColorByIdentity(state: AppState, type: string, typeName?: string) {
-  return configuredIssueTypes(state).find((candidate) => candidate.id === type || candidate.name === type || candidate.name === typeName)?.color ?? issueTypeColorForName(typeName ?? type)
+  const issueTypes = configuredIssueTypes(state)
+  return issueTypes.find((candidate) => candidate.id === type)?.color
+    ?? issueTypes.find((candidate) => candidate.name === type)?.color
+    ?? issueTypes.find((candidate) => candidate.name === typeName)?.color
+    ?? issueTypeColorForName(typeName ?? type)
 }
 
 export function issueTypeName(state: AppState, issue: IssueSummary) {
-  return configuredIssueTypes(state).find((type) => type.id === issue.type || type.name === issue.type || type.name === issue.typeName)?.name ?? issue.typeName ?? issue.type
+  const issueTypes = configuredIssueTypes(state)
+  return issueTypes.find((type) => type.id === issue.type)?.name
+    ?? issueTypes.find((type) => type.name === issue.type)?.name
+    ?? issueTypes.find((type) => type.name === issue.typeName)?.name
+    ?? issue.typeName
+    ?? issue.type
 }
 
 export function parentIssueColor(state: AppState, parent: IssueSummary | ParentIssueSummary) {

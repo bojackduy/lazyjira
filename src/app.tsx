@@ -14,7 +14,7 @@ import { boardCapabilities, boardModeForBoard, sidebarRoutesForBoard } from "./s
 import { searchPaletteCommands } from "./keymap/commands"
 import type { BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
 import { projectListIssues, projectListMaxHorizontalOffset, projectListRows, projectListSelection, projectListViewportWidth } from "./state/project-list"
-import { panTimelineWindow, projectTimelineRows, timelineCreateRowKey, timelineModel, timelineSelection, timelineSelectionKeys } from "./state/timeline"
+import { panTimelineWindow, projectTimelineViewRows, timelineCreateRowKey, timelineModel, timelineSelection, timelineSelectionAction, timelineSelectionKeys, timelineUnparentedExpandedKey, timelineUnparentedSectionKey } from "./state/timeline"
 import {
   boardCellItems,
   boardCellIssueKeys,
@@ -357,8 +357,12 @@ export function App() {
       return
     }
     if (state.route === "list" && state.projectListSelectedIssueKey) appState.openIssueDetail(state.projectListSelectedIssueKey)
-    if (state.route === "timeline" && state.timelineSelectedIssueKey === timelineCreateRowKey) createIssueFromContext()
-    else if (state.route === "timeline" && state.timelineSelectedIssueKey) appState.openIssueDetail(state.timelineSelectedIssueKey)
+    if (state.route === "timeline") {
+      const action = timelineSelectionAction(state.timelineSelectedIssueKey)
+      if (action === "toggle-unparented") appState.toggleTimelineParentCollapsed(timelineUnparentedExpandedKey)
+      else if (action === "create") createIssueFromContext()
+      else if (action === "open-issue") appState.openIssueDetail(state.timelineSelectedIssueKey!)
+    }
   }
 
   function cycleGroup() {
@@ -524,8 +528,12 @@ export function App() {
       if (row?.hasChildren) appState.toggleProjectListParentCollapsed(row.issue.key)
     }
     if (state.focusedPane === "main" && state.route === "timeline") {
-      const row = visibleTimelineRows().find((candidate) => candidate.issue.key === state.timelineSelectedIssueKey)
-      if (row?.hasChildren) appState.toggleTimelineParentCollapsed(row.issue.key)
+      if (state.timelineSelectedIssueKey === timelineUnparentedSectionKey) {
+        appState.toggleTimelineParentCollapsed(timelineUnparentedExpandedKey)
+        return
+      }
+      const row = visibleTimelineRows().find((candidate) => candidate.kind === "issue" && candidate.issue.key === state.timelineSelectedIssueKey)
+      if (row?.kind === "issue" && row.hasChildren) appState.toggleTimelineParentCollapsed(row.issue.key)
     }
   }
 
@@ -791,7 +799,7 @@ export function App() {
   }
 
   function visibleTimelineRows() {
-    return projectTimelineRows(timelineModel(state).rows, state.collapsedTimelineParentKeys)
+    return projectTimelineViewRows(timelineModel(state).rows, state.collapsedTimelineParentKeys)
   }
 
   function ensureTimelineSelection() {
@@ -800,7 +808,8 @@ export function App() {
     if (!rows.length && !model.loaded && !state.issuePageStateBySource[projectListIssuePageSourceId]?.isLast) return
     const keys = timelineSelectionKeys(rows)
     const selected = keys.includes(state.timelineSelectedIssueKey ?? "") ? state.timelineSelectedIssueKey : keys[0]
-    if (selected !== state.timelineSelectedIssueKey || (selected && selected !== state.selectedIssueKey)) appState.setTimelineSelection(selected)
+    const selectedIssue = timelineSelectionAction(selected) === "open-issue" ? selected : undefined
+    if (selected !== state.timelineSelectedIssueKey || (selectedIssue && selectedIssue !== state.selectedIssueKey)) appState.setTimelineSelection(selected)
   }
 
   function visibleBoardIssueKeys(mode: BoardMode) {

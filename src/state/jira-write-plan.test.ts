@@ -106,4 +106,18 @@ describe("Jira write plan", () => {
       }),
     ])
   })
+
+  test("preserves the Jira issue type ID in staged write plans", () => {
+    const state = loadDevWorkspaceState()
+    state.issueTypes = [{ id: "10002", name: "Bug", color: "#EF4444" }]
+    state.issueDrafts["PROJ-128"] = { type: "10002" }
+
+    expect(planJiraWrites(state)).toEqual([
+      expect.objectContaining({
+        operation: "issue-type",
+        issueType: "10002",
+        payloadPreview: "issuetype = 10002",
+      }),
+    ])
+  })
 })

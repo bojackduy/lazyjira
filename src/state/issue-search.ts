@@ -153,7 +153,7 @@ function issueStatusValues(state: AppState, issue: IssueSummary) {
 
 function issueTypeValues(state: AppState, issue: IssueSummary) {
   const issueType = configuredIssueTypes(state).find((candidate) => candidate.id === issue.type)
-  return [issue.type, issueType?.name].filter(isString)
+  return [issue.type, issueType?.name, issue.typeName].filter(isString)
 }
 
 function issueSprintValues(state: AppState, issue: IssueSummary) {

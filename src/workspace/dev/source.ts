@@ -5,8 +5,11 @@ import { backlogIssuePageSourceId, boardIssuePageSourceId, projectListIssuePageS
 export function createDevWorkspaceSource(): WorkspaceSource {
   return {
     env: "dev",
-    async fetchProjects() {
-      return [...devProjects]
+    async fetchProjectPage({ query, startAt, maxResults }) {
+      const normalized = query.trim().toLowerCase()
+      const matches = devProjects.filter((project) => !normalized || `${project.key} ${project.name} ${project.id}`.toLowerCase().includes(normalized))
+      const items = matches.slice(startAt, startAt + maxResults)
+      return { items, startAt, maxResults, total: matches.length, isLast: startAt + items.length >= matches.length }
     },
     async fetchBoards(projectKeyOrId) {
       const project = devProjects.find((candidate) => candidate.key === projectKeyOrId || candidate.id === projectKeyOrId)

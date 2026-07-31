@@ -5,7 +5,7 @@ export function filteredProjectPickerWorkspaces(state: AppState): WorkspaceOptio
 }
 
 export function filteredProjectPickerProjects(state: AppState): ProjectOption[] {
-  return (state.projectPicker.remoteProjectCache ?? []).filter((project) => matchesQuery(state.projectPicker.searchQuery, [project.key, project.name, project.id]))
+  return state.projectPicker.remoteProjectPage?.items ?? []
 }
 
 export function filteredProjectPickerBoards(state: AppState): BoardOption[] {
@@ -24,4 +24,22 @@ function matchesQuery(query: string, values: string[]) {
   if (!terms.length) return true
   const haystack = values.join(" ").toLowerCase()
   return terms.every((term) => haystack.includes(term))
+}
+
+export function normalizedProjectQuery(query: string) {
+  return query.trim().toLowerCase().replace(/\s+/g, " ")
+}
+
+export function projectPageCacheKey(query: string, startAt: number) {
+  return `${normalizedProjectQuery(query)}\u0000${startAt}`
+}
+
+export function projectPageStatus(state: AppState) {
+  const page = state.projectPicker.remoteProjectPage
+  if (!page) return "0-0 of 0 · page 0/0"
+  const first = page.items.length ? page.startAt + 1 : 0
+  const last = page.startAt + page.items.length
+  const pageNumber = page.total ? Math.floor(page.startAt / page.maxResults) + 1 : 0
+  const pageCount = page.total ? Math.ceil(page.total / page.maxResults) : 0
+  return `${first}-${last} of ${page.total} · page ${pageNumber}/${pageCount}`
 }

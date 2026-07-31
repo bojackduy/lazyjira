@@ -1,5 +1,5 @@
 import type { RuntimeEnv } from "../runtime/env"
-import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, JiraUserOption, ProjectListSort, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, TimelineStartDateField, WorkspaceStats } from "../state/app-state"
+import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, JiraUserOption, ProjectListSort, ProjectOptionPage, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, TimelineStartDateField, WorkspaceStats } from "../state/app-state"
 import { statusColorForCategory } from "../state/metadata-colors"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
 
@@ -51,7 +51,7 @@ export type LoadedRemoteSearch = {
 
 export type WorkspaceSource = {
   env: RuntimeEnv
-  fetchProjects: () => Promise<Array<ProjectSummary & { id: string }>>
+  fetchProjectPage: (options: { query: string; startAt: number; maxResults: number }) => Promise<ProjectOptionPage>
   fetchBoards: (projectKeyOrId: string) => Promise<BoardSummary[]>
   loadWorkspace: (selection: WorkspaceSelection) => Promise<LoadedWorkspace>
   loadIssueDetail: (issueKey: string, context: IssueDetailContext) => Promise<LoadedIssueDetail>

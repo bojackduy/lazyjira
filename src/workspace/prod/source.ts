@@ -1,5 +1,5 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjects, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchCurrentJiraUser, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraPriorities, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage, type JiraUser } from "../../jira/client"
+import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjectPage, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchCurrentJiraUser, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraPriorities, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage, type JiraUser } from "../../jira/client"
 import { discoverJiraIssueFieldIds, discoverJiraStartDateField, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
 import { markdownToAdf } from "../../jira/adf"
 import { fetchJiraIconColor } from "../../jira/icon-color"
@@ -38,8 +38,9 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
 
   return {
     env: "prod",
-    async fetchProjects() {
-      return fetchAccessibleProjects(await requireJiraAuth(authLoader), fetchImpl)
+    async fetchProjectPage(options) {
+      const page = await fetchAccessibleProjectPage(await requireJiraAuth(authLoader), options, fetchImpl)
+      return { items: page.items, startAt: page.startAt, maxResults: page.maxResults, total: page.total ?? page.items.length, isLast: page.isLast }
     },
     async fetchBoards(projectKeyOrId) {
       return fetchProjectBoards(await requireJiraAuth(authLoader), projectKeyOrId, fetchImpl)

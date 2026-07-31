@@ -64,9 +64,12 @@ initialState.projectPicker = {
   mode: "local",
   searchOpen: false,
   searchQuery: "",
+  projectSearchQuery: "",
   loading: false,
   saving: false,
   selectedIndex: 0,
+  projectSelectedIndex: 0,
+  remoteProjectPages: {},
   remoteBoardsByProject: {},
 }
 const saveWorkspaceConfig = runtimeEnv === "dev" ? saveDevWorkspaceConfig : saveProdWorkspaceConfig

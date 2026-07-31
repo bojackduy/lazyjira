@@ -205,12 +205,22 @@ export type JiraPage<T> = {
   nextStartAt: number
 }
 
-export async function fetchAccessibleProjects(auth: JiraAuthConfig, fetchImpl: FetchLike = fetch): Promise<JiraProjectOption[]> {
-  const projects = await fetchJiraPages<ProjectSearchProject>(auth, "/rest/api/3/project/search", { endpoint: "project search" }, fetchImpl)
-  return projects.flatMap((project) => {
+export async function fetchAccessibleProjectPage(auth: JiraAuthConfig, options: { query?: string; startAt?: number; maxResults?: number } = {}, fetchImpl: FetchLike = fetch): Promise<JiraPage<JiraProjectOption>> {
+  const startAt = options.startAt ?? 0
+  const maxResults = options.maxResults ?? 50
+  const query = options.query?.trim()
+  const response = await jiraRequest<JiraPaginatedResponse<ProjectSearchProject>>(
+    auth,
+    `/rest/api/3/project/search?startAt=${encodeURIComponent(String(startAt))}&maxResults=${encodeURIComponent(String(maxResults))}${query ? `&query=${encodeURIComponent(query)}` : ""}`,
+    { endpoint: "project search" },
+    fetchImpl,
+  )
+  const page = jiraPage(response, "values", startAt, maxResults)
+  const items = page.items.flatMap((project) => {
     if (!project.id || !project.key || !project.name) return []
     return [{ id: project.id, key: project.key, name: project.name }]
   })
+  return { ...page, items }
 }
 
 export async function fetchProjectBoards(auth: JiraAuthConfig, projectKeyOrId: string, fetchImpl: FetchLike = fetch): Promise<JiraBoardOption[]> {
@@ -488,7 +498,9 @@ function jiraPage<T>(response: JiraPaginatedResponse<T>, itemKey: "values" | "is
   const maxResults = typeof response.maxResults === "number" ? response.maxResults : requestedMaxResults
   const nextStartAt = startAt + items.length
   const hasNextCursor = !!response.nextPageToken
-  const isLast = !!response.isLast || !items.length || (!hasNextCursor && ((typeof response.total === "number" && nextStartAt >= response.total) || items.length < maxResults))
+  const isLast = typeof response.isLast === "boolean"
+    ? response.isLast
+    : !items.length || (!hasNextCursor && ((typeof response.total === "number" && nextStartAt >= response.total) || items.length < maxResults))
   return { items, startAt, cursor: response.nextPageToken, maxResults, total: response.total, isLast, nextStartAt }
 }
 

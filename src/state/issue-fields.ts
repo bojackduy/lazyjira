@@ -1,7 +1,7 @@
 import type { AppState, IssueEditableField, IssueSummary } from "./app-state"
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { applyIssueDraft, issueWithDraft } from "./issue-drafts"
-import { issueColor, issueTypeColor, parentIssueColor, priorityColor, statusColor, statusName } from "./selectors"
+import { issueColor, issueTypeColor, issueTypeName, parentIssueColor, priorityColor, statusColor, statusName } from "./selectors"
 
 export { applyIssueDraft }
 
@@ -16,7 +16,7 @@ export type IssueFieldDefinition = {
 export const issueFields: IssueFieldDefinition[] = [
   { id: "key", label: "Key", editable: false, value: (issue) => issue.key },
   { id: "title", label: "Summary", editable: true, value: (issue) => issue.title },
-  { id: "type", label: "Type", editable: true, value: (issue) => issue.type },
+  { id: "type", label: "Type", editable: true, value: (issue, state) => issueTypeName(state, issue) },
   { id: "statusId", label: "Status", editable: true, value: (issue, state) => statusName(state, issue) },
   { id: "priority", label: "Priority", editable: true, value: (issue) => issue.priority },
   { id: "assignee", label: "Assignee", editable: true, value: (issue) => issue.assignee },
@@ -44,7 +44,7 @@ export const issueFields: IssueFieldDefinition[] = [
 export function issueFieldDisplayValue(state: AppState, issue: IssueSummary, field: IssueFieldDefinition) {
   const draftValue = isEditableField(field.id) ? state.issueDrafts[issue.key]?.[field.id] : undefined
   if (draftValue !== undefined && field.id === "statusId") return configuredStatuses(state).find((status) => status.id === draftValue)?.name ?? draftValue
-  if (draftValue !== undefined && field.id === "type") return configuredIssueTypes(state).find((type) => type.id === draftValue)?.name ?? draftValue
+  if (draftValue !== undefined && field.id === "type") return issueTypeName(state, issueWithDraft(state, issue))
   return draftValue ?? field.value(issue, state)
 }
 

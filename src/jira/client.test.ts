@@ -1,20 +1,21 @@
 import { describe, expect, test } from "bun:test"
-import { deleteJiraIssue, fetchAccessibleProjects, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
+import { deleteJiraIssue, fetchAccessibleProjectPage, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
 import { discoverJiraIssueFieldIds, discoverJiraStartDateField, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
 const auth: JiraAuthConfig = { baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }
 
 describe("Jira discovery client", () => {
-  test("fetches accessible projects", async () => {
+  test("fetches one typed accessible-project page with Jira server-side query", async () => {
     const requests: string[] = []
-    const projects = await fetchAccessibleProjects(auth, async (url) => {
+    const page = await fetchAccessibleProjectPage(auth, { query: "health care", startAt: 50, maxResults: 50 }, async (url) => {
       requests.push(url)
-      return jsonResponse({ values: [{ id: "10000", key: "PROJ", name: "Product" }] })
+      return jsonResponse({ startAt: 50, maxResults: 50, total: 1919, isLast: false, values: [{ id: "10000", key: "HPCE", name: "Health Care" }] })
     })
 
-    expect(requests).toEqual(["https://team.atlassian.net/rest/api/3/project/search?startAt=0&maxResults=50"])
-    expect(projects).toEqual([{ id: "10000", key: "PROJ", name: "Product" }])
+    expect(requests).toEqual(["https://team.atlassian.net/rest/api/3/project/search?startAt=50&maxResults=50&query=health%20care"])
+    expect(page).toMatchObject({ startAt: 50, maxResults: 50, total: 1919, isLast: false, nextStartAt: 51 })
+    expect(page.items).toEqual([{ id: "10000", key: "HPCE", name: "Health Care" }])
   })
 
   test("fetches project-scoped boards and treats simple boards as kanban", async () => {
@@ -490,7 +491,7 @@ describe("Jira discovery client", () => {
   })
 
   test("maps Jira error responses", async () => {
-    const error = await expectJiraError(() => fetchAccessibleProjects(auth, async () => jsonResponse({ errorMessages: ["No access"] }, 403)))
+    const error = await expectJiraError(() => fetchAccessibleProjectPage(auth, {}, async () => jsonResponse({ errorMessages: ["No access"] }, 403)))
 
     expect(error.status).toBe(403)
     expect(error.category).toBe("permission")

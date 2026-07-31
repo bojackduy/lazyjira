@@ -50,6 +50,19 @@ describe("issue search", () => {
     expect(issueList(state).map((issue) => issue.key)).toContain("PROJ-128")
   })
 
+  test("searches loaded issue types by metadata name and normalized fallback name", () => {
+    const state = loadDevWorkspaceState()
+    state.issues["PROJ-128"] = { ...state.issues["PROJ-128"]!, type: "10001", typeName: "Story" }
+    state.issueTypes = [{ id: "10001", name: "Story", color: "#3B82F6" }]
+    state.searchQuery = "type:story"
+
+    expect(issueList(state).map((issue) => issue.key)).toContain("PROJ-128")
+
+    state.issueTypes = []
+
+    expect(issueList(state).map((issue) => issue.key)).toContain("PROJ-128")
+  })
+
   test("supports special loaded-data tokens", () => {
     const state = loadDevWorkspaceState()
     state.issueDrafts["PROJ-128"] = { title: "Rendered staged title" }

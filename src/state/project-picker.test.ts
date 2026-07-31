@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { loadDevWorkspaceState } from "./dev"
-import { filteredProjectPickerBoards, filteredProjectPickerProjects, filteredProjectPickerWorkspaces } from "./project-picker"
+import { filteredProjectPickerBoards, filteredProjectPickerProjects, filteredProjectPickerWorkspaces, normalizedProjectQuery, projectPageCacheKey, projectPageStatus } from "./project-picker"
 
 describe("project picker filtering", () => {
   test("filters local workspaces by project and board", () => {
@@ -15,19 +15,28 @@ describe("project picker filtering", () => {
     expect(filteredProjectPickerWorkspaces(state).map((workspace) => workspace.id)).toEqual(["MOB:20"])
   })
 
-  test("filters projects by key and name", () => {
+  test("uses only the server-returned project page", () => {
     const state = loadDevWorkspaceState()
-    state.projectPicker.remoteProjectCache = [
+    state.projectPicker.remoteProjectPage = { items: [
       { id: "dev-proj", key: "PROJ", name: "Product Platform" },
       { id: "dev-mob", key: "MOB", name: "Mobile Apps" },
       { id: "dev-ops", key: "OPS", name: "Internal Operations" },
-    ]
+    ], startAt: 0, maxResults: 50, total: 3, isLast: true }
 
     state.projectPicker.searchQuery = "mob"
-    expect(filteredProjectPickerProjects(state).map((project) => project.key)).toEqual(["MOB"])
+    expect(filteredProjectPickerProjects(state).map((project) => project.key)).toEqual(["PROJ", "MOB", "OPS"])
+  })
 
-    state.projectPicker.searchQuery = "internal ops"
-    expect(filteredProjectPickerProjects(state).map((project) => project.key)).toEqual(["OPS"])
+  test("normalizes cache keys and reports large-organization page status", () => {
+    const state = loadDevWorkspaceState()
+    state.projectPicker.remoteProjectPage = { items: Array.from({ length: 50 }, (_, index) => ({ id: String(index), key: `P${index}`, name: `Project ${index}` })), startAt: 50, maxResults: 50, total: 1919, isLast: false }
+
+    expect(normalizedProjectQuery("  Health   CARE ")).toBe("health care")
+    expect(projectPageCacheKey(" Health   CARE ", 50)).toBe(projectPageCacheKey("health care", 50))
+    expect(projectPageStatus(state)).toBe("51-100 of 1919 · page 2/39")
+
+    state.projectPicker.remoteProjectPage = { items: [], startAt: 0, maxResults: 50, total: 0, isLast: true }
+    expect(projectPageStatus(state)).toBe("0-0 of 0 · page 0/0")
   })
 
   test("filters boards by name, type, and id", () => {

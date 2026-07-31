@@ -185,6 +185,14 @@ export type ProjectOption = {
   name: string
 }
 
+export type ProjectOptionPage = {
+  items: ProjectOption[]
+  startAt: number
+  maxResults: number
+  total: number
+  isLast: boolean
+}
+
 export type BoardOption = {
   id: string
   name: string
@@ -205,11 +213,14 @@ export type ProjectPickerState = {
   mode: "local" | "remote-projects" | "remote-boards"
   searchOpen: boolean
   searchQuery: string
+  projectSearchQuery: string
   loading: boolean
   saving: boolean
   error?: string
   selectedIndex: number
-  remoteProjectCache?: ProjectOption[]
+  projectSelectedIndex: number
+  remoteProjectPage?: ProjectOptionPage
+  remoteProjectPages: Record<string, ProjectOptionPage>
   remoteBoardsByProject: Record<string, BoardOption[]>
   selectedProject?: ProjectOption
 }

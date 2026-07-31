@@ -7,7 +7,21 @@ describe("prod workspace source", () => {
     const source = createProdWorkspaceSource(async () => undefined)
 
     expect(source.env).toBe("prod")
-    await expect(source.fetchProjects()).rejects.toThrow("Jira credentials are required")
+    await expect(source.fetchProjectPage({ query: "", startAt: 0, maxResults: 50 })).rejects.toThrow("Jira credentials are required")
+  })
+
+  test("returns one bounded server-filtered project page", async () => {
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url) => {
+        expect(url).toBe("https://team.atlassian.net/rest/api/3/project/search?startAt=50&maxResults=50&query=health")
+        return jsonResponse({ startAt: 50, maxResults: 50, total: 1919, isLast: false, values: [{ id: "10000", key: "HPCE", name: "Health Platform" }] })
+      },
+    )
+
+    const page = await source.fetchProjectPage({ query: "health", startAt: 50, maxResults: 50 })
+
+    expect(page).toEqual({ items: [{ id: "10000", key: "HPCE", name: "Health Platform" }], startAt: 50, maxResults: 50, total: 1919, isLast: false })
   })
 
   test("does not require auth for the initial no-board placeholder workspace", async () => {

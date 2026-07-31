@@ -153,6 +153,82 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 - [x] `N6.5` Add a Kanban smoke checklist covering Timeline, Backlog, List, Board, detail return, filters, paging, and staged writes.
 - [!] `N6.6` Automated typecheck/tests/diff and narrow-layout helper coverage pass; non-production Scrum/Kanban Jira smoke remains manual in `docs/JIRA_PROJECT_NAVIGATION_SMOKE_CHECKLIST.md`.
 
+## Wave 6: Reported Jira UX Corrections
+
+### R1: Parent Navigation And Colors
+
+- [x] `R1.1` Color the complete parent badge.
+- [x] `R1.2` Open parent with Enter from issue detail.
+- [x] `R1.3` Preserve child-to-parent detail history for `q`/`Esc` return.
+- [x] `R1.4` Show `enter parent` in the detail footer when available.
+- [x] `R1.5` Use Jira Issue color/Epic Color for loaded parents.
+- [x] `R1.6` Apply parent color to the Inspector Parent field and picker.
+
+### R2: Jira Metadata Colors
+
+- [x] `R2.1` Discover Jira Issue color and Epic Color dynamically.
+- [x] `R2.2` Use Jira priority `statusColor`.
+- [x] `R2.3` Extract issue-type color from Jira icon assets.
+- [x] `R2.4` Keep generated colors only as unavailable-metadata fallback.
+- [x] `R2.5` Restore semantic workflow status colors.
+- [x] `R2.6` Use Jira status category only as a coarse fallback.
+- [x] `R2.7` Cover HPCE Planned, QA, Review, Ready, Rejected, Reopened, Done, and ACC statuses.
+
+### R3: Scalable Project Discovery
+
+- [x] `R3.1` Add a typed single-page Jira project reader.
+- [x] `R3.2` Load only the first 50 projects when discovery opens.
+- [x] `R3.3` Add `[` previous-page and `]` next-page commands.
+- [x] `R3.4` Cache visited pages by normalized query and offset.
+- [x] `R3.5` Display loaded range, total projects, and page count.
+- [x] `R3.6` Use Jira server-side `query` search from `/`.
+- [x] `R3.7` Debounce project search and reject stale responses.
+- [x] `R3.8` Preserve the previous successful page during loading/failure.
+- [x] `R3.9` Add equivalent pagination behavior to the dev source.
+- [x] `R3.10` Verify against the observed 1,919-project Jira organization.
+
+### R4: Project And Board Selection
+
+- [x] `R4.1` Rename “Add project” to “Choose Jira project.”
+- [x] `R4.2` Fetch boards only after selecting a project.
+- [x] `R4.3` Automatically open projects with exactly one board.
+- [x] `R4.4` Show the board chooser only when multiple boards exist.
+- [x] `R4.5` Display board name and Scrum/Kanban type.
+- [x] `R4.6` Restore the previous page and project selection when returning from boards.
+- [!] `R4.7` Zero-board project-only mode remains undecided; the picker retains a clear retryable no-board error.
+- [x] `R4.8` Verify HPCE automatically selects Scrum board `8608`.
+
+### R5: Timeline Hierarchy
+
+- [x] `R5.1` Resolve root eligibility from Jira `hierarchyLevel`.
+- [x] `R5.2` Show positive-level Feature/Epic/Initiative roots.
+- [x] `R5.3` Include all loaded descendants beneath valid roots.
+- [x] `R5.4` Stop rendering parentless standard issues as main roots.
+- [x] `R5.5` Add a virtual `Unparented issues` section.
+- [x] `R5.6` Keep the section collapsed by default.
+- [x] `R5.7` Support `j/k` selection and `Space`/`Enter` expansion on the section header.
+- [x] `R5.8` Place missing-parent standard branches in the unparented section.
+- [x] `R5.9` Keep cyclic/invalid hierarchy warnings separate.
+- [x] `R5.10` Add custom-level, filtering, pagination, collapse, and narrow-layout tests.
+
+### R6: Issue-Type Display Names
+
+- [x] `R6.1` Render Inspector Type through `issueTypeName()`.
+- [x] `R6.2` Render type names in full issue detail.
+- [x] `R6.3` Render type names in Workspace results.
+- [x] `R6.4` Include normalized `typeName` in loaded issue search.
+- [x] `R6.5` Keep Jira type IDs internally for edits and writes.
+- [x] `R6.6` Test metadata resolution, missing-metadata fallback, staged changes, and write payload IDs.
+
+### R7: Verification
+
+- [x] `R7.1` Run typecheck and all tests.
+- [x] `R7.2` Run production build and diff validation.
+- [x] `R7.3` Smoke-test project paging and search against the large Jira organization.
+- [x] `R7.4` Smoke-test HPCE single-board auto-selection.
+- [x] `R7.5` Smoke-test Timeline hierarchy and the collapsed unparented section.
+- [x] `R7.6` Smoke-test Inspector Type labels and Jira ID write preservation.
+
 ## Cross-Track Reviews
 
 - [ ] All screens use the shared domain/state model.

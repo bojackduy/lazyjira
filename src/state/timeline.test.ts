@@ -9,7 +9,7 @@ import {
   cycleTimelineZoom,
   formatTimelineDate,
   panTimelineWindow,
-  projectTimelineRows,
+  projectTimelineViewRows,
   timelineCells,
   timelineCreateRowKey,
   timelineDateBounds,
@@ -19,17 +19,20 @@ import {
   timelineSchedule,
   timelineScheduleText,
   timelineSelection,
+  timelineSelectionAction,
   timelineStateText,
   timelineTodayWindow,
+  timelineUnparentedExpandedKey,
+  timelineUnparentedSectionKey,
   timelineWindowEnd,
 } from "./timeline"
 
 describe("timeline data model", () => {
   test("builds arbitrary-depth hierarchy in stable project order", () => {
     const issues = issueMap([
-      issue("ROOT", { startDate: "2026-08-01", dueDate: "2026-09-01" }),
-      issue("CHILD", { parentKey: "ROOT", startDate: "2026-08-03" }),
-      issue("LEAF", { parentKey: "CHILD", dueDate: "2026-08-20" }),
+      issue("ROOT", { type: "Roadmap", typeHierarchyLevel: 3, startDate: "2026-08-01", dueDate: "2026-09-01" }),
+      issue("CHILD", { typeHierarchyLevel: 0, parentKey: "ROOT", startDate: "2026-08-03" }),
+      issue("LEAF", { typeHierarchyLevel: -1, parentKey: "CHILD", dueDate: "2026-08-20" }),
       issue("OTHER"),
     ])
     const model = buildTimelineHierarchy(issues, ["CHILD", "OTHER", "LEAF"], page(3, 3, true), { status: "available", fieldId: "customfield_start" })
@@ -40,7 +43,46 @@ describe("timeline data model", () => {
       ["LEAF", 2, "due-only"],
       ["OTHER", 0, "unscheduled"],
     ])
+    expect(model.rows.map((row) => row.group)).toEqual(["hierarchy", "hierarchy", "hierarchy", "unparented"])
     expect(timelineDateBounds(model.rows)).toEqual({ start: "2026-08-01", end: "2026-09-01" })
+  })
+
+  test("derives custom roots only from positive Jira hierarchy levels", () => {
+    const model = buildTimelineHierarchy(issueMap([
+      issue("CUSTOM", { type: "custom-roadmap", parentKey: "UNAVAILABLE" }),
+      issue("DESCENDANT", { type: "standard-work", parentKey: "CUSTOM" }),
+      issue("EPIC-NAME-ONLY", { type: "Epic" }),
+      issue("PARENTLESS-SUBTASK", { type: "custom-subtask" }),
+    ]), ["CUSTOM", "DESCENDANT", "EPIC-NAME-ONLY", "PARENTLESS-SUBTASK"], page(4, 10, false), undefined, undefined, [
+      { id: "custom-roadmap", name: "Portfolio goal", color: "#fff", hierarchyLevel: 4 },
+      { id: "standard-work", name: "Delivery item", color: "#fff", hierarchyLevel: 0 },
+      { id: "Epic", name: "Epic", color: "#fff", hierarchyLevel: 0 },
+      { id: "custom-subtask", name: "Child work", color: "#fff", hierarchyLevel: -1, subtask: true },
+    ])
+
+    expect(model.rows.map((row) => [row.issue.key, row.group, row.depth])).toEqual([
+      ["CUSTOM", "hierarchy", 0],
+      ["DESCENDANT", "hierarchy", 1],
+      ["EPIC-NAME-ONLY", "unparented", 0],
+      ["PARENTLESS-SUBTASK", "unparented", 0],
+    ])
+    expect(model).toMatchObject({ loaded: 4, total: 10, partial: true })
+  })
+
+  test("includes a filtered descendant's loaded ancestor chain", () => {
+    const model = buildTimelineHierarchy(issueMap([
+      issue("ROOT", { typeHierarchyLevel: 2 }),
+      issue("MIDDLE", { parentKey: "ROOT", typeHierarchyLevel: 0 }),
+      issue("MATCH", { parentKey: "MIDDLE", typeHierarchyLevel: -1 }),
+      issue("FILTERED-OUT", { typeHierarchyLevel: 1 }),
+    ]), ["MATCH"], page(1, 4, false))
+
+    expect(model.rows.map((row) => [row.issue.key, row.depth])).toEqual([
+      ["ROOT", 0],
+      ["MIDDLE", 1],
+      ["MATCH", 2],
+    ])
+    expect(model).toMatchObject({ loaded: 1, total: 4, partial: true })
   })
 
   test("groups missing parents and protects cycles and their descendants", () => {
@@ -54,8 +96,8 @@ describe("timeline data model", () => {
     const model = buildTimelineHierarchy(issues, ["MISSING", "MISSING-CHILD", "A", "B", "C"], page(5, 5, true))
 
     expect(model.rows.map((row) => [row.issue.key, row.group, row.depth, row.classification])).toEqual([
-      ["MISSING", "missing-parent", 0, "missing-parent"],
-      ["MISSING-CHILD", "missing-parent", 1, "missing-parent"],
+      ["MISSING", "unparented", 0, "missing-parent"],
+      ["MISSING-CHILD", "unparented", 1, "unscheduled"],
       ["A", "invalid-hierarchy", 0, "invalid-hierarchy"],
       ["B", "invalid-hierarchy", 0, "invalid-hierarchy"],
       ["C", "invalid-hierarchy", 0, "invalid-hierarchy"],
@@ -72,25 +114,48 @@ describe("timeline data model", () => {
 
   test("projects collapsed parents without mutating hierarchy rows and keeps selection bounded", () => {
     const model = buildTimelineHierarchy(issueMap([
-      issue("ROOT"),
+      issue("ROOT", { typeHierarchyLevel: 1 }),
       issue("CHILD", { parentKey: "ROOT" }),
       issue("LEAF", { parentKey: "CHILD" }),
       issue("OTHER"),
     ]), ["ROOT", "CHILD", "LEAF", "OTHER"], page(4, 4, true))
 
-    const projected = projectTimelineRows(model.rows, ["ROOT"])
+    const projected = projectTimelineViewRows(model.rows, ["ROOT"])
 
-    expect(projected.map((row) => [row.issue.key, row.hasChildren, row.collapsed])).toEqual([
+    expect(projected.map((row) => row.kind === "section" ? [row.key, row.issueCount, row.collapsed] : [row.issue.key, row.hasChildren, row.collapsed])).toEqual([
       ["ROOT", true, true],
-      ["OTHER", false, false],
+      [timelineUnparentedSectionKey, 1, true],
     ])
+    expect(projected[1]).toMatchObject({ kind: "section", label: "Unparented issues" })
     expect(model.rows.map((row) => row.issue.key)).toEqual(["ROOT", "CHILD", "LEAF", "OTHER"])
-    expect(timelineSelection(projected, "ROOT", 1)).toBe("OTHER")
-    expect(timelineSelection(projected, "OTHER", 1)).toBe(timelineCreateRowKey)
+    expect(timelineSelection(projected, "ROOT", 1)).toBe(timelineUnparentedSectionKey)
+    expect(timelineSelection(projected, timelineUnparentedSectionKey, 1)).toBe(timelineCreateRowKey)
     expect(timelineSelection(projected, timelineCreateRowKey, 1)).toBe(timelineCreateRowKey)
-    expect(timelineSelection(projected, "OTHER", "first")).toBe("ROOT")
+    expect(timelineSelection(projected, timelineUnparentedSectionKey, "first")).toBe("ROOT")
     expect(timelineSelection(projected, "ROOT", "last")).toBe(timelineCreateRowKey)
     expect(timelineSelection([], undefined, "first")).toBe(timelineCreateRowKey)
+  })
+
+  test("expands the selectable unparented section and preserves branch collapse", () => {
+    const model = buildTimelineHierarchy(issueMap([
+      issue("STANDARD", { typeHierarchyLevel: 0 }),
+      issue("STANDARD-CHILD", { parentKey: "STANDARD", typeHierarchyLevel: -1 }),
+      issue("MISSING", { parentKey: "NOT-LOADED", typeHierarchyLevel: 0 }),
+    ]), ["STANDARD", "STANDARD-CHILD", "MISSING"], page(3, 3, true))
+
+    const expanded = projectTimelineViewRows(model.rows, [timelineUnparentedExpandedKey])
+    expect(expanded.map((row) => row.kind === "section" ? row.key : row.issue.key)).toEqual([
+      timelineUnparentedSectionKey,
+      "STANDARD",
+      "STANDARD-CHILD",
+      "MISSING",
+    ])
+    expect(expanded.find((row) => row.kind === "issue" && row.issue.key === "MISSING")).toMatchObject({ classification: "missing-parent" })
+    const branchCollapsed = projectTimelineViewRows(model.rows, [timelineUnparentedExpandedKey, "STANDARD"])
+    expect(branchCollapsed.map((row) => row.kind === "section" ? row.key : row.issue.key)).toEqual([timelineUnparentedSectionKey, "STANDARD", "MISSING"])
+    expect(timelineSelectionAction(timelineUnparentedSectionKey)).toBe("toggle-unparented")
+    expect(timelineSelectionAction(timelineCreateRowKey)).toBe("create")
+    expect(timelineSelectionAction("STANDARD")).toBe("open-issue")
   })
 
   test("uses deterministic UTC zoom, pan, today, and inclusive window math", () => {
@@ -129,6 +194,7 @@ describe("timeline data model", () => {
   })
 
   test("uses a textual narrow fallback until identity plus three cells fit", () => {
+    expect(timelineLayout(45, "month").wide).toBe(false)
     expect(timelineLayout(80, "day")).toMatchObject({ wide: true, viewportWidth: 76, cellWidth: 2 })
     expect(timelineLayout(120, "week")).toMatchObject({ wide: true, viewportWidth: 50, cellWidth: 5 })
     expect(timelineLayout(160, "week").wide).toBe(true)
@@ -140,8 +206,8 @@ describe("timeline data model", () => {
     expect(timelineScheduleText({ startDate: "2026-08-01" })).toBe("Start Aug 01 only")
     expect(timelineScheduleText({ dueDate: "2026-08-02" })).toBe("Due Aug 02 only")
     expect(timelineScheduleText({})).toBe("unscheduled")
-    expect(timelineRowCopy({ issue: issue("MISSING", { parentKey: "NOPE", dueDate: "2026-08-02" }), depth: 0, group: "missing-parent", classification: "missing-parent" })).toBe("parent not loaded: NOPE · Due Aug 02 only")
-    expect(timelineRowCopy({ issue: issue("CYCLE"), depth: 0, group: "invalid-hierarchy", classification: "invalid-hierarchy" })).toBe("invalid hierarchy · unscheduled")
+    expect(timelineRowCopy({ kind: "issue", issue: issue("MISSING", { parentKey: "NOPE", dueDate: "2026-08-02" }), depth: 0, group: "unparented", classification: "missing-parent" })).toBe("parent not loaded: NOPE · Due Aug 02 only")
+    expect(timelineRowCopy({ kind: "issue", issue: issue("CYCLE"), depth: 0, group: "invalid-hierarchy", classification: "invalid-hierarchy" })).toBe("invalid hierarchy · unscheduled")
   })
 
   test("distinguishes loading, retained refresh, partial, filtered empty, permission, error, and empty states", () => {

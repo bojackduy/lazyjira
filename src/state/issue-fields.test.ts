@@ -35,6 +35,22 @@ describe("issue fields", () => {
     expect(issueFieldColor(state, issue, statusField)).toBe("#A78BFA")
   })
 
+  test("displays loaded and staged type IDs as issue type names", () => {
+    const state = loadDevWorkspaceState()
+    const issue = { ...state.issues[state.selectedIssueKey]!, type: "10001", typeName: "Story" }
+    const typeField = issueFields.find((field) => field.id === "type")!
+    state.issueTypes = [
+      { id: "10001", name: "Story", color: "#3B82F6" },
+      { id: "10002", name: "Bug", color: "#EF4444" },
+    ]
+
+    expect(issueFieldDisplayValue(state, issue, typeField)).toBe("Story")
+
+    state.issueDrafts[issue.key] = { type: "10002" }
+
+    expect(issueFieldDisplayValue(state, issue, typeField)).toBe("Bug")
+  })
+
   test("colors the parent field and picker choices by parent key", () => {
     const state = loadDevWorkspaceState()
     state.issueTypes = [

@@ -1,21 +1,34 @@
-import type { AppState, IssuePageState, IssueSummary, SprintSummary, TimelineStartDateField, TimelineZoom } from "./app-state"
+import type { AppState, IssuePageState, IssueSummary, IssueTypeDefinition, SprintSummary, TimelineStartDateField, TimelineZoom } from "./app-state"
 import { projectListIssuePageSourceId } from "./issue-pages"
 import { issuesForSource } from "./selectors"
 
-export type TimelineRowGroup = "hierarchy" | "missing-parent" | "invalid-hierarchy"
+export type TimelineRowGroup = "hierarchy" | "unparented" | "invalid-hierarchy"
 export type TimelineRowClassification = "scheduled" | "start-only" | "due-only" | "unscheduled" | "missing-parent" | "invalid-hierarchy"
 
 export type TimelineHierarchyRow = {
+  kind: "issue"
   issue: IssueSummary
   depth: number
   group: TimelineRowGroup
   classification: TimelineRowClassification
 }
 
-export type TimelineProjectedRow = TimelineHierarchyRow & {
+export type TimelineProjectedIssueRow = TimelineHierarchyRow & {
   hasChildren: boolean
   collapsed: boolean
 }
+
+export type TimelineSectionRow = {
+  kind: "section"
+  key: typeof timelineUnparentedSectionKey
+  label: "Unparented issues"
+  group: "unparented"
+  depth: 0
+  issueCount: number
+  collapsed: boolean
+}
+
+export type TimelineProjectedRow = TimelineProjectedIssueRow | TimelineSectionRow
 
 export type TimelineHierarchyModel = {
   rows: TimelineHierarchyRow[]
@@ -49,6 +62,8 @@ export type TimelineSchedule = {
 
 const millisecondsPerDay = 86_400_000
 export const timelineCreateRowKey = "__timeline-create__"
+export const timelineUnparentedSectionKey = "__timeline-unparented__"
+export const timelineUnparentedExpandedKey = "__timeline-unparented-expanded__"
 
 export function timelineModel(state: AppState): TimelineHierarchyModel {
   const projectKeys = state.issueKeysBySource[projectListIssuePageSourceId] ?? []
@@ -59,11 +74,12 @@ export function timelineModel(state: AppState): TimelineHierarchyModel {
     state.issuePageStateBySource[projectListIssuePageSourceId],
     state.timelineStartDateField,
     state.timelineParentHydrationError,
+    state.issueTypes,
   )
   return { ...model, loaded: unique(projectKeys).filter((key) => !!state.issues[key]).length }
 }
 
-export function buildTimelineHierarchy(issuesByKey: Record<string, IssueSummary>, projectIssueKeys: string[], page: IssuePageState | undefined, startDateField: TimelineStartDateField = { status: "unavailable", reason: "not-found" }, parentHydrationError?: string): TimelineHierarchyModel {
+export function buildTimelineHierarchy(issuesByKey: Record<string, IssueSummary>, projectIssueKeys: string[], page: IssuePageState | undefined, startDateField: TimelineStartDateField = { status: "unavailable", reason: "not-found" }, parentHydrationError?: string, issueTypes: readonly IssueTypeDefinition[] = []): TimelineHierarchyModel {
   const baseKeys = unique(projectIssueKeys).filter((key) => !!issuesByKey[key])
   const baseOrder = new Map(baseKeys.map((key, index) => [key, index]))
   const includedKeys: string[] = []
@@ -95,34 +111,46 @@ export function buildTimelineHierarchy(issuesByKey: Record<string, IssueSummary>
   for (const list of children.values()) list.sort((left, right) => order.get(left)! - order.get(right)!)
 
   const invalid = invalidHierarchyKeys(includedKeys, issuesByKey, included)
-  const missingRoots = new Set(includedKeys.filter((key) => {
-    const parentKey = issuesByKey[key]?.parentKey
-    return !!parentKey && !included.has(parentKey) && !invalid.has(key)
-  }))
-  const missing = descendantsOf(missingRoots, children, invalid)
   const rows: TimelineHierarchyRow[] = []
   const visited = new Set<string>()
+  const hierarchyLevels = new Map(issueTypes.map((type) => [type.id, type.hierarchyLevel]))
+  const isPositiveLevel = (key: string) => (issuesByKey[key]?.typeHierarchyLevel ?? hierarchyLevels.get(issuesByKey[key]?.type ?? "") ?? 0) > 0
 
   const appendTree = (key: string, depth: number, group: TimelineRowGroup) => {
     if (visited.has(key) || invalid.has(key)) return
     const issue = issuesByKey[key]
     if (!issue) return
     visited.add(key)
-    rows.push({ issue, depth, group, classification: classifyTimelineIssue(issue, group) })
+    const missingParent = group === "unparented" && !!issue.parentKey && !included.has(issue.parentKey)
+    rows.push({ kind: "issue", issue, depth, group, classification: missingParent ? "missing-parent" : classifyTimelineIssue(issue, group) })
     for (const child of children.get(key) ?? []) appendTree(child, depth + 1, group)
   }
 
-  for (const key of includedKeys) {
-    const issue = issuesByKey[key]!
-    if (!issue.parentKey && !invalid.has(key) && !missing.has(key)) appendTree(key, 0, "hierarchy")
+  const hasLoadedPositiveAncestor = (key: string) => {
+    const seen = new Set<string>([key])
+    let parentKey = issuesByKey[key]?.parentKey
+    while (parentKey && included.has(parentKey) && !seen.has(parentKey)) {
+      if (isPositiveLevel(parentKey)) return true
+      seen.add(parentKey)
+      parentKey = issuesByKey[parentKey]?.parentKey
+    }
+    return false
   }
-  for (const key of includedKeys) if (missingRoots.has(key)) appendTree(key, 0, "missing-parent")
+
+  for (const key of includedKeys) {
+    if (isPositiveLevel(key) && !invalid.has(key) && !hasLoadedPositiveAncestor(key)) appendTree(key, 0, "hierarchy")
+  }
+  for (const key of includedKeys) {
+    if (visited.has(key) || invalid.has(key)) continue
+    const parentKey = issuesByKey[key]?.parentKey
+    if (!parentKey || !included.has(parentKey)) appendTree(key, 0, "unparented")
+  }
   for (const key of [...includedKeys].sort((left, right) => (baseOrder.get(left) ?? Number.MAX_SAFE_INTEGER) - (baseOrder.get(right) ?? Number.MAX_SAFE_INTEGER))) {
     if (!invalid.has(key) || visited.has(key)) continue
     visited.add(key)
-    rows.push({ issue: issuesByKey[key]!, depth: 0, group: "invalid-hierarchy", classification: "invalid-hierarchy" })
+    rows.push({ kind: "issue", issue: issuesByKey[key]!, depth: 0, group: "invalid-hierarchy", classification: "invalid-hierarchy" })
   }
-  for (const key of includedKeys) if (!visited.has(key)) appendTree(key, 0, "hierarchy")
+  for (const key of includedKeys) if (!visited.has(key)) appendTree(key, 0, "unparented")
 
   const total = page?.total
   return {
@@ -135,9 +163,9 @@ export function buildTimelineHierarchy(issuesByKey: Record<string, IssueSummary>
   }
 }
 
-export function projectTimelineRows(rows: TimelineHierarchyRow[], collapsedKeys: readonly string[]): TimelineProjectedRow[] {
+export function projectTimelineRows(rows: TimelineHierarchyRow[], collapsedKeys: readonly string[]): TimelineProjectedIssueRow[] {
   const collapsed = new Set(collapsedKeys)
-  const result: TimelineProjectedRow[] = []
+  const result: TimelineProjectedIssueRow[] = []
   let hiddenBelowDepth: number | undefined
   for (let index = 0; index < rows.length; index += 1) {
     const row = rows[index]!
@@ -151,7 +179,33 @@ export function projectTimelineRows(rows: TimelineHierarchyRow[], collapsedKeys:
   return result
 }
 
-export function timelineSelection(rows: readonly Pick<TimelineHierarchyRow, "issue">[], selectedKey: string | undefined, delta: number | "first" | "last") {
+export function projectTimelineViewRows(rows: TimelineHierarchyRow[], collapsedKeys: readonly string[]): TimelineProjectedRow[] {
+  const collapsed = new Set(collapsedKeys)
+  const result: TimelineProjectedRow[] = []
+  let hiddenBelowDepth: number | undefined
+  let sectionAdded = false
+  const unparentedRows = rows.filter((row) => row.group === "unparented")
+  const unparentedCollapsed = !collapsed.has(timelineUnparentedExpandedKey)
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index]!
+    if (row.group === "unparented" && !sectionAdded) {
+      sectionAdded = true
+      result.push({ kind: "section", key: timelineUnparentedSectionKey, label: "Unparented issues", group: "unparented", depth: 0, issueCount: unparentedRows.length, collapsed: unparentedCollapsed })
+      if (unparentedCollapsed) continue
+    } else if (row.group === "unparented" && unparentedCollapsed) {
+      continue
+    }
+    if (hiddenBelowDepth !== undefined && row.depth > hiddenBelowDepth) continue
+    hiddenBelowDepth = undefined
+    const hasChildren = rows[index + 1]?.group === row.group && rows[index + 1]!.depth > row.depth
+    const isCollapsed = hasChildren && collapsed.has(row.issue.key)
+    result.push({ ...row, hasChildren, collapsed: isCollapsed })
+    if (isCollapsed) hiddenBelowDepth = row.depth
+  }
+  return result
+}
+
+export function timelineSelection(rows: readonly TimelineProjectedRow[], selectedKey: string | undefined, delta: number | "first" | "last") {
   const keys = timelineSelectionKeys(rows)
   if (delta === "first") return keys[0]
   if (delta === "last") return keys.at(-1)
@@ -159,13 +213,23 @@ export function timelineSelection(rows: readonly Pick<TimelineHierarchyRow, "iss
   return keys[Math.max(0, Math.min(keys.length - 1, current + delta))]
 }
 
-export function timelineSelectionKeys(rows: readonly Pick<TimelineHierarchyRow, "issue">[]) {
-  return [...rows.map((row) => row.issue.key), timelineCreateRowKey]
+export function timelineSelectionKeys(rows: readonly TimelineProjectedRow[]) {
+  return [...rows.map(timelineProjectedRowKey), timelineCreateRowKey]
+}
+
+export function timelineProjectedRowKey(row: TimelineProjectedRow) {
+  return row.kind === "section" ? row.key : row.issue.key
+}
+
+export function timelineSelectionAction(selectedKey: string | undefined) {
+  if (!selectedKey) return undefined
+  if (selectedKey === timelineUnparentedSectionKey) return "toggle-unparented" as const
+  if (selectedKey === timelineCreateRowKey) return "create" as const
+  return "open-issue" as const
 }
 
 export function classifyTimelineIssue(issue: Pick<IssueSummary, "startDate" | "dueDate">, group: TimelineRowGroup = "hierarchy"): TimelineRowClassification {
   if (group === "invalid-hierarchy") return "invalid-hierarchy"
-  if (group === "missing-parent") return "missing-parent"
   const hasStart = isJiraDate(issue.startDate)
   const hasDue = isJiraDate(issue.dueDate)
   if (hasStart && hasDue) return "scheduled"
@@ -252,7 +316,7 @@ export function timelineScheduleText(issue: Pick<IssueSummary, "startDate" | "du
 }
 
 export function timelineRowCopy(row: TimelineHierarchyRow, sprint?: SprintSummary) {
-  if (row.group === "missing-parent") return `parent not loaded: ${row.issue.parentKey ?? "unknown"} · ${timelineScheduleText(row.issue, sprint)}`
+  if (row.classification === "missing-parent") return `parent not loaded: ${row.issue.parentKey ?? "unknown"} · ${timelineScheduleText(row.issue, sprint)}`
   if (row.group === "invalid-hierarchy") return `invalid hierarchy · ${timelineScheduleText(row.issue, sprint)}`
   return timelineScheduleText(row.issue, sprint)
 }
@@ -327,17 +391,6 @@ function invalidHierarchyKeys(keys: string[], issuesByKey: Record<string, IssueS
     }
   }
   return invalid
-}
-
-function descendantsOf(roots: Set<string>, children: Map<string, string[]>, excluded: Set<string>) {
-  const result = new Set<string>()
-  const visit = (key: string) => {
-    if (result.has(key) || excluded.has(key)) return
-    result.add(key)
-    for (const child of children.get(key) ?? []) visit(child)
-  }
-  for (const root of roots) visit(root)
-  return result
 }
 
 function alignTimelineDate(value: string, zoom: TimelineZoom) {

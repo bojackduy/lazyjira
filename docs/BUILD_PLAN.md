@@ -96,6 +96,21 @@ Outputs:
 - A project-wide paginated List and read-only hierarchy/schedule Timeline.
 - Route/keymap migration, narrow-terminal coverage, and Scrum/Kanban Jira smoke checks.
 
+### Wave 6: Reported Jira UX Corrections
+
+Goal: fix reported hierarchy, metadata-display, and large-organization discovery problems without weakening source isolation or Jira write safety.
+
+Outputs:
+
+- Bounded Jira project discovery with explicit page controls.
+- Jira server-side project search with stale-response protection.
+- Automatic board selection when a project has exactly one board.
+- An explanatory board chooser only when a project has multiple boards.
+- Timeline roots derived from Jira hierarchy levels.
+- A collapsed, selectable Unparented issues section.
+- Human-readable issue-type names across Inspector, detail, Workspace, List, and search.
+- Regression coverage against observed HPCE metadata.
+
 ## Parallelization Map
 
 | Workstream | Can Start | Depends On | Main Files/Areas |
@@ -164,6 +179,22 @@ Pass when:
 - Timeline uses public Jira issue/field data, reports partial completeness, and never fabricates dates or hierarchy.
 - Every project view supports consistent pane focus, `j/k`, `g/G`, `Ctrl-u/d`, `/`, `S`, `Enter`, `Esc`, `?`, and staged-write behavior.
 - Wide and narrow terminals preserve issue identity, selection, and actionable loading/error states.
+
+### Checkpoint F: Large Jira Organization Navigation
+
+Pass when:
+
+- Opening remote project discovery performs one bounded request instead of downloading every accessible project.
+- The picker shows current range, total count, and page number.
+- `[` and `]` navigate cached project pages.
+- `/` searches all accessible projects through Jira, not only the current page.
+- Existing rows remain visible during loading and failures.
+- Stale project-search responses cannot replace newer results.
+- A project with one board opens directly.
+- A project with multiple boards explains Scrum/Kanban context before selection.
+- Timeline shows positive hierarchy-level roots and their descendants.
+- Parentless standard issues remain under a collapsed Unparented issues section.
+- Inspector and detail surfaces show issue-type names while writes retain Jira type IDs.
 
 ## Non-Negotiables
 

@@ -9,7 +9,7 @@ import {
   cycleTimelineZoom,
   formatTimelineDate,
   panTimelineWindow,
-  projectTimelineRows,
+  projectTimelineViewRows,
   timelineCells,
   timelineCreateRowKey,
   timelineLayout,
@@ -20,8 +20,10 @@ import {
   timelineSelection,
   timelineStateText,
   timelineTodayWindow,
+  timelineUnparentedSectionKey,
   timelineWindowEnd,
   type TimelineCell,
+  type TimelineProjectedIssueRow,
   type TimelineProjectedRow,
 } from "../state/timeline"
 
@@ -33,7 +35,7 @@ export function TimelineRoute() {
   let scrollbox: ScrollBoxRenderable | undefined
   const today = () => new Date().toISOString().slice(0, 10)
   const model = createMemo(() => timelineModel(state))
-  const rows = createMemo(() => projectTimelineRows(model().rows, state.collapsedTimelineParentKeys))
+  const rows = createMemo(() => projectTimelineViewRows(model().rows, state.collapsedTimelineParentKeys))
   const layout = createMemo(() => timelineLayout(dimensions().width, state.timelineZoom))
   const cells = createMemo(() => timelineCells(state.timelineWindowStart, state.timelineZoom, layout().cellCount, today()))
   const visibleRows = () => Math.max(1, dimensions().height - 14)
@@ -90,7 +92,7 @@ export function TimelineRoute() {
         <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">
           Timeline · {state.project.key} {state.project.name} · {formatTimelineDate(cells()[0]?.start ?? state.timelineWindowStart)}-{formatTimelineDate(timelineWindowEnd(state.timelineWindowStart, state.timelineZoom, layout().cellCount))} · {capitalize(state.timelineZoom)}
         </text>
-        <text fg={theme.textMuted} wrapMode="none">j/k row · g/G ends · Ctrl-u/d half page · h/l pan · [/] viewport · Space collapse · z zoom · t today · Enter detail/create · L load more</text>
+        <text fg={theme.textMuted} wrapMode="none">j/k row · g/G ends · Ctrl-u/d half page · h/l pan · [/] viewport · Space collapse/section · z zoom · t today · Enter open/toggle/create · L load more</text>
         <text fg={state.issuePageStateBySource["project-list"]?.error ? theme.danger : state.issuePageStateBySource["project-list"]?.loading ? theme.warning : theme.textSubtle} wrapMode="none">{timelineStateText(state, model())}</text>
         <For each={timelineNotices(model(), state.sprints)}>{(notice) => <text fg={theme.warning} wrapMode="none">{notice}</text>}</For>
       </box>
@@ -99,7 +101,7 @@ export function TimelineRoute() {
         <box flexDirection="column" flexGrow={1} minHeight={0} overflow="hidden">
           <TimelineGridHeader cells={cells()} identityWidth={layout().identityWidth} cellWidth={layout().cellWidth} />
           <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} flexGrow={1} minHeight={0} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }} verticalScrollbarOptions={{ visible: true, trackOptions: { backgroundColor: theme.panel, foregroundColor: theme.border } }}>
-            <For each={rows()}>{(row, index) => <WideTimelineRow row={row} previousGroup={rows()[index() - 1]?.group} cells={cells()} identityWidth={layout().identityWidth} cellWidth={layout().cellWidth} />}</For>
+            <For each={rows()}>{(row, index) => <WideTimelineProjectedRow row={row} previousGroup={rows()[index() - 1]?.group} cells={cells()} identityWidth={layout().identityWidth} cellWidth={layout().cellWidth} />}</For>
             <WideTimelineCreateRow identityWidth={layout().identityWidth} scheduleWidth={cells().length * layout().cellWidth} />
           </scrollbox>
         </box>
@@ -118,7 +120,25 @@ function TimelineGridHeader(props: { cells: TimelineCell[]; identityWidth: numbe
   )
 }
 
-function WideTimelineRow(props: { row: TimelineProjectedRow; previousGroup?: TimelineProjectedRow["group"]; cells: TimelineCell[]; identityWidth: number; cellWidth: number }) {
+function WideTimelineProjectedRow(props: { row: TimelineProjectedRow; previousGroup?: TimelineProjectedRow["group"]; cells: TimelineCell[]; identityWidth: number; cellWidth: number }) {
+  return props.row.kind === "section"
+    ? <WideTimelineSectionRow row={props.row} identityWidth={props.identityWidth} scheduleWidth={props.cells.length * props.cellWidth} />
+    : <WideTimelineIssueRow row={props.row} previousGroup={props.previousGroup} cells={props.cells} identityWidth={props.identityWidth} cellWidth={props.cellWidth} />
+}
+
+function WideTimelineSectionRow(props: { row: Extract<TimelineProjectedRow, { kind: "section" }>; identityWidth: number; scheduleWidth: number }) {
+  const { state } = useAppState()
+  const theme = useTheme()
+  const selected = () => state.timelineSelectedIssueKey === timelineUnparentedSectionKey
+  return (
+    <box id={`timeline-${timelineUnparentedSectionKey}`} height={1} flexShrink={0} flexDirection="row" marginTop={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}>
+      <text attributes={TextAttributes.BOLD} fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.warning} width={props.identityWidth} wrapMode="none">{fit(`${selected() ? ">" : " "} ${props.row.collapsed ? ">" : "v"} ${props.row.label} (${props.row.issueCount})`, props.identityWidth)}</text>
+      <text fg={theme.textMuted} width={props.scheduleWidth} wrapMode="none">{fit(props.row.collapsed ? "Space/Enter to expand" : "Space/Enter to collapse", props.scheduleWidth)}</text>
+    </box>
+  )
+}
+
+function WideTimelineIssueRow(props: { row: TimelineProjectedIssueRow; previousGroup?: TimelineProjectedRow["group"]; cells: TimelineCell[]; identityWidth: number; cellWidth: number }) {
   const { state } = useAppState()
   const theme = useTheme()
   const selected = () => state.timelineSelectedIssueKey === props.row.issue.key
@@ -129,8 +149,8 @@ function WideTimelineRow(props: { row: TimelineProjectedRow; previousGroup?: Tim
 
   return (
     <>
-      <Show when={props.row.group !== "hierarchy" && props.row.group !== props.previousGroup}>
-        <text attributes={TextAttributes.BOLD} fg={props.row.group === "missing-parent" ? theme.warning : theme.danger} marginTop={1}>{props.row.group === "missing-parent" ? "Parent not loaded" : "Invalid hierarchy"}</text>
+      <Show when={props.row.group === "invalid-hierarchy" && props.row.group !== props.previousGroup}>
+        <text attributes={TextAttributes.BOLD} fg={theme.danger} marginTop={1}>Invalid hierarchy</text>
       </Show>
       <box id={`timeline-${props.row.issue.key}`} height={1} flexShrink={0} flexDirection="row" backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}>
         <text fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.text} width={props.identityWidth} wrapMode="none">
@@ -159,24 +179,36 @@ function NarrowTimeline(props: { rows: TimelineProjectedRow[] }) {
   return (
     <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} flexGrow={1} minHeight={0} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }} verticalScrollbarOptions={{ visible: true, trackOptions: { backgroundColor: theme.panel, foregroundColor: theme.border } }}>
       <For each={props.rows}>{(row, index) => (
-        <>
-          <Show when={row.group !== "hierarchy" && row.group !== props.rows[index() - 1]?.group}>
-            <text attributes={TextAttributes.BOLD} fg={row.group === "missing-parent" ? theme.warning : theme.danger} marginTop={1}>{row.group === "missing-parent" ? "Parent not loaded" : "Invalid hierarchy"}</text>
-          </Show>
-          <box id={`timeline-${row.issue.key}`} flexDirection="column" flexShrink={0} paddingLeft={1 + row.depth * 2} backgroundColor={state.timelineSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selected : undefined}>
-            <text fg={state.timelineSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selectedText : theme.text} wrapMode="none">
-              {state.timelineSelectedIssueKey === row.issue.key ? ">" : " "} <span style={{ fg: issueColor(state, row.issue) }}>{disclosure(row)}</span> {row.issue.key} {row.issue.title}
-            </text>
-            <NarrowTimelineSchedule row={row} />
-          </box>
-        </>
+        <NarrowTimelineProjectedRow row={row} previousGroup={props.rows[index() - 1]?.group} />
       )}</For>
       <NarrowTimelineCreateRow />
     </scrollbox>
   )
 }
 
-function NarrowTimelineSchedule(props: { row: TimelineProjectedRow }) {
+function NarrowTimelineProjectedRow(props: { row: TimelineProjectedRow; previousGroup?: TimelineProjectedRow["group"] }) {
+  const { state } = useAppState()
+  const theme = useTheme()
+  if (props.row.kind === "section") {
+    const selected = () => state.timelineSelectedIssueKey === timelineUnparentedSectionKey
+    return <box id={`timeline-${timelineUnparentedSectionKey}`} height={1} flexShrink={0} paddingLeft={1} marginTop={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text attributes={TextAttributes.BOLD} fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.warning} wrapMode="none">{selected() ? ">" : " "} {props.row.collapsed ? ">" : "v"} {props.row.label} ({props.row.issueCount})</text></box>
+  }
+  return (
+    <>
+      <Show when={props.row.group === "invalid-hierarchy" && props.row.group !== props.previousGroup}>
+        <text attributes={TextAttributes.BOLD} fg={theme.danger} marginTop={1}>Invalid hierarchy</text>
+      </Show>
+      <box id={`timeline-${props.row.issue.key}`} flexDirection="column" flexShrink={0} paddingLeft={1 + props.row.depth * 2} backgroundColor={state.timelineSelectedIssueKey === props.row.issue.key && state.focusedPane === "main" ? theme.selected : undefined}>
+        <text fg={state.timelineSelectedIssueKey === props.row.issue.key && state.focusedPane === "main" ? theme.selectedText : theme.text} wrapMode="none">
+          {state.timelineSelectedIssueKey === props.row.issue.key ? ">" : " "} <span style={{ fg: issueColor(state, props.row.issue) }}>{disclosure(props.row)}</span> {props.row.issue.key} {props.row.issue.title}
+        </text>
+        <NarrowTimelineSchedule row={props.row} />
+      </box>
+    </>
+  )
+}
+
+function NarrowTimelineSchedule(props: { row: TimelineProjectedIssueRow }) {
   const { state } = useAppState()
   const theme = useTheme()
   const sprint = () => state.sprints.find((candidate) => candidate.id === props.row.issue.sprintId)
@@ -203,8 +235,8 @@ function NarrowTimelineCreateRow() {
   return <box id={`timeline-${timelineCreateRowKey}`} height={1} flexShrink={0} paddingLeft={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.textMuted} wrapMode="none">{selected() ? ">" : " "} + New {typeName()}</text></box>
 }
 
-function disclosure(row: TimelineProjectedRow) {
-  if (row.group === "missing-parent") return "?"
+function disclosure(row: TimelineProjectedIssueRow) {
+  if (row.classification === "missing-parent") return "?"
   if (row.group === "invalid-hierarchy") return "!"
   if (!row.hasChildren) return "·"
   return row.collapsed ? ">" : "v"
