@@ -111,6 +111,22 @@ Outputs:
 - Human-readable issue-type names across Inspector, detail, Workspace, List, and search.
 - Regression coverage against observed HPCE metadata.
 
+### Wave 7: Keyboard Integrity And Terminal Iconography
+
+Goal: make lazy-style paging selection-aware, protect text inputs from route shortcuts, and introduce a consistent Nerd Font-capable visual language with portable fallbacks.
+
+Owner brief: `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`.
+
+Outputs:
+
+- Plain and Ctrl `d`/`u` half-page selection movement in Timeline and List.
+- Guaranteed selection-to-scroll synchronization after paging.
+- Shared route-binding suppression while inputs, editors, or dialogs own keyboard input.
+- Onboarding URL, email, and token input that accepts all printable shortcut letters.
+- Central semantic icon catalog with Nerd, Unicode, and ASCII profiles.
+- Distinct selection, disclosure, hierarchy, issue-type, status, priority, route, and action icons.
+- Wide, narrow, fallback-font, input-capture, and keyboard-navigation regression coverage.
+
 ## Parallelization Map
 
 | Workstream | Can Start | Depends On | Main Files/Areas |
@@ -125,6 +141,7 @@ Outputs:
 | Quality integration | Any time after foundation | All tracks for final pass | tests, fixtures, docs |
 | Rich Jira text | After read/write foundations | Jira read loading, staged writes, inspector/detail | `docs/RICH_TEXT_EPIC.md`, Jira ADF mapper, rich reader |
 | Jira-style project navigation | After Jira board/read foundations | Routes, sidebar, project issue paging, hierarchy/date normalization | `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`, routes, sidebar, list, timeline |
+| Keyboard integrity and terminal iconography | After Jira-style navigation | Route keymaps, input ownership, stable hierarchy/type metadata | `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`, route bindings, icon catalog, render tests |
 
 ## Integration Checkpoints
 
@@ -195,6 +212,19 @@ Pass when:
 - Timeline shows positive hierarchy-level roots and their descendants.
 - Parentless standard issues remain under a collapsed Unparented issues section.
 - Inspector and detail surfaces show issue-type names while writes retain Jira type IDs.
+
+### Checkpoint G: Keyboard And Visual Language Are Coherent
+
+Pass when:
+
+- Plain and Ctrl `d`/`u` move Timeline and List selection by half a viewport.
+- The selected destination row is visible after every page move.
+- Onboarding and other focused text inputs receive printable shortcut letters without moving the route behind them.
+- Route-local keybindings are inactive while another popup or editor owns keyboard input.
+- Selection and collapsed/expanded hierarchy states use distinct indicators.
+- Nerd, Unicode, and ASCII icon profiles preserve alignment in wide and narrow layouts.
+- Issue-type icons are derived semantically while Jira IDs and Jira-provided colors remain unchanged.
+- Help, route hints, and README document the implemented keyboard and font behavior.
 
 ## Non-Negotiables
 

@@ -229,6 +229,68 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 - [x] `R7.5` Smoke-test Timeline hierarchy and the collapsed unparented section.
 - [x] `R7.6` Smoke-test Inspector Type labels and Jira ID write preservation.
 
+## Wave 7: Keyboard Integrity And Terminal Iconography
+
+Scope and design: `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`.
+
+### K1: Input Ownership
+
+- [ ] `K1.1` Add a pure shared predicate that blocks route-local bindings while a popup, dialog, or text editor owns keyboard input.
+- [ ] `K1.2` Apply the predicate to Workspace, Timeline, Backlog, List, Board, Config, Detail, and Inspector local binding layers.
+- [ ] `K1.3` Keep command-level route/focus/modal guards as a second safety boundary.
+- [ ] `K1.4` Ensure onboarding retains only `Enter` continue/save and `Esc` close as non-text behavior.
+- [ ] `K1.5` Verify onboarding URL, email, and token fields accept `d`, `u`, `j`, `k`, `h`, `l`, and ordinary punctuation.
+- [ ] `K1.6` Verify typing in any editor cannot move selection or scroll the route behind it.
+
+### K2: Timeline And List Paging
+
+- [ ] `K2.1` Bind plain `d`/`u` in Timeline and retain `Ctrl-d`/`Ctrl-u` aliases.
+- [ ] `K2.2` Bind plain `d`/`u` in List and retain `Ctrl-d`/`Ctrl-u` aliases.
+- [ ] `K2.3` Move selection by half the visible viewport rather than scrolling independently.
+- [ ] `K2.4` Bring the destination row into view after every page move.
+- [ ] `K2.5` Include Timeline issue rows, the Unparented issues section, and the create row in bounded paging.
+- [ ] `K2.6` Preserve List hierarchy collapse and Timeline section/branch collapse while paging.
+- [ ] `K2.7` Update route hints, help metadata, and README navigation documentation.
+- [ ] `K2.8` Add wide/narrow input-driven tests for plain keys, Ctrl aliases, boundaries, and selected-row visibility.
+
+### I1: Icon Foundation
+
+- [ ] `I1.1` Add a central semantic icon catalog with `nerd`, `unicode`, and `ascii` profiles.
+- [ ] `I1.2` Add `LAZYJIRA_ICON_MODE` parsing with `unicode` default and safe invalid-value fallback.
+- [ ] `I1.3` Expose icons through one shared context or selector boundary instead of importing profile glyphs into components.
+- [ ] `I1.4` Define separate selection, collapsed, expanded, leaf, create, missing-parent, and invalid-hierarchy tokens.
+- [ ] `I1.5` Verify every structural glyph occupies one terminal cell in supported profiles.
+- [ ] `I1.6` Add profile-selection, fallback, and width-contract tests.
+
+### I2: Structural Icon Rollout
+
+- [ ] `I2.1` Replace ambiguous Timeline selection/disclosure markers with separate semantic icons.
+- [ ] `I2.2` Replace ambiguous List selection/disclosure markers with separate semantic icons.
+- [ ] `I2.3` Apply disclosure icons to Backlog groups without changing collapse behavior.
+- [ ] `I2.4` Apply create icons to Board, Timeline, and other create rows while retaining text labels.
+- [ ] `I2.5` Preserve distinct missing-parent and invalid-hierarchy indicators.
+- [ ] `I2.6` Add wide and narrow render coverage for all structural states and icon profiles.
+
+### I3: Jira Metadata Icons
+
+- [ ] `I3.1` Add issue-type icon resolution by exact normalized common name.
+- [ ] `I3.2` Add subtask, positive hierarchy-level, custom-type, and unknown-type fallbacks.
+- [ ] `I3.3` Apply issue-type icons to Board, Backlog, List, Workspace, Detail, Inspector, and metadata legends.
+- [ ] `I3.4` Add semantic status icons without replacing existing status labels or colors.
+- [ ] `I3.5` Add semantic priority icons without replacing Jira priority labels or colors.
+- [ ] `I3.6` Add restrained parent, blocked, stale, and unassigned indicators.
+- [ ] `I3.7` Verify staged type edits and Jira write payloads continue using canonical type IDs.
+
+### I4: Navigation, Actions, And Rollout
+
+- [ ] `I4.1` Add semantic icons to Workspace, Timeline, Backlog, List, Active sprints/Board, and Config destinations.
+- [ ] `I4.2` Add action icons to create, refresh, search, warning, error, staged, and apply surfaces where they improve scanning.
+- [ ] `I4.3` Keep destructive confirmations and actionable Jira errors text-complete without relying on icons.
+- [ ] `I4.4` Verify Unicode and ASCII modes on terminals without Nerd Font support.
+- [ ] `I4.5` Verify Nerd mode on a patched font without clipping or column drift.
+- [ ] `I4.6` Update README installation notes, help, screenshots, and visual examples.
+- [ ] `I4.7` Run typecheck, full tests, production build, diff validation, and manual wide/narrow smoke checks.
+
 ## Cross-Track Reviews
 
 - [ ] All screens use the shared domain/state model.

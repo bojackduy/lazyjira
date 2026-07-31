@@ -52,6 +52,7 @@ This document tells contributors where each feature area lives, what it owns, wh
 | Loaded Search | Active | `src/state/issue-search.ts`, `src/state/selectors.ts` |
 | Remote Search | Active | `src/workspace/prod/source.ts`, `src/state/issue-search.ts`, `src/ui/shell.tsx` |
 | Keymap And Commands | Active | `src/app.tsx`, `src/context/keymap.tsx` |
+| Keyboard Integrity And Iconography | Planned | `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`, route bindings, future icon catalog |
 | UI Shell And Popups | Active | `src/ui/shell.tsx`, `src/context/toast.tsx`, `src/context/dialog.tsx` |
 | Jira Writes | Active staged review/apply | `src/state/jira-write-plan.ts`, `src/context/app-state.tsx`, `src/workspace/prod/source.ts` |
 | Testing And Quality | Active | `src/**/*.test.ts`, `package.json` |
@@ -1041,6 +1042,7 @@ Read First:
 
 - `src/app.tsx`
 - `src/context/keymap.tsx`
+- `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`
 - `docs/OPENTUI_REFERENCE.md`
 - `docs/subagents/03-keymap-command-system.md`
 - `README.md` Navigation Model.
@@ -1077,6 +1079,7 @@ Current Behavior:
 
 Next Work:
 
+- Complete Wave 7 input ownership and Timeline/List selection-driven paging before visual icon rollout.
 - Continue moving route-local footer copy into shared command metadata where that reduces duplication without obscuring context.
 - Keep text editors and modal keymaps higher priority than printable global shortcuts.
 
