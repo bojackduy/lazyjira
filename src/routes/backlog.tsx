@@ -21,6 +21,7 @@ export function BacklogRoute() {
   let routeBox: BoxRenderable | undefined
   let scrollbox: ScrollBoxRenderable | undefined
   let measureTimer: ReturnType<typeof setTimeout> | undefined
+  let previousGroupId = state.selectedBacklogGroupId
   const [viewportWidth, setViewportWidth] = createSignal(estimatedBacklogViewportWidth(dimensions().width))
   const groups = () => groupBacklogIssues(state, state.backlogGroupBy)
   const capabilities = () => boardCapabilities(state.board)
@@ -56,8 +57,14 @@ export function BacklogRoute() {
   createEffect(() => {
     if (state.route !== "backlog") return
     viewportWidth()
-    const selectedGroup = groups().find((group) => group.id === state.selectedBacklogGroupId)
-    scrollbox?.scrollChildIntoView(backlogScrollTarget(state.selectedBacklogGroupId, state.selectedIssueKey, state.collapsedBacklogGroupIds.includes(state.selectedBacklogGroupId), selectedGroup?.issueKeys ?? []))
+    const groupId = state.selectedBacklogGroupId
+    const selectedGroup = groups().find((group) => group.id === groupId)
+    const targetId = backlogScrollTarget(groupId, state.selectedIssueKey, state.collapsedBacklogGroupIds.includes(groupId), selectedGroup?.issueKeys ?? [])
+    const groupChanged = groupId !== previousGroupId
+    previousGroupId = groupId
+    if (!scrollbox) return
+    if (groupChanged) centerBacklogChild(scrollbox, targetId)
+    else scrollbox.scrollChildIntoView(targetId)
   })
 
   function scrollPage(delta: 1 | -1) {
@@ -243,6 +250,20 @@ export function estimatedBacklogViewportWidth(terminalWidth: number) {
 
 export function backlogScrollTarget(groupId: string, selectedIssueKey: string, collapsed: boolean, issueKeys: string[]) {
   return !collapsed && issueKeys.includes(selectedIssueKey) ? `issue-${selectedIssueKey}` : `backlog-group-${groupId}`
+}
+
+export function backlogCenterDelta(childTop: number, childHeight: number, viewportTop: number, viewportHeight: number) {
+  return Math.round(childTop + childHeight / 2 - (viewportTop + viewportHeight / 2))
+}
+
+function centerBacklogChild(scrollbox: ScrollBoxRenderable, childId: string) {
+  const child = scrollbox.content.findDescendantById(childId)
+  if (!child) {
+    scrollbox.scrollChildIntoView(childId)
+    return
+  }
+  const delta = backlogCenterDelta(child.y, child.height, scrollbox.viewport.y, scrollbox.viewport.height)
+  if (delta) scrollbox.scrollBy({ x: 0, y: delta })
 }
 
 function BacklogRow(props: { issue: IssueSummary; selected: boolean; layout: Accessor<BacklogLayout> }) {

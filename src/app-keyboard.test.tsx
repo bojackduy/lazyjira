@@ -35,6 +35,56 @@ afterEach(() => {
 })
 
 describe("keyboard input ownership", () => {
+  test("centers the selected Backlog issue after h/l group jumps", async () => {
+    const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    initialState.route = "backlog"
+    initialState.focusedPane = "main"
+    initialState.backlogGroupBy = "issueType"
+    const groups = groupBacklogIssues(initialState, initialState.backlogGroupBy)
+    const targetGroupIndex = Math.min(2, groups.length - 1)
+    initialState.selectedBacklogGroupId = groups[0]!.id
+    initialState.selectedIssueKey = groups[0]!.issueKeys[0]!
+    let appState: AppStateContext | undefined
+    const Capture = () => {
+      appState = useAppState()
+      return null
+    }
+    const height = 30
+    const setup = await createTestRenderer({ width: 180, height })
+    renderers.push(setup.renderer)
+    const keymap = createDefaultOpenTuiKeymap(setup.renderer)
+
+    await render(() => (
+      <LazyJiraKeymapProvider keymap={keymap}>
+        <AppProviders
+          config={{ appName: "lazyjira", runtimeEnv: "dev" }}
+          initialState={initialState}
+          source={createDevWorkspaceSource()}
+          saveWorkspaceConfig={async () => undefined}
+          iconMode="ascii"
+          onExit={() => undefined}
+        >
+          <Capture />
+          <App />
+        </AppProviders>
+      </LazyJiraKeymapProvider>
+    ), setup.renderer)
+    await setup.flush()
+
+    for (let index = 0; index < targetGroupIndex; index += 1) {
+      setup.mockInput.pressKey("l")
+      await setup.flush()
+    }
+
+    const selectedKey = appState!.state.selectedIssueKey
+    const selectedRows = setup.captureCharFrame().split("\n")
+      .flatMap((line, index) => line.includes(selectedKey) ? [index] : [])
+    const centerDistance = Math.min(...selectedRows.map((index) => Math.abs(index - Math.floor(height / 2))))
+
+    expect(appState!.state.selectedBacklogGroupId).toBe(groups[targetGroupIndex]!.id)
+    expect(centerDistance).toBeLessThanOrEqual(4)
+  })
+
   test("keeps long Inspector type choices visible while navigating", async () => {
     const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
     initialState.issueTypes = [

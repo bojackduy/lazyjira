@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { backlogLayout, backlogScrollTarget, estimatedBacklogViewportWidth, packLegendRows, planBacklogRow, truncateCellText } from "./backlog"
+import { backlogCenterDelta, backlogLayout, backlogScrollTarget, estimatedBacklogViewportWidth, packLegendRows, planBacklogRow, truncateCellText } from "./backlog"
 
 describe("backlog legend rows", () => {
   test("caps long status legends so the issue list starts below a fixed row count", () => {
@@ -70,5 +70,11 @@ describe("backlog legend rows", () => {
   test("scrolls to the selected issue unless its group is collapsed", () => {
     expect(backlogScrollTarget("sprint-1", "PROJ-2", false, ["PROJ-1", "PROJ-2"])).toBe("issue-PROJ-2")
     expect(backlogScrollTarget("sprint-1", "PROJ-2", true, ["PROJ-1", "PROJ-2"])).toBe("backlog-group-sprint-1")
+  })
+
+  test("computes the scroll needed to center a jumped Backlog group target", () => {
+    expect(backlogCenterDelta(30, 4, 10, 20)).toBe(12)
+    expect(backlogCenterDelta(14, 4, 10, 20)).toBe(-4)
+    expect(backlogCenterDelta(18, 4, 10, 20)).toBe(0)
   })
 })

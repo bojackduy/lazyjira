@@ -112,6 +112,7 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 - [x] `N2.7` Add board/backlog regression tests for wide, narrow, empty, loading, partial, and error states.
 - [x] `N2.8` Replace fixed Backlog parent and metadata columns with measured wide, medium, and narrow row layouts that preserve complete issue keys.
 - [x] `N2.9` Add balanced Backlog cards with ellipsized title boundaries, conditional top-level ancestor key/name lines, prioritized metadata, and consistent vertical separation.
+- [x] `N2.10` Center the destination issue or collapsed group after Backlog `h/l` group jumps while retaining keep-visible `j/k` row navigation.
 
 ### N3: Project List Data And Surface
 
@@ -285,6 +286,7 @@ Scope and design: `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`.
 - [x] `I3.5` Add semantic priority icons without replacing Jira priority labels or colors.
 - [x] `I3.6` Add restrained parent, blocked, stale, and unassigned indicators.
 - [x] `I3.7` Verify staged type edits and Jira write payloads continue using canonical type IDs.
+- [x] `I3.8` Align Nerd Story, Epic, Task, Sub-task, and Bug glyphs with Jira's visual language while retaining portable profile fallbacks.
 
 ### I4: Navigation, Actions, And Rollout
 
@@ -294,7 +296,7 @@ Scope and design: `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`.
 - [x] `I4.4` Verify Unicode and ASCII modes on terminals without Nerd Font support.
 - [!] `I4.5` Automated Nerd profile width/render tests and dev startup pass; physical patched-font appearance remains a manual check.
 - [~] `I4.6` README installation notes, help, and render examples are updated; refresh the product screenshot after visual approval.
-- [~] `I4.7` Typecheck, 280 tests, production build, diff validation, and dev navigation smoke pass; physical wide/narrow Nerd Font smoke remains manual.
+- [~] `I4.7` Typecheck, 283 tests, production build, diff validation, and dev navigation smoke pass; physical wide/narrow Nerd Font smoke remains manual.
 
 ## Cross-Track Reviews
 

@@ -104,7 +104,7 @@ export const iconCatalogs: Readonly<Record<IconMode, SemanticIconCatalog>> = {
   nerd: {
     mode: "nerd",
     structural: { selection: "\uf0da", collapsed: "\uf054", expanded: "\uf078", leaf: "\uf111", create: "\uf067", missingParent: "\uf127", invalidHierarchy: "\uf071" },
-    issueType: { bug: "\uf188", story: "\uf02d", task: "\uf0ae", epic: "\uf135", feature: "\uf005", initiative: "\uf0eb", subtask: "\uf0e8", hierarchy: "\uf1b3", generic: "\uf15c" },
+    issueType: { bug: "\uf188", story: "\uf02e", task: "\uf14a", epic: "\uf0e7", feature: "\uf005", initiative: "\uf0eb", subtask: "\u{f0645}", hierarchy: "\uf1b3", generic: "\uf15c" },
     status: { todo: "\uf10c", inProgress: "\uf192", review: "\uf06e", done: "\uf058", blocked: "\uf05e", rejected: "\uf057", reopened: "\uf01e", ready: "\uf144", planned: "\uf073", generic: "\uf111" },
     priority: { lowest: "\uf103", low: "\uf063", medium: "\uf068", high: "\uf062", highest: "\uf102", critical: "\uf071", generic: "\uf068" },
     route: { workspace: "\uf015", timeline: "\uf0d0", backlog: "\uf03a", list: "\uf03a", board: "\uf00a", config: "\uf013", issueDetail: "\uf15c" },

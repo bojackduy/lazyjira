@@ -1,5 +1,5 @@
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect } from "solid-js"
+import { batch, createEffect } from "solid-js"
 import { useBindings } from "./context/keymap"
 import { useAppState } from "./context/app-state"
 import { useConfig } from "./context/config"
@@ -807,9 +807,11 @@ export function App() {
     const currentGroupIndex = Math.max(0, groups.findIndex((group) => group.id === state.selectedBacklogGroupId))
     const nextGroup = groups[(currentGroupIndex + delta + groups.length) % groups.length]
     if (!nextGroup) return
-    appState.setSelectedBacklogGroup(nextGroup.id)
     const firstIssueKey = nextGroup?.issueKeys[0]
-    if (firstIssueKey) appState.selectIssue(firstIssueKey)
+    batch(() => {
+      appState.setSelectedBacklogGroup(nextGroup.id)
+      if (firstIssueKey) appState.selectIssue(firstIssueKey)
+    })
   }
 
   function moveProjectList(delta: number) {

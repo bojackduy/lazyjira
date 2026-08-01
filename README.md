@@ -27,12 +27,12 @@ Use `lazyjira dev` to run with bundled fixture data and no Jira credentials.
 Set `LAZYJIRA_ICON_MODE` for a temporary override with higher precedence than the saved selection:
 
 ```bash
-LAZYJIRA_ICON_MODE=nerd lazyjira   # requires a patched Nerd Font
+LAZYJIRA_ICON_MODE=nerd lazyjira   # requires a patched Nerd Font v3
 LAZYJIRA_ICON_MODE=unicode lazyjira
 LAZYJIRA_ICON_MODE=ascii lazyjira
 ```
 
-Invalid or missing values fall back to `unicode`. Profiles that violate the terminal's one-cell width contract fall back toward Unicode and then ASCII. Font glyph coverage itself cannot be detected reliably, so use the picker preview before selecting Nerd Font. Icons always supplement text labels, so Jira state and destructive confirmations remain readable in every profile.
+Invalid or missing values fall back to `unicode`. Profiles that violate the terminal's one-cell width contract fall back toward Unicode and then ASCII. Font glyph coverage itself cannot be detected reliably, so use the picker preview before selecting Nerd Font. The Jira-style Sub-task file-tree glyph uses the supplementary Nerd Fonts v3 range. Icons always supplement text labels, so Jira state and destructive confirmations remain readable in every profile.
 
 ## Why lazyjira
 

@@ -36,10 +36,20 @@ describe("icon profiles", () => {
     }
   })
 
-  test("uses only BMP code points for Nerd Font glyphs", () => {
+  test("uses Jira-style Nerd Font issue-type glyphs", () => {
+    expect(iconCatalogs.nerd.issueType.story.codePointAt(0)).toBe(0xf02e)
+    expect(iconCatalogs.nerd.issueType.epic.codePointAt(0)).toBe(0xf0e7)
+    expect(iconCatalogs.nerd.issueType.task.codePointAt(0)).toBe(0xf14a)
+    expect(iconCatalogs.nerd.issueType.subtask.codePointAt(0)).toBe(0xf0645)
+    expect(iconCatalogs.nerd.issueType.bug.codePointAt(0)).toBe(0xf188)
+  })
+
+  test("keeps Nerd glyphs in the BMP except for the v3 file-tree Sub-task icon", () => {
     for (const [token, glyph] of catalogGlyphs(iconCatalogs.nerd)) {
       expect([...glyph], token).toHaveLength(1)
-      expect(glyph.codePointAt(0) ?? 0, token).toBeLessThanOrEqual(0xffff)
+      const codePoint = glyph.codePointAt(0) ?? 0
+      if (token === "issueType.subtask") expect(codePoint).toBe(0xf0645)
+      else expect(codePoint, token).toBeLessThanOrEqual(0xffff)
     }
   })
 })
