@@ -44,7 +44,6 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   const statusOffset = () => boardStatusOffsetForMode(state, props.mode)
   const statusWindowSize = () => boardStatusWindowSize(dimensions().width, configuredStatuses(state).length)
   const displayedStatusStart = () => Math.min(statusOffset(), Math.max(0, configuredStatuses(state).length - statusWindowSize())) + 1
-  const bodyHeight = () => Math.max(5, dimensions().height - 21)
   const compactHeader = () => dimensions().width < 145
   const title = () => (props.mode === "active-sprint" ? `Active sprints: ${activeSprint(state)?.name ?? "No active sprint"}${sprintDateRange(activeSprint(state)?.startDate, activeSprint(state)?.endDate)}` : `Board: ${state.board.name}`)
   const subtitle = () =>
@@ -109,10 +108,13 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
       </Show>
       <Show when={props.mode === "kanban" || !!activeSprint(state)}>
         <scrollbox
-        ref={(element: ScrollBoxRenderable) => (scrollbox = element)}
-        width="100%"
-        height={bodyHeight()}
-        scrollY={true}
+         ref={(element: ScrollBoxRenderable) => (scrollbox = element)}
+         width="100%"
+         flexBasis={0}
+         flexGrow={1}
+         flexShrink={1}
+         minHeight={0}
+         scrollY={true}
         viewportCulling={true}
         viewportOptions={{ paddingRight: 1 }}
         verticalScrollbarOptions={{ visible: true, trackOptions: { backgroundColor: theme.panel, foregroundColor: theme.border } }}

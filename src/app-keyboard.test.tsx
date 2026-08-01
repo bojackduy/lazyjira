@@ -12,7 +12,7 @@ import { BacklogRoute } from "./routes/backlog"
 import { ProjectListRoute } from "./routes/project-list"
 import { TimelineRoute } from "./routes/timeline"
 import { createInitialAppState } from "./state/initial"
-import { projectListIssuePageSourceId } from "./state/issue-pages"
+import { projectListIssuePageSourceId, sprintIssuePageSourceId } from "./state/issue-pages"
 import { halfViewportRows } from "./state/keyboard-context"
 import { issueFields } from "./state/issue-fields"
 import { projectListRows, projectListSelection } from "./state/project-list"
@@ -35,6 +35,63 @@ afterEach(() => {
 })
 
 describe("keyboard input ownership", () => {
+  test("keeps Active sprint j/k selection visible before any manual paging", async () => {
+    const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    initialState.route = "board"
+    initialState.focusedPane = "main"
+    initialState.board = { ...initialState.board, type: "scrum" }
+    const baseIssue = initialState.issues["PROJ-121"]!
+    const issueKeys = Array.from({ length: 12 }, (_, index) => `SCROLL-${String(index + 1).padStart(2, "0")}`)
+    for (const [index, key] of issueKeys.entries()) {
+      initialState.issues[key] = { ...baseIssue, key, title: `Scrollable sprint card ${index + 1}`, sprintId: initialState.activeSprintId }
+    }
+    initialState.issueKeysBySource[sprintIssuePageSourceId(initialState.activeSprintId)] = issueKeys
+    initialState.selectedIssueKey = issueKeys[0]!
+    initialState.selectedBoardLocations["active-sprint"] = {
+      groupIndex: 0,
+      statusIndex: initialState.statuses.findIndex((status) => status.id === baseIssue.statusId),
+      itemIndex: 0,
+    }
+    let appState: AppStateContext | undefined
+    const Capture = () => {
+      appState = useAppState()
+      return null
+    }
+    const width = 120
+    const setup = await createTestRenderer({ width, height: 24 })
+    renderers.push(setup.renderer)
+    const keymap = createDefaultOpenTuiKeymap(setup.renderer)
+
+    await render(() => (
+      <LazyJiraKeymapProvider keymap={keymap}>
+        <AppProviders
+          config={{ appName: "lazyjira", runtimeEnv: "dev" }}
+          initialState={initialState}
+          source={createDevWorkspaceSource()}
+          saveWorkspaceConfig={async () => undefined}
+          iconMode="ascii"
+          onExit={() => undefined}
+        >
+          <Capture />
+          <App />
+        </AppProviders>
+      </LazyJiraKeymapProvider>
+    ), setup.renderer)
+    await setup.flush()
+
+    for (let index = 1; index < 10; index += 1) {
+      setup.mockInput.pressKey("j")
+      await setup.flush()
+      const selectedKey = issueKeys[index]!
+      const cardVisible = setup.captureCharFrame().split("\n").some((line) => {
+        const column = line.indexOf(selectedKey)
+        return column >= 28 && column < width - 40
+      })
+      expect(appState!.state.selectedIssueKey).toBe(selectedKey)
+      expect(cardVisible, `${selectedKey} should remain visible in the board pane`).toBe(true)
+    }
+  })
+
   test("centers the selected Backlog issue after h/l group jumps", async () => {
     const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
     initialState.route = "backlog"
