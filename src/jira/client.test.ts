@@ -1,11 +1,20 @@
 import { describe, expect, test } from "bun:test"
-import { deleteJiraIssue, fetchAccessibleProjectPage, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
+import { deleteJiraIssue, fetchAccessibleProjectPage, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectIssueTypes, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
 import { discoverJiraIssueFieldIds, discoverJiraStartDateField, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
 const auth: JiraAuthConfig = { baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }
 
 describe("Jira discovery client", () => {
+  test("loads every issue type assigned to a project", async () => {
+    const issueTypes = await fetchProjectIssueTypes(auth, "HPCE", async (url) => {
+      expect(url).toBe("https://team.atlassian.net/rest/api/3/project/HPCE")
+      return jsonResponse({ issueTypes: [{ id: "10009", name: "Story" }, { id: "10023", name: "Sub-task", subtask: true }] })
+    })
+
+    expect(issueTypes).toEqual([{ id: "10009", name: "Story" }, { id: "10023", name: "Sub-task", subtask: true }])
+  })
+
   test("fetches one typed accessible-project page with Jira server-side query", async () => {
     const requests: string[] = []
     const page = await fetchAccessibleProjectPage(auth, { query: "health care", startAt: 50, maxResults: 50 }, async (url) => {

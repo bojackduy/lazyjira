@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { backlogScrollTarget, backlogUsesCompactLayout, packLegendRows } from "./backlog"
+import { backlogLayout, backlogScrollTarget, estimatedBacklogViewportWidth, packLegendRows } from "./backlog"
 
 describe("backlog legend rows", () => {
   test("caps long status legends so the issue list starts below a fixed row count", () => {
@@ -28,9 +28,17 @@ describe("backlog legend rows", () => {
     expect(packed.rows[0]?.[0]).toMatchObject({ marker: "●", text: "Ready for ACC/UAT" })
   })
 
-  test("switches to the stacked issue layout on narrow terminals", () => {
-    expect(backlogUsesCompactLayout(169)).toBe(true)
-    expect(backlogUsesCompactLayout(170)).toBe(false)
+  test("plans rows from available Backlog width instead of one terminal breakpoint", () => {
+    expect(backlogLayout(67, true)).toMatchObject({ mode: "narrow", rowWidth: 67, showHealth: false, showParent: false, showAssignee: false })
+    expect(backlogLayout(90, true)).toMatchObject({ mode: "medium", rowWidth: 90, showHealth: false, showParent: true, showAssignee: false })
+    expect(backlogLayout(120, true)).toMatchObject({ mode: "wide", rowWidth: 120, showHealth: false, showParent: true, showAssignee: true })
+    expect(backlogLayout(145, true)).toMatchObject({ mode: "wide", rowWidth: 114, showHealth: true })
+  })
+
+  test("estimates the pane width conservatively until the renderable is measured", () => {
+    expect(estimatedBacklogViewportWidth(80)).toBe(72)
+    expect(estimatedBacklogViewportWidth(120)).toBe(48)
+    expect(estimatedBacklogViewportWidth(220)).toBe(148)
   })
 
   test("scrolls to the selected issue unless its group is collapsed", () => {

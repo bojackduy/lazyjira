@@ -311,6 +311,11 @@ export async function fetchJiraCreateIssueTypes(auth: JiraAuthConfig, projectKey
   return Array.isArray(response) ? response : response.values ?? []
 }
 
+export async function fetchProjectIssueTypes(auth: JiraAuthConfig, projectKey: string, fetchImpl: FetchLike = fetch): Promise<JiraCreateIssueType[]> {
+  const response = await jiraRequest<{ issueTypes?: JiraCreateIssueType[] }>(auth, `/rest/api/3/project/${encodeURIComponent(projectKey)}`, { endpoint: `project ${projectKey} issue types` }, fetchImpl)
+  return response.issueTypes ?? []
+}
+
 export async function createJiraIssue(auth: JiraAuthConfig, fields: Record<string, unknown>, fetchImpl: FetchLike = fetch): Promise<{ key?: string }> {
   return jiraRequest<{ key?: string }>(auth, "/rest/api/3/issue", { endpoint: "create issue", method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fields }) }, fetchImpl)
 }

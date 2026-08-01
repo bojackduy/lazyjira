@@ -1,5 +1,5 @@
 import { loadJiraAuthConfig, type JiraAuthConfig } from "../../auth/config"
-import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjectPage, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchCurrentJiraUser, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraPriorities, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage, type JiraUser } from "../../jira/client"
+import { createJiraIssue, createJiraIssueLink, deleteJiraIssue, fetchAccessibleProjectPage, fetchAssignableUsers, fetchBoardBacklogIssuePage, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchCurrentJiraUser, fetchIssueComments, fetchIssueDetail, fetchJiraCreateIssueTypes, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueLinkTypes, fetchJiraIssueTransitions, fetchJiraPriorities, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectIssueTypes, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue, type FetchLike, type JiraBoardConfiguration, type JiraIssue, type JiraPage, type JiraUser } from "../../jira/client"
 import { discoverJiraIssueFieldIds, discoverJiraStartDateField, issueCustomFieldIds, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues, type JiraIssueFieldIds } from "../../jira/normalize"
 import { markdownToAdf } from "../../jira/adf"
 import { fetchJiraIconColor } from "../../jira/icon-color"
@@ -48,10 +48,10 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     async loadWorkspace(selection) {
       if (!selection.board.id) return createProdWorkspace(selection)
       const auth = await requireJiraAuth(authLoader)
-      const [boardConfig, statusIssueTypes, createIssueTypes, sprints, jiraFields, currentUser, priorities] = await Promise.all([
+      const [boardConfig, statusIssueTypes, projectIssueTypes, sprints, jiraFields, currentUser, priorities] = await Promise.all([
         fetchBoardConfiguration(auth, selection.board.id, fetchImpl),
         fetchProjectStatuses(auth, selection.project.key, fetchImpl),
-        fetchJiraCreateIssueTypes(auth, selection.project.key, fetchImpl),
+        fetchProjectIssueTypes(auth, selection.project.key, fetchImpl),
         selection.board.type === "scrum" ? fetchBoardSprints(auth, selection.board.id, fetchImpl) : Promise.resolve([]),
         issueFields(auth),
         fetchCurrentJiraUser(auth, fetchImpl),
@@ -89,7 +89,7 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
       const relatedIssues = await hydrateMissingParents(auth, loadedIssues, [], [], metadata.statuses, fieldIds, cachedPriorityColors, fetchImpl).catch(() => [])
       const issues = uniqueIssues([...loadedIssues, ...relatedIssues])
       const issueKeysBySource = initialIssueKeysBySource(normalizedSprints, activeSprintIssuePages, boardIssues, backlogIssues)
-      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, boardPage, backlogLoad), issueKeysBySource, await normalizeCreateIssueTypes(createIssueTypes, auth, issueTypeColorCache, fetchImpl), jiraFields.startDate, currentUser)
+      return createProdWorkspace(selection, metadata, normalizedSprints, issues, initialIssuePageStates(selection.board.type, normalizedSprints, activeSprintIssuePages, boardPage, backlogLoad), issueKeysBySource, await normalizeProjectIssueTypes(projectIssueTypes, auth, issueTypeColorCache, fetchImpl), jiraFields.startDate, currentUser)
     },
     async loadIssueDetail(issueKey, context) {
       const auth = await requireJiraAuth(authLoader)
@@ -219,7 +219,7 @@ export function createProdWorkspacePlaceholder(selection: WorkspaceSelection) {
   return createProdWorkspace(selection)
 }
 
-async function normalizeCreateIssueTypes(types: Awaited<ReturnType<typeof fetchJiraCreateIssueTypes>>, auth: JiraAuthConfig, colorCache: Map<string, string>, fetchImpl: FetchLike): Promise<IssueTypeDefinition[]> {
+async function normalizeProjectIssueTypes(types: Awaited<ReturnType<typeof fetchProjectIssueTypes>>, auth: JiraAuthConfig, colorCache: Map<string, string>, fetchImpl: FetchLike): Promise<IssueTypeDefinition[]> {
   const normalized = (await Promise.all(types.map(async (type) => {
     if (!type.id || !type.name) return []
     let color = type.iconUrl ? colorCache.get(type.iconUrl) : undefined

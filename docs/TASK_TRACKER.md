@@ -110,6 +110,8 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 - [x] `N2.5` Add collapse/expand behavior for backlog groups while keeping empty planning groups focusable.
 - [x] `N2.6` Preserve `J/K` rank staging, move picker behavior, parent badges, inspector integration, and safe writes.
 - [x] `N2.7` Add board/backlog regression tests for wide, narrow, empty, loading, partial, and error states.
+- [x] `N2.8` Replace fixed Backlog parent and metadata columns with measured wide, medium, and narrow row layouts that preserve complete issue keys.
+- [x] `N2.9` Keep parent badges content-sized, move lower-priority metadata to a second line, and hide Planning Signals before it compromises issue identity.
 
 ### N3: Project List Data And Surface
 
@@ -292,7 +294,7 @@ Scope and design: `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`.
 - [x] `I4.4` Verify Unicode and ASCII modes on terminals without Nerd Font support.
 - [!] `I4.5` Automated Nerd profile width/render tests and dev startup pass; physical patched-font appearance remains a manual check.
 - [~] `I4.6` README installation notes, help, and render examples are updated; refresh the product screenshot after visual approval.
-- [~] `I4.7` Typecheck, 270 tests, production build, diff validation, and dev navigation smoke pass; physical wide/narrow Nerd Font smoke remains manual.
+- [~] `I4.7` Typecheck, 278 tests, production build, diff validation, and dev navigation smoke pass; physical wide/narrow Nerd Font smoke remains manual.
 
 ## Cross-Track Reviews
 

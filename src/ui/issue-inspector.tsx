@@ -41,6 +41,11 @@ export function IssueInspector(props: { compact: boolean }) {
 
   createEffect(() => {
     if (!focused()) return
+    const fieldId = state.inspectorEditingFieldId
+    if (fieldId === "statusId" || fieldId === "type" || fieldId === "parentKey" || fieldId === "sprintId") {
+      scrollbox?.scrollChildIntoView(choiceRowId(fieldId, state.inspectorEditValue))
+      return
+    }
     scrollbox?.scrollChildIntoView(`inspector-field-${state.inspectorSelectedFieldIndex}`)
   })
 
@@ -254,7 +259,7 @@ function ChoiceEditor(props: { field: IssueFieldDefinition }) {
         {(choice) => {
           const selected = () => state.inspectorEditValue === choice.value
           return (
-            <text fg={choice.color} bg={selected() ? theme.selected : undefined} wrapMode="none">
+            <text id={choiceRowId(props.field.id, choice.value)} fg={choice.color} bg={selected() ? theme.selected : undefined} wrapMode="none">
               {selected() ? ">" : " "} {choice.icon} {choice.label}
             </text>
           )
@@ -262,4 +267,8 @@ function ChoiceEditor(props: { field: IssueFieldDefinition }) {
       </For>
     </box>
   )
+}
+
+function choiceRowId(fieldId: string, value: string) {
+  return `inspector-choice-${fieldId}-${encodeURIComponent(value)}`
 }

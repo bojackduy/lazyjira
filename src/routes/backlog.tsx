@@ -1,6 +1,6 @@
-import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
-import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, For, Show } from "solid-js"
+import { TextAttributes, type BoxRenderable, type ScrollBoxRenderable } from "@opentui/core"
+import { onResize, useTerminalDimensions } from "@opentui/solid"
+import { createEffect, createMemo, createSignal, For, onCleanup, Show, type Accessor } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
@@ -19,11 +19,27 @@ export function BacklogRoute() {
   const icons = useIcons()
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
+  let routeBox: BoxRenderable | undefined
   let scrollbox: ScrollBoxRenderable | undefined
+  let measureTimer: ReturnType<typeof setTimeout> | undefined
+  const [viewportWidth, setViewportWidth] = createSignal(estimatedBacklogViewportWidth(dimensions().width))
   const groups = () => groupBacklogIssues(state, state.backlogGroupBy)
   const capabilities = () => boardCapabilities(state.board)
-  const compact = () => backlogUsesCompactLayout(dimensions().width)
-  const mainWidth = () => Math.max(20, dimensions().width - (compact() ? 8 : 38))
+  const layout = createMemo(() => backlogLayout(viewportWidth(), capabilities().supportsSprintBacklog))
+
+  function scheduleViewportMeasure(terminalWidth: number) {
+    const fallback = estimatedBacklogViewportWidth(terminalWidth)
+    setViewportWidth(fallback)
+    if (measureTimer) clearTimeout(measureTimer)
+    // Let Yoga apply the fallback layout before reading the pane's actual width.
+    measureTimer = setTimeout(() => {
+      if (routeBox?.width) setViewportWidth(routeBox.width)
+    }, 16)
+  }
+
+  createEffect(() => scheduleViewportMeasure(dimensions().width))
+  onResize((width) => scheduleViewportMeasure(width))
+  onCleanup(() => measureTimer && clearTimeout(measureTimer))
 
   useBindings(() => ({
     commands: [
@@ -40,6 +56,7 @@ export function BacklogRoute() {
 
   createEffect(() => {
     if (state.route !== "backlog") return
+    viewportWidth()
     const selectedGroup = groups().find((group) => group.id === state.selectedBacklogGroupId)
     scrollbox?.scrollChildIntoView(backlogScrollTarget(state.selectedBacklogGroupId, state.selectedIssueKey, state.collapsedBacklogGroupIds.includes(state.selectedBacklogGroupId), selectedGroup?.issueKeys ?? []))
   })
@@ -50,7 +67,7 @@ export function BacklogRoute() {
   }
 
   return (
-    <box flexDirection="row" gap={1} flexGrow={1} minHeight={0}>
+    <box ref={(element: BoxRenderable) => (routeBox = element)} flexDirection="row" gap={1} flexGrow={1} minWidth={0} minHeight={0}>
       <box flexDirection="column" gap={1} flexGrow={1} minHeight={0} overflow="hidden">
         <box height={3} flexShrink={0} flexDirection="column">
           <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">Backlog: {state.board.name}</text>
@@ -58,7 +75,7 @@ export function BacklogRoute() {
             {capabilities().supportsSprintBacklog ? `Sprint planning · grouped by ${groupModeLabel(state.backlogGroupBy)} · g cycle group` : "Kanban board backlog · no sprint controls"} · h/l jump group · Space collapse · L load more
           </text>
         </box>
-        <BacklogLegend width={mainWidth()} />
+        <BacklogLegend width={layout().rowWidth} />
         <Show when={state.workspaceNotice}>
           {(notice) => <text fg={theme.warning} flexShrink={0} wrapMode="none">{notice()}</text>}
         </Show>
@@ -76,7 +93,7 @@ export function BacklogRoute() {
         >
           <For each={groups()}>
             {(group) => (
-              <box id={`backlog-group-${group.id}`} borderStyle="rounded" borderColor={state.selectedBacklogGroupId === group.id ? theme.borderActive : theme.border} backgroundColor={state.selectedBacklogGroupId === group.id ? theme.panel : undefined} padding={1} flexDirection="column" gap={1} marginBottom={1} width="100%">
+              <box id={`backlog-group-${group.id}`} borderStyle="rounded" borderColor={state.selectedBacklogGroupId === group.id ? theme.borderActive : theme.border} backgroundColor={state.selectedBacklogGroupId === group.id ? theme.panel : undefined} padding={1} flexDirection="column" gap={0} marginBottom={1} width="100%">
                 <box flexDirection="row" justifyContent="space-between">
                   <text attributes={TextAttributes.BOLD} fg={theme.text}>{state.collapsedBacklogGroupIds.includes(group.id) ? icons.catalog.structural.collapsed : icons.catalog.structural.expanded} {group.label}</text>
                   <text fg={theme.textSubtle}>{sectionPoints(group.issueKeys)} pts · {group.issueKeys.length} issues</text>
@@ -85,7 +102,7 @@ export function BacklogRoute() {
                   <For each={group.issueKeys}>
                     {(issueKey) => {
                       const issue = issueByKey(state, issueKey)
-                      return issue ? <BacklogRow issue={issue} selected={state.selectedIssueKey === issue.key} compact={compact()} /> : null
+                      return issue ? <BacklogRow issue={issue} selected={state.selectedIssueKey === issue.key} layout={layout} /> : null
                     }}
                   </For>
                   <Show when={!group.issueKeys.length}>
@@ -100,7 +117,7 @@ export function BacklogRoute() {
           </For>
         </scrollbox>
       </box>
-      <Show when={!compact() && capabilities().supportsSprintBacklog}>
+      <Show when={layout().showHealth}>
         <SprintHealth />
       </Show>
     </box>
@@ -201,53 +218,119 @@ export function packLegendRows(tokens: LegendToken[], width: number, maxRows: nu
   return { rows, overflow: 0 }
 }
 
-export function backlogUsesCompactLayout(width: number) {
-  return width < 170
+export type BacklogRowMode = "wide" | "medium" | "narrow"
+
+export type BacklogLayout = {
+  mode: BacklogRowMode
+  rowWidth: number
+  showHealth: boolean
+  showTypeName: boolean
+  parentLabel: "key" | "key-title"
+  showParent: boolean
+  showPriorityLabel: boolean
+  showPoints: boolean
+  showAssignee: boolean
+  showUnassignedIndicator: boolean
+}
+
+export function backlogLayout(viewportWidth: number, supportsSprintHealth: boolean): BacklogLayout {
+  const width = Math.max(20, Math.floor(viewportWidth))
+  const showHealth = supportsSprintHealth && width >= 145
+  const rowWidth = Math.max(20, width - (showHealth ? 31 : 0))
+  const mode: BacklogRowMode = rowWidth >= 110 ? "wide" : rowWidth >= 68 ? "medium" : "narrow"
+  return {
+    mode,
+    rowWidth,
+    showHealth,
+    showTypeName: rowWidth >= 126,
+    parentLabel: rowWidth >= 155 ? "key-title" : "key",
+    showParent: rowWidth >= 68,
+    showPriorityLabel: rowWidth >= 48,
+    showPoints: rowWidth >= 58,
+    showAssignee: rowWidth >= 92,
+    showUnassignedIndicator: rowWidth >= 52,
+  }
+}
+
+export function estimatedBacklogViewportWidth(terminalWidth: number) {
+  return Math.max(20, terminalWidth < 100 ? terminalWidth - 8 : terminalWidth - 72)
 }
 
 export function backlogScrollTarget(groupId: string, selectedIssueKey: string, collapsed: boolean, issueKeys: string[]) {
   return !collapsed && issueKeys.includes(selectedIssueKey) ? `issue-${selectedIssueKey}` : `backlog-group-${groupId}`
 }
 
-function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: boolean }) {
+function BacklogRow(props: { issue: IssueSummary; selected: boolean; layout: Accessor<BacklogLayout> }) {
   const { state } = useAppState()
   const icons = useIcons()
   const theme = useTheme()
   const issueType = () => configuredIssueTypes(state).find((type) => type.id === props.issue.type || type.name === props.issue.type || type.name === props.issue.typeName)
-  const status = () => configuredStatuses(state).find((candidate) => candidate.id === props.issue.statusId)
   const typeIcon = () => icons.issueType({ name: issueTypeName(state, props.issue), subtask: issueType()?.subtask, hierarchyLevel: issueType()?.hierarchyLevel ?? props.issue.typeHierarchyLevel })
 
-  if (props.compact) {
-    return (
-      <box id={`issue-${props.issue.key}`} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
-        <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">
-          <span style={{ fg: issueTypeColor(state, props.issue) }}>{typeIcon()} </span>
-          <span style={{ fg: issueColor(state, props.issue) }}>{props.issue.key}</span>
-           <span style={{ fg: theme.textSubtle }}> {issueTypeName(state, props.issue)}</span>
-          <span> {props.issue.title}</span>
-        </text>
-        <text fg={statusColor(state, props.issue)} wrapMode="none">
-          {icons.status(status() ?? { name: statusName(state, props.issue) })} {statusName(state, props.issue)} · <span style={{ fg: priorityColor(props.issue) }}>{icons.priority(props.issue.priority)} {props.issue.priority}</span> · {props.issue.assignee === "Unassigned" ? `${icons.catalog.exceptional.unassigned} ` : ""}{props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
-        </text>
-        <ParentBadge issue={props.issue} topLevelOnly />
+  return (
+    <Show
+      when={props.layout().mode === "wide"}
+      fallback={(
+        <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
+          <IssueIdentity issue={props.issue} selected={props.selected} typeIcon={typeIcon()} showTypeName={false} fill />
+          <BacklogMetadata issue={props.issue} layout={props.layout} />
+        </box>
+      )}
+    >
+      <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
+        <box flexDirection="row" gap={1}>
+          <IssueIdentity issue={props.issue} selected={props.selected} typeIcon={typeIcon()} showTypeName={props.layout().showTypeName} />
+          <BacklogMetadata issue={props.issue} layout={props.layout} />
+        </box>
       </box>
-    )
-  }
+    </Show>
+  )
+}
+
+function IssueIdentity(props: { issue: IssueSummary; selected: boolean; typeIcon: string; showTypeName: boolean; fill?: boolean }) {
+  const { state } = useAppState()
+  const theme = useTheme()
+  return (
+    <box flexDirection="row" flexGrow={props.fill ? 1 : 0} flexShrink={1} minWidth={0}>
+      <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexShrink={0}>
+        <span style={{ fg: issueTypeColor(state, props.issue) }}>{props.typeIcon} </span>
+        <span style={{ fg: issueColor(state, props.issue) }}>{props.issue.key}</span>
+      </text>
+      <Show when={props.showTypeName}>
+        <text fg={theme.textSubtle} wrapMode="none" flexShrink={0}> {issueTypeName(state, props.issue)}</text>
+      </Show>
+      <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexGrow={props.fill ? 1 : 0} flexShrink={1} minWidth={0}> {props.issue.title}</text>
+    </box>
+  )
+}
+
+function BacklogMetadata(props: { issue: IssueSummary; layout: Accessor<BacklogLayout> }) {
+  const { state } = useAppState()
+  const icons = useIcons()
+  const theme = useTheme()
+  const status = () => configuredStatuses(state).find((candidate) => candidate.id === props.issue.statusId)
+  const unassigned = () => props.issue.assignee === "Unassigned"
+  const statusWidth = () => props.layout().mode === "narrow" ? Math.max(12, Math.min(24, props.layout().rowWidth - 12)) : 24
 
   return (
-    <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
-      <box flexDirection="row" gap={1}>
-        <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexGrow={1} flexShrink={1} minWidth={0}>
-          <span style={{ fg: issueTypeColor(state, props.issue) }}>{typeIcon()} </span>
-          <span style={{ fg: issueColor(state, props.issue) }}>{props.issue.key}</span>
-          <span style={{ fg: theme.textSubtle }}> {issueTypeName(state, props.issue)}</span>
-          <span> {props.issue.title}</span>
+    <box flexDirection="row" gap={1} flexShrink={props.layout().mode === "wide" ? 0 : 1} minWidth={0}>
+      <text fg={statusColor(state, props.issue)} wrapMode="none" maxWidth={statusWidth()} flexShrink={1} minWidth={8}>
+        {icons.status(status() ?? { name: statusName(state, props.issue) })} {statusName(state, props.issue)}
+      </text>
+      <Show when={props.layout().showParent}>
+        <ParentBadge issue={props.issue} maxWidth={props.layout().parentLabel === "key-title" ? 28 : 14} label={props.layout().parentLabel} flexShrink={1} topLevelOnly />
+      </Show>
+      <text fg={priorityColor(props.issue)} wrapMode="none" flexShrink={0}>
+        {icons.priority(props.issue.priority)}{props.layout().showPriorityLabel ? ` ${props.issue.priority}` : ""}
+      </text>
+      <Show when={props.layout().showPoints}>
+        <text fg={theme.textSubtle} wrapMode="none" flexShrink={0}>{props.issue.storyPoints ?? "?"} pts</text>
+      </Show>
+      <Show when={props.layout().showAssignee || (unassigned() && props.layout().showUnassignedIndicator)}>
+        <text fg={unassigned() ? theme.warning : theme.textSubtle} wrapMode="none" maxWidth={16} flexShrink={1}>
+          {unassigned() ? icons.catalog.exceptional.unassigned : ""}{props.layout().showAssignee ? `${unassigned() ? " " : ""}${props.issue.assignee}` : ""}
         </text>
-        <box width={28} flexShrink={0}><ParentBadge issue={props.issue} width={28} topLevelOnly /></box>
-        <text fg={statusColor(state, props.issue)} wrapMode="none" width={34} flexShrink={0}>
-          {icons.status(status() ?? { name: statusName(state, props.issue) })} {statusName(state, props.issue)} · <span style={{ fg: priorityColor(props.issue) }}>{icons.priority(props.issue.priority)} {props.issue.priority}</span> · {props.issue.assignee === "Unassigned" ? `${icons.catalog.exceptional.unassigned} ` : ""}{props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
-        </text>
-      </box>
+      </Show>
     </box>
   )
 }

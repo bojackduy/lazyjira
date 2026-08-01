@@ -82,6 +82,21 @@ describe("shell navigation and action icons", () => {
     expect(frame).toContain("active")
   })
 
+  test("keeps complete Backlog issue keys in the narrow main pane", async () => {
+    const frame = await renderShell("unicode", (state) => {
+      state.route = "backlog"
+      state.focusedPane = "main"
+      state.selectedBacklogGroupId = "backlog"
+      state.selectedIssueKey = "PROJ-301"
+    }, 120)
+    const lines = frame.split("\n")
+    const identityIndex = lines.findIndex((line, index) => line.includes("PROJ-301") && lines[index + 1]?.includes("◉ In Progress"))
+
+    expect(identityIndex).toBeGreaterThan(-1)
+    expect(lines[identityIndex]).toContain("PROJ-301")
+    expect(lines[identityIndex + 1]).toContain("◉ In Progress")
+  })
+
   test("keeps project picker loading and actionable error text visible", async () => {
     const frame = await renderShell("ascii", (state) => {
       state.projectPicker.open = true

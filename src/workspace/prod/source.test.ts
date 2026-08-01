@@ -46,7 +46,7 @@ describe("prod workspace source", () => {
         if (url.endsWith("/rest/api/3/myself")) return jsonResponse({ accountId: "me-1", displayName: "Duy Trinh" })
         if (url.endsWith("/rest/api/3/priority")) return jsonResponse([{ id: "2", name: "High", statusColor: "#FF5630" }])
         if (url.includes("/project/REAL/statuses")) return jsonResponse([{ name: "Task", statuses: [{ id: "10000", name: "Selected for Work" }] }])
-        if (url.includes("/issue/createmeta/REAL/issuetypes")) return jsonResponse({ values: [
+        if (url.endsWith("/rest/api/3/project/REAL")) return jsonResponse({ issueTypes: [
           { id: "10001", name: "Story", hierarchyLevel: 0, iconUrl: "https://team.atlassian.net/story.svg" },
           { id: "10002", name: "Sub-task", hierarchyLevel: -1, subtask: true },
         ] })
@@ -76,7 +76,7 @@ describe("prod workspace source", () => {
     expect(requests.slice(0, 5)).toEqual([
       "https://team.atlassian.net/rest/agile/1.0/board/100/configuration",
       "https://team.atlassian.net/rest/api/3/project/REAL/statuses",
-      "https://team.atlassian.net/rest/api/3/issue/createmeta/REAL/issuetypes",
+      "https://team.atlassian.net/rest/api/3/project/REAL",
       "https://team.atlassian.net/rest/agile/1.0/board/100/sprint?state=active%2Cfuture&startAt=0&maxResults=50",
       "https://team.atlassian.net/rest/api/3/field",
     ])
@@ -122,7 +122,7 @@ describe("prod workspace source", () => {
       async (url) => {
         requests.push(url)
         if (url.includes("/project/KAN/statuses")) return jsonResponse([{ name: "Task", statuses: [{ id: "1", name: "Selected" }] }])
-        if (url.includes("/issue/createmeta/KAN/issuetypes")) return jsonResponse({ values: [{ id: "10001", name: "Task" }] })
+        if (url.endsWith("/rest/api/3/project/KAN")) return jsonResponse({ issueTypes: [{ id: "10001", name: "Task" }] })
         if (url.endsWith("/field")) return jsonResponse([])
         if (url.includes("/board/200/backlog?")) return jsonResponse({ startAt: 0, maxResults: 1, total: 12, issues: [{ key: "KAN-BACKLOG", fields: { summary: "Kanban backlog issue", status: { id: "1" }, issuetype: { name: "Task" } } }] })
         if (url.includes("/board/200/issue?")) return jsonResponse({ startAt: 0, maxResults: 1, total: 240, issues: [{ key: "KAN-BOARD", fields: { summary: "Bounded Kanban issue", status: { id: "1" }, issuetype: { name: "Task" } } }] })
@@ -151,7 +151,7 @@ describe("prod workspace source", () => {
       async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
       async (url) => {
         if (url.includes("/project/KAN/statuses")) return jsonResponse([{ name: "Task", statuses: [{ id: "1", name: "Selected" }] }])
-        if (url.includes("/issue/createmeta/KAN/issuetypes")) return jsonResponse({ values: [{ id: "10001", name: "Task" }] })
+        if (url.endsWith("/rest/api/3/project/KAN")) return jsonResponse({ issueTypes: [{ id: "10001", name: "Task" }] })
         if (url.endsWith("/field")) return jsonResponse([])
         if (url.includes("/board/200/backlog?")) return jsonResponse({ errorMessages: ["Backlog is disabled"] }, 404)
         if (url.includes("/board/200/issue?")) return jsonResponse({ startAt: 0, maxResults: 1, total: 1, issues: [{ key: "KAN-BOARD", fields: { summary: "Board remains available", status: { id: "1" }, issuetype: { name: "Task" } } }] })

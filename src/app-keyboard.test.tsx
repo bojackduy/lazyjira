@@ -14,6 +14,7 @@ import { TimelineRoute } from "./routes/timeline"
 import { createInitialAppState } from "./state/initial"
 import { projectListIssuePageSourceId } from "./state/issue-pages"
 import { halfViewportRows } from "./state/keyboard-context"
+import { issueFields } from "./state/issue-fields"
 import { projectListRows, projectListSelection } from "./state/project-list"
 import { groupBacklogIssues } from "./state/selectors"
 import { projectTimelineViewRows, timelineCreateRowKey, timelineModel, timelineSelection, timelineUnparentedExpandedKey, timelineUnparentedSectionKey } from "./state/timeline"
@@ -34,6 +35,56 @@ afterEach(() => {
 })
 
 describe("keyboard input ownership", () => {
+  test("keeps long Inspector type choices visible while navigating", async () => {
+    const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    initialState.issueTypes = [
+      { id: "10024", name: "Bug", color: "#ff0000" },
+      { id: "10000", name: "Feature", color: "#ff0000", hierarchyLevel: 1 },
+      { id: "10092", name: "Improvement", color: "#ff0000" },
+      { id: "10005", name: "Precondition", color: "#ff0000" },
+      { id: "11199", name: "Risk", color: "#ff0000" },
+      { id: "10096", name: "Spike", color: "#ff0000" },
+      { id: "10009", name: "Story", color: "#ff0000" },
+      { id: "10022", name: "Task", color: "#ff0000" },
+      { id: "10084", name: "Technical Debt", color: "#ff0000" },
+      { id: "10001", name: "Test", color: "#ff0000" },
+      { id: "10002", name: "Test Set", color: "#ff0000" },
+      { id: "10004", name: "Test Execution", color: "#ff0000" },
+      { id: "10003", name: "Test Plan", color: "#ff0000" },
+      { id: "10023", name: "Sub-task", color: "#ff0000", subtask: true },
+      { id: "10075", name: "Story Defect", color: "#ff0000", subtask: true },
+      { id: "10030", name: "Sub Test Execution", color: "#ff0000", subtask: true },
+    ]
+    initialState.focusedPane = "inspector"
+    initialState.inspectorSelectedFieldIndex = issueFields.findIndex((field) => field.id === "type")
+    const setup = await createTestRenderer({ width: 120, height: 20 })
+    renderers.push(setup.renderer)
+    const keymap = createDefaultOpenTuiKeymap(setup.renderer)
+
+    await render(() => (
+      <LazyJiraKeymapProvider keymap={keymap}>
+        <AppProviders
+          config={{ appName: "lazyjira", runtimeEnv: "dev" }}
+          initialState={initialState}
+          source={createDevWorkspaceSource()}
+          saveWorkspaceConfig={async () => undefined}
+          iconMode="ascii"
+          onExit={() => undefined}
+        >
+          <App />
+        </AppProviders>
+      </LazyJiraKeymapProvider>
+    ), setup.renderer)
+    await setup.flush()
+
+    setup.mockInput.pressKey("e")
+    await setup.flush()
+    for (let index = 0; index < 15; index += 1) setup.mockInput.pressKey("j")
+    await setup.flush()
+
+    expect(setup.captureCharFrame()).toContain("> s Sub Test Execution")
+  })
+
   test("opens icon mode selection from the command palette and applies it live", async () => {
     process.env.LAZYJIRA_ICON_MODE = "unicode"
     const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
