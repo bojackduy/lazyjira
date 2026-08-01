@@ -317,6 +317,8 @@ export type AppState = {
   commandPaletteOpen: boolean
   commandPaletteQuery: string
   commandPaletteSelectedIndex: number
+  iconModePickerOpen: boolean
+  iconModePickerSelectedIndex: number
   helpOpen: boolean
   searchOpen: boolean
   searchMode: SearchMode

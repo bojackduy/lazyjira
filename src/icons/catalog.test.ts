@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { createIconSelector, iconCatalogs, iconModes, parseIconMode, resolveIssueTypeIcon, selectIcons, selectIconsFromEnv } from "./catalog"
+import { createIconSelector, iconCatalogs, iconModes, parseIconMode, resolveIssueTypeIcon, resolveSafeIconMode, selectIcons, selectIconsFromEnv } from "./catalog"
 
 describe("icon profiles", () => {
   test("parses supported modes and defaults invalid values to unicode", () => {
@@ -20,6 +20,12 @@ describe("icon profiles", () => {
     expect(selectIcons("invalid").catalog).toBe(iconCatalogs.unicode)
     expect(selectIconsFromEnv({ LAZYJIRA_ICON_MODE: "nerd" }).catalog).toBe(iconCatalogs.nerd)
     expect(selectIconsFromEnv({ LAZYJIRA_ICON_MODE: "invalid" }).catalog).toBe(iconCatalogs.unicode)
+  })
+
+  test("falls back conservatively when a profile violates the one-cell contract", () => {
+    expect(resolveSafeIconMode("nerd", (glyph) => glyph.codePointAt(0)! >= 0xf000 ? 2 : Bun.stringWidth(glyph))).toBe("unicode")
+    expect(resolveSafeIconMode("unicode", (glyph) => /[^\x00-\x7f]/.test(glyph) ? 2 : Bun.stringWidth(glyph))).toBe("ascii")
+    expect(resolveSafeIconMode("ascii", () => 2)).toBe("ascii")
   })
 
   test("keeps every semantic glyph to one terminal cell", () => {

@@ -124,7 +124,7 @@ Components consume semantic icons and continue resolving colors through the exis
 
 ### Phase 2: Structural Icons
 
-- Add icon profiles and environment selection.
+- Add icon profiles, command-palette preview, persisted live selection, and a higher-precedence environment override.
 - Separate selection from collapsed/expanded disclosure.
 - Apply structural icons to Timeline, List, Backlog groups, and create rows.
 - Preserve missing-parent and invalid-hierarchy distinction.
@@ -151,6 +151,7 @@ Components consume semantic icons and continue resolving colors through the exis
 - Capture frames after paging to prove the selected destination row is visible.
 - Cover wide and narrow Timeline, including the Unparented issues section and create row.
 - Unit-test icon profile selection and invalid-profile fallback.
+- Test live profile switching, persistence, command-palette discovery, and environment-override precedence.
 - Unit-test issue-type resolution for common, custom, subtask, hierarchy-level, and unknown types.
 - Assert every structural icon occupies one terminal cell in each profile.
 - Render-test Board, Backlog, List, Timeline, Workspace, Detail, and Inspector with Unicode, Nerd, and ASCII profiles.
@@ -165,6 +166,7 @@ Components consume semantic icons and continue resolving colors through the exis
 - Selection, collapsed, expanded, leaf, missing-parent, and invalid-hierarchy indicators are visually distinct.
 - Jira issue types have consistent semantic icons and retain Jira-provided colors.
 - Unicode and ASCII profiles remain fully usable without a Nerd Font.
+- Users can preview and persist an icon profile without restarting; `LAZYJIRA_ICON_MODE` remains the temporary highest-precedence override.
 - Nerd profile glyphs do not shift columns or clip narrow layouts.
 - Help, route hints, README, and screenshots match the implemented keybindings and icon requirements.
 

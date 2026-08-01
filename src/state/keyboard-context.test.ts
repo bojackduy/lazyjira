@@ -15,6 +15,7 @@ describe("route binding ownership", () => {
       () => { state.configEditing = { action: "add", sectionId: "statuses" } },
       () => { state.detailBodyEditing = true },
       () => { state.helpOpen = true },
+      () => { state.iconModePickerOpen = true },
       () => { state.inspectorEditingFieldId = "title" },
       () => { state.pendingDeleteIssueKey = "PROJ-1" },
       () => { state.projectPicker.open = true },

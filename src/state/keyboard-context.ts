@@ -7,6 +7,7 @@ type RouteBindingState = Pick<AppState,
   | "configEditing"
   | "detailBodyEditing"
   | "helpOpen"
+  | "iconModePickerOpen"
   | "inspectorEditingFieldId"
   | "pendingDeleteIssueKey"
   | "projectPicker"
@@ -22,6 +23,7 @@ export function routeBindingsBlocked(state: RouteBindingState) {
     || !!state.configEditing
     || state.detailBodyEditing
     || state.helpOpen
+    || state.iconModePickerOpen
     || !!state.inspectorEditingFieldId
     || !!state.pendingDeleteIssueKey
     || state.projectPicker.open

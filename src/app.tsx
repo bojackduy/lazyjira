@@ -5,6 +5,7 @@ import { useAppState } from "./context/app-state"
 import { useConfig } from "./context/config"
 import { useExit } from "./context/exit"
 import { useToast } from "./context/toast"
+import { useIcons } from "./context/icons"
 import { AppShell } from "./ui/shell"
 import { configuredIssueTypes, configuredStatuses } from "./state/config-drafts"
 import { issueByKey } from "./state/issue-drafts"
@@ -13,6 +14,7 @@ import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageCanLoadMore,
 import { boardCapabilities, boardModeForBoard, sidebarRoutesForBoard } from "./state/routes"
 import { searchPaletteCommands } from "./keymap/commands"
 import type { BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
+import { iconModes } from "./icons/catalog"
 import { projectListIssues, projectListMaxHorizontalOffset, projectListRows, projectListSelection, projectListViewportWidth } from "./state/project-list"
 import { panTimelineWindow, projectTimelineViewRows, timelineCreateRowKey, timelineModel, timelineSelection, timelineSelectionAction, timelineSelectionKeys, timelineUnparentedExpandedKey, timelineUnparentedSectionKey } from "./state/timeline"
 import {
@@ -44,6 +46,7 @@ export function App() {
   const exit = useExit()
   const config = useConfig()
   const toast = useToast()
+  const icons = useIcons()
 
   createEffect(() => {
     if (state.route === "board") ensureSelectedIssue(visibleBoardIssueKeys(currentBoardMode()))
@@ -71,6 +74,10 @@ export function App() {
           }
           if (state.commandPaletteOpen) {
             appState.closeCommandPalette()
+            return
+          }
+          if (state.iconModePickerOpen) {
+            appState.closeIconModePicker()
             return
           }
           if (state.helpOpen) {
@@ -114,6 +121,7 @@ export function App() {
           else if (state.stagedDiscardOpen) appState.closeStagedDiscard()
           else if (state.projectPicker.open) appState.closeProjectPicker()
           else if (state.commandPaletteOpen) appState.closeCommandPalette()
+          else if (state.iconModePickerOpen) appState.closeIconModePicker()
           else if (state.helpOpen) appState.closeHelp()
           else if (state.searchOpen) appState.closeSearch()
           else if (state.pendingDeleteIssueKey) appState.cancelIssueDelete()
@@ -132,6 +140,11 @@ export function App() {
       { name: "command-palette.close", run: () => (state.commandPaletteOpen ? appState.closeCommandPalette() : false) },
       { name: "command-palette.next", run: () => moveCommandPaletteSelection(1) },
       { name: "command-palette.previous", run: () => moveCommandPaletteSelection(-1) },
+      { name: "icons.change", run: () => (canRunGlobalShortcut() ? appState.openIconModePicker(Math.max(0, iconModes.indexOf(icons.mode))) : false) },
+      { name: "icons.close", run: () => (state.iconModePickerOpen ? appState.closeIconModePicker() : false) },
+      { name: "icons.next", run: () => (state.iconModePickerOpen ? appState.moveIconModePickerSelection(1, iconModes.length) : false) },
+      { name: "icons.previous", run: () => (state.iconModePickerOpen ? appState.moveIconModePickerSelection(-1, iconModes.length) : false) },
+      { name: "icons.select", run: () => selectIconMode() },
       { name: "route.workspace", run: () => (canRunGlobalShortcut() ? appState.setRoute("workspace") : false) },
       { name: "route.timeline", run: () => (canRunGlobalShortcut() ? appState.setRoute("timeline") : false) },
       { name: "route.backlog", run: () => (canRunGlobalShortcut() ? appState.setRoute("backlog") : false) },
@@ -177,7 +190,7 @@ export function App() {
       { name: "issue.cancel-delete", run: () => (canRunGlobalShortcut() ? appState.cancelIssueDelete() : false) },
       { name: "staged-discard.open", run: () => (isPlainTextEditing() || isPopupOpen() || isAnyEditing() ? false : appState.openStagedDiscard()) },
     ],
-    bindings: state.commandPaletteOpen ? commandPaletteBindings() : state.helpOpen ? helpBindings() : state.searchOpen ? searchBindings() : [
+    bindings: state.iconModePickerOpen ? iconModePickerBindings() : state.commandPaletteOpen ? commandPaletteBindings() : state.helpOpen ? helpBindings() : state.searchOpen ? searchBindings() : [
       { key: "q", cmd: "app.quit", preventDefault: false },
       { key: { name: "c", ctrl: true }, cmd: "app.force-quit" },
       { key: "escape", cmd: "edit.cancel" },
@@ -232,6 +245,18 @@ export function App() {
     return [{ key: "escape", cmd: "edit.cancel", preventDefault: false }]
   }
 
+  function iconModePickerBindings() {
+    return [
+      { key: "escape", cmd: "icons.close", preventDefault: false },
+      { key: "q", cmd: "icons.close", preventDefault: false },
+      { key: "down", cmd: "icons.next", preventDefault: false },
+      { key: "j", cmd: "icons.next", preventDefault: false },
+      { key: "up", cmd: "icons.previous", preventDefault: false },
+      { key: "k", cmd: "icons.previous", preventDefault: false },
+      { key: "return", cmd: "icons.select", preventDefault: false },
+    ]
+  }
+
   function commandPaletteBindings() {
     return [
       { key: "escape", cmd: "command-palette.close", preventDefault: false },
@@ -252,6 +277,24 @@ export function App() {
   function moveCommandPaletteSelection(delta: number) {
     if (!state.commandPaletteOpen) return false
     appState.moveCommandPaletteSelection(delta, searchPaletteCommands(state.commandPaletteQuery, state.board).length)
+  }
+
+  async function selectIconMode() {
+    if (!state.iconModePickerOpen) return false
+    if (icons.locked) {
+      toast.show("LAZYJIRA_ICON_MODE overrides icon selection")
+      appState.closeIconModePicker()
+      return
+    }
+    const mode = iconModes[state.iconModePickerSelectedIndex]
+    if (!mode) return false
+    try {
+      await icons.setMode(mode)
+      toast.show(`Icon mode changed to ${mode}`)
+    } catch (error) {
+      toast.show(`Icon mode changed for this session but could not be saved: ${error instanceof Error ? error.message : String(error)}`)
+    }
+    appState.closeIconModePicker()
   }
 
   function moveVertical(delta: number) {
@@ -658,11 +701,11 @@ export function App() {
   }
 
   function isPopupOpen() {
-    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.helpOpen || state.commentEditing
+    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.iconModePickerOpen || state.helpOpen || state.commentEditing
   }
 
   function isPlainTextEditing() {
-    return state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.helpOpen || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type" && state.inspectorEditingFieldId !== "parentKey" && state.inspectorEditingFieldId !== "sprintId")
+    return state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.iconModePickerOpen || state.helpOpen || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type" && state.inspectorEditingFieldId !== "parentKey" && state.inspectorEditingFieldId !== "sprintId")
   }
 
   function isAnyEditing() {

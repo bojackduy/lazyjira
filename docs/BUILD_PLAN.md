@@ -124,6 +124,7 @@ Outputs:
 - Shared route-binding suppression while inputs, editors, or dialogs own keyboard input.
 - Onboarding URL, email, and token input that accepts all printable shortcut letters.
 - Central semantic icon catalog with Nerd, Unicode, and ASCII profiles.
+- Command-palette profile preview with live, persisted selection and a higher-precedence environment override.
 - Distinct selection, disclosure, hierarchy, issue-type, status, priority, route, and action icons.
 - Wide, narrow, fallback-font, input-capture, and keyboard-navigation regression coverage.
 

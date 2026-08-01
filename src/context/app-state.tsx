@@ -63,6 +63,9 @@ export type AppStateContext = {
   closeCommandPalette: () => void
   updateCommandPaletteQuery: (query: string) => void
   moveCommandPaletteSelection: (delta: number, resultCount: number) => void
+  openIconModePicker: (selectedIndex: number) => void
+  closeIconModePicker: () => void
+  moveIconModePickerSelection: (delta: number, optionCount: number) => void
   openHelp: () => void
   closeHelp: () => void
   openSearch: () => void
@@ -740,6 +743,17 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         return
       }
       setState("commandPaletteSelectedIndex", (state.commandPaletteSelectedIndex + delta + resultCount) % resultCount)
+    },
+    openIconModePicker(selectedIndex) {
+      setState("iconModePickerSelectedIndex", selectedIndex)
+      setState("iconModePickerOpen", true)
+    },
+    closeIconModePicker() {
+      setState("iconModePickerOpen", false)
+    },
+    moveIconModePickerSelection(delta, optionCount) {
+      if (!optionCount) return
+      setState("iconModePickerSelectedIndex", (state.iconModePickerSelectedIndex + delta + optionCount) % optionCount)
     },
     openHelp() {
       setState("helpOpen", true)

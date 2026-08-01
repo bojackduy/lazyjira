@@ -44,6 +44,8 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     commandPaletteOpen: false,
     commandPaletteQuery: "",
     commandPaletteSelectedIndex: 0,
+    iconModePickerOpen: false,
+    iconModePickerSelectedIndex: 0,
     helpOpen: false,
     searchOpen: false,
     searchMode: "loaded",

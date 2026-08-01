@@ -5,7 +5,7 @@ import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { render } from "@opentui/solid"
 import { App } from "./app"
 import { runAuthCli } from "./auth/cli"
-import { jiraAuthSummary, loadJiraAuthConfig, loadLazyJiraConfig, saveDevWorkspaceConfig, saveProdWorkspaceConfig, type JiraWorkspaceConfig } from "./auth/config"
+import { jiraAuthSummary, loadJiraAuthConfig, loadLazyJiraConfig, saveDevWorkspaceConfig, saveIconModeConfig, saveProdWorkspaceConfig, type JiraWorkspaceConfig } from "./auth/config"
 import type { AppConfig } from "./context/config"
 import { LazyJiraKeymapProvider } from "./context/keymap"
 import { AppProviders } from "./context/providers"
@@ -73,6 +73,8 @@ initialState.projectPicker = {
   remoteBoardsByProject: {},
 }
 const saveWorkspaceConfig = runtimeEnv === "dev" ? saveDevWorkspaceConfig : saveProdWorkspaceConfig
+const iconModeOverride = process.env.LAZYJIRA_ICON_MODE
+const iconMode = iconModeOverride ?? savedConfig?.iconMode
 const appConfig: AppConfig = {
   appName: "lazyjira",
   runtimeEnv,
@@ -105,6 +107,9 @@ try {
           initialWorkspaceSelection={initialWorkspaceSelection}
           source={source}
           saveWorkspaceConfig={saveWorkspaceConfig}
+          iconMode={iconMode}
+          iconModeLocked={iconModeOverride !== undefined}
+          saveIconMode={saveIconModeConfig}
           onExit={() => {
             if (!renderer.isDestroyed) renderer.destroy()
           }}

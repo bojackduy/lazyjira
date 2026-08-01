@@ -21,6 +21,7 @@ export function paletteCommandsForBoard(board: BoardType | { type: BoardType } =
     command("app.quit", "Quit", "Close lazyjira.", "q · Esc", "Global"),
     command("help.open", "Keyboard help", "Show available actions and shortcuts.", "?", "Global"),
     command("command-palette.open", "Command palette", "Search and run an action.", "; · :", "Global", { group: "action", name: "search" }),
+    command("icons.change", "Change icon mode", "Preview and select Nerd Font, Unicode, or ASCII icons.", "palette", "Global", { group: "route", name: "config" }),
     command("route.workspace", "Workspace", "Open the workspace dashboard.", "1", "Navigation", { group: "route", name: "workspace" }),
     command("route.timeline", "Timeline", "Open the project hierarchy and schedule timeline.", "2", "Navigation", { group: "route", name: "timeline" }),
     command("route.backlog", "Backlog", "Open the backlog.", "3", "Navigation", { group: "route", name: "backlog" }),

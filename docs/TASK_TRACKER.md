@@ -261,6 +261,9 @@ Scope and design: `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`.
 - [x] `I1.4` Define separate selection, collapsed, expanded, leaf, create, missing-parent, and invalid-hierarchy tokens.
 - [x] `I1.5` Verify every structural glyph occupies one terminal cell in supported profiles.
 - [x] `I1.6` Add profile-selection, fallback, and width-contract tests.
+- [x] `I1.7` Add command-palette preview and live Nerd, Unicode, and ASCII profile selection.
+- [x] `I1.8` Persist the selected safe profile in the lazyjira config while keeping `LAZYJIRA_ICON_MODE` as the highest-precedence override.
+- [x] `I1.9` Add live-switch, persistence, override, and picker render/input tests.
 
 ### I2: Structural Icon Rollout
 
@@ -289,7 +292,7 @@ Scope and design: `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`.
 - [x] `I4.4` Verify Unicode and ASCII modes on terminals without Nerd Font support.
 - [!] `I4.5` Automated Nerd profile width/render tests and dev startup pass; physical patched-font appearance remains a manual check.
 - [~] `I4.6` README installation notes, help, and render examples are updated; refresh the product screenshot after visual approval.
-- [~] `I4.7` Typecheck, 263 tests, production build, diff validation, and dev navigation smoke pass; physical wide/narrow Nerd Font smoke remains manual.
+- [~] `I4.7` Typecheck, 270 tests, production build, diff validation, and dev navigation smoke pass; physical wide/narrow Nerd Font smoke remains manual.
 
 ## Cross-Track Reviews
 

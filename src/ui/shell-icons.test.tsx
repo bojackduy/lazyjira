@@ -69,6 +69,19 @@ describe("shell navigation and action icons", () => {
     expect(frame).toContain("+ Staged Config")
   })
 
+  test("previews every icon mode without hiding the active profile", async () => {
+    const frame = await renderShell("ascii", (state) => {
+      state.iconModePickerOpen = true
+      state.iconModePickerSelectedIndex = 2
+    }, 90)
+
+    expect(frame).toContain("Change Icon Mode")
+    expect(frame).toContain("Nerd Font")
+    expect(frame).toContain("Unicode")
+    expect(frame).toContain("> ASCII")
+    expect(frame).toContain("active")
+  })
+
   test("keeps project picker loading and actionable error text visible", async () => {
     const frame = await renderShell("ascii", (state) => {
       state.projectPicker.open = true

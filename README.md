@@ -22,7 +22,9 @@ Use `lazyjira dev` to run with bundled fixture data and no Jira credentials.
 
 ### Terminal Icons
 
-`lazyjira` uses portable Unicode icons by default. Set `LAZYJIRA_ICON_MODE` when you want a different terminal profile:
+`lazyjira` uses portable Unicode icons by default. Open the command palette with `;` or `:`, run **Change icon mode**, and preview Nerd Font, Unicode, and ASCII profiles. The selected safe profile applies immediately and is saved in `~/.config/lazyjira/config.json`.
+
+Set `LAZYJIRA_ICON_MODE` for a temporary override with higher precedence than the saved selection:
 
 ```bash
 LAZYJIRA_ICON_MODE=nerd lazyjira   # requires a patched Nerd Font
@@ -30,7 +32,7 @@ LAZYJIRA_ICON_MODE=unicode lazyjira
 LAZYJIRA_ICON_MODE=ascii lazyjira
 ```
 
-Invalid or missing values fall back to `unicode`. Icons always supplement text labels, so Jira state and destructive confirmations remain readable in every profile.
+Invalid or missing values fall back to `unicode`. Profiles that violate the terminal's one-cell width contract fall back toward Unicode and then ASCII. Font glyph coverage itself cannot be detected reliably, so use the picker preview before selecting Nerd Font. Icons always supplement text labels, so Jira state and destructive confirmations remain readable in every profile.
 
 ## Why lazyjira
 

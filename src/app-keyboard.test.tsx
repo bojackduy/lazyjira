@@ -6,6 +6,7 @@ import { App } from "./app"
 import { useAppState, type AppStateContext } from "./context/app-state"
 import { LazyJiraKeymapProvider } from "./context/keymap"
 import { AppProviders } from "./context/providers"
+import { useIcons, type IconContext } from "./context/icons"
 import { selectIcons, type IconMode } from "./icons/catalog"
 import { BacklogRoute } from "./routes/backlog"
 import { ProjectListRoute } from "./routes/project-list"
@@ -33,6 +34,56 @@ afterEach(() => {
 })
 
 describe("keyboard input ownership", () => {
+  test("opens icon mode selection from the command palette and applies it live", async () => {
+    process.env.LAZYJIRA_ICON_MODE = "unicode"
+    const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    const persisted: IconMode[] = []
+    let appState: AppStateContext | undefined
+    let icons: IconContext | undefined
+    const Capture = () => {
+      appState = useAppState()
+      icons = useIcons()
+      return null
+    }
+    const setup = await createTestRenderer({ width: 120, height: 36 })
+    renderers.push(setup.renderer)
+    const keymap = createDefaultOpenTuiKeymap(setup.renderer)
+
+    await render(() => (
+      <LazyJiraKeymapProvider keymap={keymap}>
+        <AppProviders
+          config={{ appName: "lazyjira", runtimeEnv: "dev" }}
+          initialState={initialState}
+          source={createDevWorkspaceSource()}
+          saveWorkspaceConfig={async () => undefined}
+          saveIconMode={async (mode) => { persisted.push(mode) }}
+          onExit={() => undefined}
+        >
+          <Capture />
+          <App />
+        </AppProviders>
+      </LazyJiraKeymapProvider>
+    ), setup.renderer)
+    await setup.flush()
+
+    setup.mockInput.pressKey(";")
+    await setup.flush()
+    expect(appState!.state.commandPaletteOpen).toBe(true)
+    await setup.mockInput.typeText("change icon")
+    setup.mockInput.pressEnter()
+    await setup.flush()
+    expect(appState!.state.iconModePickerOpen).toBe(true)
+    expect(setup.captureCharFrame()).toContain("Change Icon Mode")
+
+    setup.mockInput.pressKey("k")
+    setup.mockInput.pressEnter()
+    await setup.flush()
+    expect(appState!.state.iconModePickerOpen).toBe(false)
+    expect(icons!.mode).toBe("nerd")
+    expect(persisted).toEqual(["nerd"])
+    expect(setup.captureCharFrame()).toContain("\uf015 Workspace")
+  })
+
   test("onboarding accepts route shortcut letters and punctuation without moving Timeline", async () => {
     process.env.LAZYJIRA_ICON_MODE = "unicode"
     const workspace = loadDevWorkspaceFixture("PROJ")

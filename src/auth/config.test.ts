@@ -9,6 +9,7 @@ import {
   loadJiraAuthConfig,
   removeJiraAuthConfig,
   saveDevWorkspaceConfig,
+  saveIconModeConfig,
   saveJiraAuthConfig,
   saveProdWorkspaceConfig,
 } from "./config"
@@ -94,6 +95,28 @@ describe("Jira auth config", () => {
       expect(loaded?.jira).toEqual({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" })
       expect(loaded?.prodWorkspace).toEqual({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" })
       expect(loaded?.prodRecentWorkspaces).toEqual([{ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" }])
+    })
+  })
+
+  test("persists icon mode while preserving auth and workspace context", async () => {
+    await withTempConfig(async (env) => {
+      await saveJiraAuthConfig({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }, env)
+      await saveProdWorkspaceConfig({ projectKey: "ENG", projectName: "Engineering", boardId: "7", boardName: "Engineering Kanban", boardType: "kanban" }, env)
+
+      await saveIconModeConfig("nerd", env)
+
+      const loaded = await loadLazyJiraConfig(env)
+      expect(loaded?.iconMode).toBe("nerd")
+      expect(loaded?.jira?.apiToken).toBe("token")
+      expect(loaded?.prodWorkspace?.projectKey).toBe("ENG")
+    })
+  })
+
+  test("normalizes invalid persisted icon modes to unicode", async () => {
+    await withTempConfig(async (env, path) => {
+      await writeFile(path, JSON.stringify({ iconMode: "missing-font-profile" }))
+
+      expect((await loadLazyJiraConfig(env))?.iconMode).toBe("unicode")
     })
   })
 

@@ -2,6 +2,7 @@ import { chmod, mkdir, readFile, unlink, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { homedir } from "node:os"
 import { normalizePersistedRoute, type AppRoute } from "../state/routes"
+import { parseIconMode, type IconMode } from "../icons/catalog"
 
 export type JiraAuthConfig = {
   baseUrl: string
@@ -25,6 +26,7 @@ export type JiraWorkspaceConfig = {
 }
 
 export type LazyJiraConfigFile = {
+  iconMode?: IconMode
   jira?: JiraAuthConfig
   prodWorkspace?: JiraWorkspaceConfig
   devWorkspace?: JiraWorkspaceConfig
@@ -78,9 +80,15 @@ export async function saveDevWorkspaceConfig(workspace: JiraWorkspaceConfig, env
   return saveLazyJiraConfig({ ...current, devWorkspace: normalized, devRecentWorkspaces: recentWorkspacesWith(normalized, current?.devRecentWorkspaces) }, env)
 }
 
+export async function saveIconModeConfig(iconMode: IconMode, env: Record<string, string | undefined> = process.env) {
+  const current = await loadExistingConfigForSave(env)
+  return saveLazyJiraConfig({ ...current, iconMode: parseIconMode(iconMode) }, env)
+}
+
 export async function saveLazyJiraConfig(config: LazyJiraConfigFile, env: Record<string, string | undefined> = process.env) {
   const path = lazyJiraConfigPath(env)
   const normalized: LazyJiraConfigFile = {
+    iconMode: config.iconMode ? parseIconMode(config.iconMode) : undefined,
     jira: config.jira ? normalizeJiraAuthConfig(config.jira) : undefined,
     prodWorkspace: config.prodWorkspace ? normalizeJiraWorkspaceConfig(config.prodWorkspace) : undefined,
     devWorkspace: config.devWorkspace ? normalizeJiraWorkspaceConfig(config.devWorkspace) : undefined,
@@ -162,17 +170,22 @@ function jiraAuthFromEnv(env: Record<string, string | undefined>): JiraAuthConfi
 function parseConfigFile(value: unknown, path: string): LazyJiraConfigFile {
   if (!isRecord(value)) throw new Error(`Invalid lazyjira config shape at ${path}`)
   if (typeof value.baseUrl === "string" || typeof value.email === "string" || typeof value.apiToken === "string") {
-    return { jira: parseJiraAuth(value, path) }
+    return { iconMode: iconModeFromValue(value.iconMode), jira: parseJiraAuth(value, path) }
   }
   const prodWorkspace = workspaceFromValue(value.prodWorkspace ?? value.workspace, path)
   const devWorkspace = workspaceFromValue(value.devWorkspace ?? value.demoWorkspace, path)
   return {
+    iconMode: iconModeFromValue(value.iconMode),
     jira: value.jira === undefined ? undefined : parseJiraAuth(value.jira, path),
     prodWorkspace,
     devWorkspace,
     prodRecentWorkspaces: recentWorkspacesFromValue(value.prodRecentWorkspaces, path, prodWorkspace),
     devRecentWorkspaces: recentWorkspacesFromValue(value.devRecentWorkspaces, path, devWorkspace),
   }
+}
+
+function iconModeFromValue(value: unknown) {
+  return value === undefined ? undefined : parseIconMode(value)
 }
 
 function workspaceFromValue(value: unknown, path: string) {

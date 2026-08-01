@@ -139,6 +139,12 @@ export function parseIconMode(value: unknown): IconMode {
   return iconModes.find((mode) => mode === normalized) ?? "unicode"
 }
 
+export function resolveSafeIconMode(value: unknown, stringWidth: (value: string) => number = terminalStringWidth): IconMode {
+  const requested = parseIconMode(value)
+  const candidates: IconMode[] = requested === "nerd" ? ["nerd", "unicode", "ascii"] : requested === "unicode" ? ["unicode", "ascii"] : ["ascii"]
+  return candidates.find((mode) => catalogGlyphs(iconCatalogs[mode]).every((glyph) => stringWidth(glyph) === 1)) ?? "ascii"
+}
+
 export function createIconSelector(mode: IconMode): IconSelector {
   const catalog = iconCatalogs[mode]
   return {
@@ -151,7 +157,7 @@ export function createIconSelector(mode: IconMode): IconSelector {
 }
 
 export function selectIcons(value: unknown): IconSelector {
-  return createIconSelector(parseIconMode(value))
+  return createIconSelector(resolveSafeIconMode(value))
 }
 
 export function selectIconsFromEnv(env: Readonly<Record<string, unknown>> = process.env): IconSelector {
@@ -206,4 +212,12 @@ function statusCategoryToken(category: StatusIconMetadata["category"]): "todo" |
 
 function normalizeName(value?: string): string {
   return value?.trim().toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ") ?? ""
+}
+
+function catalogGlyphs(catalog: SemanticIconCatalog) {
+  return Object.entries(catalog).flatMap(([group, value]) => group === "mode" || typeof value === "string" ? [] : Object.values(value))
+}
+
+function terminalStringWidth(value: string) {
+  return typeof Bun === "undefined" ? [...value].length : Bun.stringWidth(value)
 }

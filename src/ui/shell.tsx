@@ -16,7 +16,7 @@ import { allIssues, issueList } from "../state/selectors"
 import { stagedChanges, type StagedChange } from "../state/staged-changes"
 import { IssueInspector } from "./issue-inspector"
 import { paletteCommandsForBoard, routeHelpCommands, searchPaletteCommands, type PaletteCommand, type PaletteCommandIcon } from "../keymap/commands"
-import type { SemanticIconCatalog } from "../icons/catalog"
+import { iconModes, selectIcons, type SemanticIconCatalog } from "../icons/catalog"
 import { useBindings, useKeymap } from "../context/keymap"
 
 export function AppShell() {
@@ -42,6 +42,7 @@ export function AppShell() {
       <RemoteApplyPopup />
       <CommentComposerPopup />
       <CommandPalettePopup />
+      <IconModePickerPopup />
       <HelpPopup />
     </box>
   )
@@ -249,7 +250,9 @@ function Footer() {
   const theme = useTheme()
   const toast = useToast()
   const selectedIssue = () => issueByKey(state, state.selectedIssueKey)
-  const items = () => state.commandPaletteOpen
+  const items = () => state.iconModePickerOpen
+    ? ["icon mode", "j/k choose", "enter apply", "esc close"]
+    : state.commandPaletteOpen
     ? ["command palette", "type filter", "up/down choose", "enter run", "esc close"]
     : state.searchOpen
     ? state.searchMode === "remote" ? ["search Jira", "type text", "enter run", "esc close", "empty enter clears"] : ["filter loaded", "type query", "enter apply", "esc close", "empty enter clears"]
@@ -341,6 +344,48 @@ function CommandPaletteRow(props: { id: string; command: PaletteCommand; selecte
 
 function commandPaletteRowId(index: number) {
   return `command-palette-row-${index}`
+}
+
+function IconModePickerPopup() {
+  const { state } = useAppState()
+  const icons = useIcons()
+  const theme = useTheme()
+
+  return (
+    <Show when={state.iconModePickerOpen}>
+      <ModalFrame borderColor={theme.accent} width={72} centered>
+        <box flexDirection="row" justifyContent="space-between">
+          <text attributes={TextAttributes.BOLD} fg={theme.accent}>{icons.catalog.route.config} Change Icon Mode</text>
+          <text fg={theme.textSubtle}>current: {icons.mode}</text>
+        </box>
+        <Show when={icons.locked}>
+          <text fg={theme.warning}>{icons.catalog.exceptional.warning} LAZYJIRA_ICON_MODE is active and overrides saved selection.</text>
+        </Show>
+        <For each={iconModes}>
+          {(mode, index) => {
+            const catalog = selectIcons(mode).catalog
+            const selected = () => index() === state.iconModePickerSelectedIndex
+            return (
+              <box height={3} paddingLeft={1} paddingRight={1} backgroundColor={selected() ? theme.selected : undefined} flexDirection="column">
+                <box flexDirection="row" justifyContent="space-between">
+                  <text attributes={TextAttributes.BOLD} fg={selected() ? theme.selectedText : theme.text}>{selected() ? `${catalog.structural.selection} ` : "  "}{iconModeLabel(mode)}</text>
+                  <text fg={selected() ? theme.selectedText : theme.textMuted}>{icons.mode === mode ? "active" : ""}</text>
+                </box>
+                <text fg={selected() ? theme.selectedText : theme.textMuted}>{catalog.route.workspace} workspace  {catalog.issueType.bug} bug  {catalog.status.inProgress} in progress  {catalog.priority.high} high  {catalog.action.apply} apply</text>
+              </box>
+            )
+          }}
+        </For>
+        <text fg={theme.textSubtle}>j/k or arrows choose · enter apply and save · esc close</text>
+      </ModalFrame>
+    </Show>
+  )
+}
+
+function iconModeLabel(mode: (typeof iconModes)[number]) {
+  if (mode === "nerd") return "Nerd Font"
+  if (mode === "unicode") return "Unicode"
+  return "ASCII"
 }
 
 function HelpPopup() {
