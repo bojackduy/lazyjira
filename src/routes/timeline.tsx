@@ -2,9 +2,11 @@ import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
 import { createEffect, createMemo, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
+import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { highestLevelIssueType, issueColor, statusById } from "../state/selectors"
+import { halfViewportRows, routeBindingsBlocked } from "../state/keyboard-context"
 import {
   cycleTimelineZoom,
   formatTimelineDate,
@@ -49,8 +51,10 @@ export function TimelineRoute() {
       { name: "timeline.zoom", run: () => zoom() },
       { name: "timeline.today", run: () => returnToToday() },
     ],
-    bindings: state.route !== "timeline" || state.searchOpen || state.inspectorEditingFieldId || state.commandPaletteOpen || state.helpOpen || state.projectPicker.open || state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.commentEditing || state.detailBodyEditing ? [] : [
+    bindings: state.route !== "timeline" || routeBindingsBlocked(state) ? [] : [
+      { key: "d", cmd: "timeline.page.down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "timeline.page.down", preventDefault: false },
+      { key: "u", cmd: "timeline.page.up", preventDefault: false },
       { key: { name: "u", ctrl: true }, cmd: "timeline.page.up", preventDefault: false },
       { key: "[", cmd: "timeline.pan.previous-viewport", preventDefault: false },
       { key: "]", cmd: "timeline.pan.next-viewport", preventDefault: false },
@@ -66,7 +70,7 @@ export function TimelineRoute() {
 
   function moveHalfPage(delta: 1 | -1) {
     if (state.focusedPane !== "main" || state.route !== "timeline") return false
-    appState.setTimelineSelection(timelineSelection(rows(), state.timelineSelectedIssueKey, delta * Math.max(1, Math.floor(visibleRows() / 2))))
+    appState.setTimelineSelection(timelineSelection(rows(), state.timelineSelectedIssueKey, delta * halfViewportRows(visibleRows())))
   }
 
   function pan(units: number) {
@@ -92,7 +96,7 @@ export function TimelineRoute() {
         <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">
           Timeline · {state.project.key} {state.project.name} · {formatTimelineDate(cells()[0]?.start ?? state.timelineWindowStart)}-{formatTimelineDate(timelineWindowEnd(state.timelineWindowStart, state.timelineZoom, layout().cellCount))} · {capitalize(state.timelineZoom)}
         </text>
-        <text fg={theme.textMuted} wrapMode="none">j/k row · g/G ends · Ctrl-u/d half page · h/l pan · [/] viewport · Space collapse/section · z zoom · t today · Enter open/toggle/create · L load more</text>
+        <text fg={theme.textMuted} wrapMode="none">j/k row · g/G ends · d/u or Ctrl-u/d half page · h/l pan · [/] viewport · Space collapse/section · z zoom · t today · Enter open/toggle/create · L load more</text>
         <text fg={state.issuePageStateBySource["project-list"]?.error ? theme.danger : state.issuePageStateBySource["project-list"]?.loading ? theme.warning : theme.textSubtle} wrapMode="none">{timelineStateText(state, model())}</text>
         <For each={timelineNotices(model(), state.sprints)}>{(notice) => <text fg={theme.warning} wrapMode="none">{notice}</text>}</For>
       </box>
@@ -128,11 +132,12 @@ function WideTimelineProjectedRow(props: { row: TimelineProjectedRow; previousGr
 
 function WideTimelineSectionRow(props: { row: Extract<TimelineProjectedRow, { kind: "section" }>; identityWidth: number; scheduleWidth: number }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const selected = () => state.timelineSelectedIssueKey === timelineUnparentedSectionKey
   return (
     <box id={`timeline-${timelineUnparentedSectionKey}`} height={1} flexShrink={0} flexDirection="row" marginTop={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}>
-      <text attributes={TextAttributes.BOLD} fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.warning} width={props.identityWidth} wrapMode="none">{fit(`${selected() ? ">" : " "} ${props.row.collapsed ? ">" : "v"} ${props.row.label} (${props.row.issueCount})`, props.identityWidth)}</text>
+      <text attributes={TextAttributes.BOLD} fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.warning} width={props.identityWidth} wrapMode="none">{fit(`${selected() ? icons.catalog.structural.selection : " "} ${props.row.collapsed ? icons.catalog.structural.collapsed : icons.catalog.structural.expanded} ${props.row.label} (${props.row.issueCount})`, props.identityWidth)}</text>
       <text fg={theme.textMuted} width={props.scheduleWidth} wrapMode="none">{fit(props.row.collapsed ? "Space/Enter to expand" : "Space/Enter to collapse", props.scheduleWidth)}</text>
     </box>
   )
@@ -140,6 +145,7 @@ function WideTimelineSectionRow(props: { row: Extract<TimelineProjectedRow, { ki
 
 function WideTimelineIssueRow(props: { row: TimelineProjectedIssueRow; previousGroup?: TimelineProjectedRow["group"]; cells: TimelineCell[]; identityWidth: number; cellWidth: number }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const selected = () => state.timelineSelectedIssueKey === props.row.issue.key
   const sprint = () => state.sprints.find((candidate) => candidate.id === props.row.issue.sprintId)
@@ -150,13 +156,13 @@ function WideTimelineIssueRow(props: { row: TimelineProjectedIssueRow; previousG
   return (
     <>
       <Show when={props.row.group === "invalid-hierarchy" && props.row.group !== props.previousGroup}>
-        <text attributes={TextAttributes.BOLD} fg={theme.danger} marginTop={1}>Invalid hierarchy</text>
+        <text attributes={TextAttributes.BOLD} fg={theme.danger} marginTop={1}>{icons.catalog.structural.invalidHierarchy} Invalid hierarchy</text>
       </Show>
       <box id={`timeline-${props.row.issue.key}`} height={1} flexShrink={0} flexDirection="row" backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}>
         <text fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.text} width={props.identityWidth} wrapMode="none">
-          <span>{selected() ? ">" : " "}</span>
+          <span>{selected() ? icons.catalog.structural.selection : " "}</span>
           <span>{" ".repeat(props.row.depth * 2)}</span>
-          <span style={{ fg: issueColor(state, props.row.issue) }}>{disclosure(props.row)} </span>
+          <span style={{ fg: issueColor(state, props.row.issue) }}>{disclosure(props.row, icons.catalog.structural)} </span>
           <span>{fit(`${props.row.issue.key} ${props.row.issue.title}`, Math.max(1, props.identityWidth - props.row.depth * 2 - 4))}</span>
         </text>
         <Show when={schedule().kind !== "text"} fallback={<text fg={scheduleColor()} wrapMode="none">{fit(timelineRowCopy(props.row, sprint()), props.cells.length * props.cellWidth)}</text>}>
@@ -188,19 +194,20 @@ function NarrowTimeline(props: { rows: TimelineProjectedRow[] }) {
 
 function NarrowTimelineProjectedRow(props: { row: TimelineProjectedRow; previousGroup?: TimelineProjectedRow["group"] }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   if (props.row.kind === "section") {
     const selected = () => state.timelineSelectedIssueKey === timelineUnparentedSectionKey
-    return <box id={`timeline-${timelineUnparentedSectionKey}`} height={1} flexShrink={0} paddingLeft={1} marginTop={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text attributes={TextAttributes.BOLD} fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.warning} wrapMode="none">{selected() ? ">" : " "} {props.row.collapsed ? ">" : "v"} {props.row.label} ({props.row.issueCount})</text></box>
+    return <box id={`timeline-${timelineUnparentedSectionKey}`} height={1} flexShrink={0} paddingLeft={1} marginTop={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text attributes={TextAttributes.BOLD} fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.warning} wrapMode="none">{selected() ? icons.catalog.structural.selection : " "} {props.row.collapsed ? icons.catalog.structural.collapsed : icons.catalog.structural.expanded} {props.row.label} ({props.row.issueCount})</text></box>
   }
   return (
     <>
       <Show when={props.row.group === "invalid-hierarchy" && props.row.group !== props.previousGroup}>
-        <text attributes={TextAttributes.BOLD} fg={theme.danger} marginTop={1}>Invalid hierarchy</text>
+        <text attributes={TextAttributes.BOLD} fg={theme.danger} marginTop={1}>{icons.catalog.structural.invalidHierarchy} Invalid hierarchy</text>
       </Show>
       <box id={`timeline-${props.row.issue.key}`} flexDirection="column" flexShrink={0} paddingLeft={1 + props.row.depth * 2} backgroundColor={state.timelineSelectedIssueKey === props.row.issue.key && state.focusedPane === "main" ? theme.selected : undefined}>
         <text fg={state.timelineSelectedIssueKey === props.row.issue.key && state.focusedPane === "main" ? theme.selectedText : theme.text} wrapMode="none">
-          {state.timelineSelectedIssueKey === props.row.issue.key ? ">" : " "} <span style={{ fg: issueColor(state, props.row.issue) }}>{disclosure(props.row)}</span> {props.row.issue.key} {props.row.issue.title}
+          {state.timelineSelectedIssueKey === props.row.issue.key ? icons.catalog.structural.selection : " "} <span style={{ fg: issueColor(state, props.row.issue) }}>{disclosure(props.row, icons.catalog.structural)}</span> {props.row.issue.key} {props.row.issue.title}
         </text>
         <NarrowTimelineSchedule row={props.row} />
       </box>
@@ -221,25 +228,27 @@ function NarrowTimelineSchedule(props: { row: TimelineProjectedIssueRow }) {
 
 function WideTimelineCreateRow(props: { identityWidth: number; scheduleWidth: number }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const selected = () => state.timelineSelectedIssueKey === timelineCreateRowKey
   const typeName = () => highestLevelIssueType(state)?.name.toLowerCase() ?? "issue"
-  return <box id={`timeline-${timelineCreateRowKey}`} height={1} flexShrink={0} flexDirection="row" backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.textMuted} width={props.identityWidth} wrapMode="none">{fit(`${selected() ? ">" : " "} + New ${typeName()}`, props.identityWidth)}</text><text width={props.scheduleWidth}> </text></box>
+  return <box id={`timeline-${timelineCreateRowKey}`} height={1} flexShrink={0} flexDirection="row" backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.textMuted} width={props.identityWidth} wrapMode="none">{fit(`${selected() ? icons.catalog.structural.selection : " "} ${icons.catalog.structural.create} New ${typeName()}`, props.identityWidth)}</text><text width={props.scheduleWidth}> </text></box>
 }
 
 function NarrowTimelineCreateRow() {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const selected = () => state.timelineSelectedIssueKey === timelineCreateRowKey
   const typeName = () => highestLevelIssueType(state)?.name.toLowerCase() ?? "issue"
-  return <box id={`timeline-${timelineCreateRowKey}`} height={1} flexShrink={0} paddingLeft={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.textMuted} wrapMode="none">{selected() ? ">" : " "} + New {typeName()}</text></box>
+  return <box id={`timeline-${timelineCreateRowKey}`} height={1} flexShrink={0} paddingLeft={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.textMuted} wrapMode="none">{selected() ? icons.catalog.structural.selection : " "} {icons.catalog.structural.create} New {typeName()}</text></box>
 }
 
-function disclosure(row: TimelineProjectedIssueRow) {
-  if (row.classification === "missing-parent") return "?"
-  if (row.group === "invalid-hierarchy") return "!"
-  if (!row.hasChildren) return "·"
-  return row.collapsed ? ">" : "v"
+function disclosure(row: TimelineProjectedIssueRow, icons: ReturnType<typeof useIcons>["catalog"]["structural"]) {
+  if (row.classification === "missing-parent") return icons.missingParent
+  if (row.group === "invalid-hierarchy") return icons.invalidHierarchy
+  if (!row.hasChildren) return icons.leaf
+  return row.collapsed ? icons.collapsed : icons.expanded
 }
 
 function fit(value: string, width: number) {

@@ -2,12 +2,14 @@ import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
 import { createEffect, createMemo, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
+import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { BoardLocation, IssueSummary } from "../state/app-state"
 import type { BoardCellItem } from "../state/board-navigation"
 import { selectedBoardItemLocation } from "../state/board-navigation"
 import { boardView } from "../state/board-view"
+import { routeBindingsBlocked } from "../state/keyboard-context"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
 import { ParentBadge } from "./parent-badge"
@@ -55,7 +57,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
       { name: `${props.mode}.scroll.down`, run: () => scrollPage(1) },
       { name: `${props.mode}.scroll.up`, run: () => scrollPage(-1) },
     ],
-    bindings: state.searchOpen || state.inspectorEditingFieldId ? [] : [
+    bindings: state.route !== "board" || routeBindingsBlocked(state) ? [] : [
       { key: "d", cmd: `${props.mode}.scroll.down` },
       { key: { name: "d", ctrl: true }, cmd: `${props.mode}.scroll.down` },
       { key: "u", cmd: `${props.mode}.scroll.up` },
@@ -159,15 +161,18 @@ function IssueCell(props: { item?: BoardCellItem; location: BoardLocation; mode:
 
 function IssueCard(props: { issue: IssueSummary; selected: boolean; id: string }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
+  const issueType = () => configuredIssueTypes(state).find((type) => type.id === props.issue.type || type.name === props.issue.type || type.name === props.issue.typeName)
   const typeColor = () => issueTypeColor(state, props.issue)
   const borderColor = () => (props.selected ? theme.borderActive : statusColor(state, props.issue))
-  const signal = () => (props.issue.blocked ? " · blocked" : props.issue.staleDays >= 7 ? ` · stale ${props.issue.staleDays}d` : "")
+  const typeIcon = () => icons.issueType({ name: issueTypeName(state, props.issue), subtask: issueType()?.subtask, hierarchyLevel: issueType()?.hierarchyLevel ?? props.issue.typeHierarchyLevel })
+  const signal = () => (props.issue.blocked ? ` · ${icons.catalog.exceptional.blocked} blocked` : props.issue.staleDays >= 7 ? ` · ${icons.catalog.exceptional.stale} stale ${props.issue.staleDays}d` : "")
 
   return (
     <box id={props.id} width={19} height={5} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined} border={["left"]} borderColor={borderColor()} overflow="hidden">
       <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">
-        <span style={{ fg: typeColor() }}>■ </span>
+        <span style={{ fg: typeColor() }}>{typeIcon()} </span>
         <span style={{ fg: issueColor(state, props.issue) }}>{props.issue.key}</span>
       </text>
       <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">{props.issue.title}</text>
@@ -181,12 +186,13 @@ function IssueCard(props: { issue: IssueSummary; selected: boolean; id: string }
 
 function CreateIssueCard(props: { location: BoardLocation; mode: "active-sprint" | "kanban"; selected: boolean }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const status = () => configuredStatuses(state)[props.location.statusIndex]
 
   return (
     <box id={boardItemElementId(props.mode, props.location)} width={19} height={5} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? theme.selected : undefined} border={["left"]} borderColor={props.selected ? theme.borderActive : theme.border} overflow="hidden">
-      <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">+ New issue</text>
+      <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">{icons.catalog.structural.create} New issue</text>
       <text fg={props.selected ? theme.selectedText : status()?.color ?? theme.textSubtle} wrapMode="none">{status()?.name ?? "Status"}</text>
       <text fg={props.selected ? theme.selectedText : theme.textSubtle} wrapMode="none">enter/n create</text>
     </box>
@@ -195,18 +201,19 @@ function CreateIssueCard(props: { location: BoardLocation; mode: "active-sprint"
 
 function Legend(props: { statuses: ReturnType<typeof visibleStatusesForBoard> }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
 
   return (
     <box flexDirection="column" gap={1}>
       <box flexDirection="row" flexWrap="wrap" gap={1}>
         <For each={configuredIssueTypes(state)}>
-          {(issueType) => <text fg={theme.textSubtle} flexShrink={0} wrapMode="none"><span style={{ fg: issueType.color }}>■</span> {shortType(issueType.name)}</text>}
+          {(issueType) => <text fg={theme.textSubtle} flexShrink={0} wrapMode="none"><span style={{ fg: issueType.color }}>{icons.issueType(issueType)}</span> {shortType(issueType.name)}</text>}
         </For>
       </box>
       <box flexDirection="row" flexWrap="wrap" gap={1}>
         <For each={props.statuses}>
-          {(status) => <text fg={theme.textSubtle} flexShrink={0} wrapMode="none"><span style={{ fg: status.color }}>●</span> {status.name}</text>}
+          {(status) => <text fg={theme.textSubtle} flexShrink={0} wrapMode="none"><span style={{ fg: status.color }}>{icons.status(status)}</span> {status.name}</text>}
         </For>
       </box>
     </box>

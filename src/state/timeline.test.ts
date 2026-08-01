@@ -158,6 +158,21 @@ describe("timeline data model", () => {
     expect(timelineSelectionAction("STANDARD")).toBe("open-issue")
   })
 
+  test("pages across issue, virtual section, and create rows within bounds", () => {
+    const model = buildTimelineHierarchy(issueMap([
+      issue("ROOT", { typeHierarchyLevel: 1 }),
+      issue("CHILD", { parentKey: "ROOT" }),
+      issue("STANDARD"),
+    ]), ["ROOT", "CHILD", "STANDARD"], page(3, 3, true))
+    const rows = projectTimelineViewRows(model.rows, [])
+
+    expect(timelineSelection(rows, "ROOT", 2)).toBe(timelineUnparentedSectionKey)
+    expect(timelineSelection(rows, timelineUnparentedSectionKey, 2)).toBe(timelineCreateRowKey)
+    expect(timelineSelection(rows, timelineCreateRowKey, -2)).toBe("CHILD")
+    expect(timelineSelection(rows, "ROOT", -20)).toBe("ROOT")
+    expect(timelineSelection(rows, timelineCreateRowKey, 20)).toBe(timelineCreateRowKey)
+  })
+
   test("uses deterministic UTC zoom, pan, today, and inclusive window math", () => {
     expect(cycleTimelineZoom("day")).toBe("week")
     expect(cycleTimelineZoom("week")).toBe("month")

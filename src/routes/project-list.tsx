@@ -2,14 +2,17 @@ import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
 import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
+import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { projectListCell, projectListColumns, projectListRows, projectListSelection, projectListStateText, projectListViewportWidth, type ProjectListColumn } from "../state/project-list"
 import { issueColor, issueTypeColor, priorityColor, statusColor } from "../state/selectors"
+import { halfViewportRows, routeBindingsBlocked } from "../state/keyboard-context"
 
 export function ProjectListRoute() {
   const appState = useAppState()
   const { state } = appState
+  const icons = useIcons()
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
@@ -22,8 +25,10 @@ export function ProjectListRoute() {
       { name: "list.page.down", run: () => moveHalfPage(1) },
       { name: "list.page.up", run: () => moveHalfPage(-1) },
     ],
-    bindings: state.route !== "list" || state.searchOpen || state.inspectorEditingFieldId ? [] : [
+    bindings: state.route !== "list" || routeBindingsBlocked(state) ? [] : [
+      { key: "d", cmd: "list.page.down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "list.page.down", preventDefault: false },
+      { key: "u", cmd: "list.page.up", preventDefault: false },
       { key: { name: "u", ctrl: true }, cmd: "list.page.up", preventDefault: false },
     ],
   }))
@@ -36,14 +41,14 @@ export function ProjectListRoute() {
   function moveHalfPage(delta: 1 | -1) {
     if (state.focusedPane !== "main" || state.route !== "list") return false
     const keys = rows().map((row) => row.issue.key)
-    appState.setProjectListSelection(projectListSelection(keys, state.projectListSelectedIssueKey, delta * Math.max(1, Math.floor(visibleRows() / 2))))
+    appState.setProjectListSelection(projectListSelection(keys, state.projectListSelectedIssueKey, delta * halfViewportRows(visibleRows())))
   }
 
   return (
     <box flexDirection="column" gap={1} flexGrow={1} minHeight={0} overflow="hidden">
       <box flexDirection="column" flexShrink={0}>
         <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">List · {state.project.key} · {state.projectListSort === "rank" ? "Rank asc" : "Updated desc"}</text>
-        <text fg={theme.textMuted} wrapMode="none">j/k row · g/G ends · Ctrl-u/d half page · h/l columns · Space collapse · Enter detail · / filter · S Jira search · L load more · r refresh</text>
+        <text fg={theme.textMuted} wrapMode="none">j/k row · g/G ends · d/u or Ctrl-u/d half page · h/l columns · Space collapse · Enter detail · / filter · S Jira search · L load more · r refresh</text>
         <text fg={state.issuePageStateBySource["project-list"]?.error ? theme.danger : state.issuePageStateBySource["project-list"]?.loading ? theme.warning : theme.textSubtle} wrapMode="none">{projectListStateText(state)}</text>
       </box>
 
@@ -55,9 +60,9 @@ export function ProjectListRoute() {
               {(row) => (
                 <box id={`project-list-${row.issue.key}`} height={1} flexShrink={0} backgroundColor={state.projectListSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selected : undefined}>
                   <text fg={state.projectListSelectedIssueKey === row.issue.key && state.focusedPane === "main" ? theme.selectedText : theme.text} wrapMode="none">
-                    <span>{state.projectListSelectedIssueKey === row.issue.key ? ">" : " "}</span>
+                    <span>{state.projectListSelectedIssueKey === row.issue.key ? icons.catalog.structural.selection : " "}</span>
                     <For each={columns()}>
-                      {(column) => <span style={{ fg: column.id === "key" ? issueColor(state, row.issue) : column.id === "type" ? issueTypeColor(state, row.issue) : column.id === "status" ? statusColor(state, row.issue) : column.id === "priority" ? priorityColor(row.issue) : undefined }}>{formatCell(column.id === "summary" ? `${"  ".repeat(row.depth)}${row.hasChildren ? row.collapsed ? ">" : "v" : "·"} ${row.issue.title}` : projectListCell(row.issue, column.id, state), column)}</span>}
+                      {(column) => <span style={{ fg: column.id === "key" ? issueColor(state, row.issue) : column.id === "type" ? issueTypeColor(state, row.issue) : column.id === "status" ? statusColor(state, row.issue) : column.id === "priority" ? priorityColor(row.issue) : undefined }}>{formatCell(column.id === "summary" ? `${"  ".repeat(row.depth)}${row.hasChildren ? row.collapsed ? icons.catalog.structural.collapsed : icons.catalog.structural.expanded : icons.catalog.structural.leaf} ${row.issue.title}` : projectListCell(row.issue, column.id, state), column)}</span>}
                     </For>
                   </text>
                 </box>

@@ -2,9 +2,12 @@ import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
 import { createEffect, For, Show, type JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
+import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { issueByKey } from "../state/issue-drafts"
+import { routeBindingsBlocked } from "../state/keyboard-context"
+import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { activeSprint, issueColor, issueTypeColor, issueTypeName, priorityColor, statusColor, statusName } from "../state/selectors"
 import {
   workspaceAttentionQueues,
@@ -44,7 +47,7 @@ export function WorkspaceRoute() {
       { name: "workspace.page.down", run: () => pageWorkspace(1) },
       { name: "workspace.page.up", run: () => pageWorkspace(-1) },
     ],
-    bindings: state.searchOpen || state.inspectorEditingFieldId ? [] : [
+    bindings: state.route !== "workspace" || routeBindingsBlocked(state) ? [] : [
       { key: "d", cmd: "workspace.page.down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "workspace.page.down" },
       { key: "u", cmd: "workspace.page.up", preventDefault: false },
@@ -156,14 +159,17 @@ function WorkspacePreview(props: { height: number }) {
 
 function WorkspaceResultRow(props: { result: WorkspaceResult; selected: boolean }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const issue = () => props.result.issueKey ? issueByKey(state, props.result.issueKey) : undefined
+  const issueType = () => configuredIssueTypes(state).find((type) => type.id === issue()?.type || type.name === issue()?.type || type.name === issue()?.typeName)
+  const status = () => configuredStatuses(state).find((candidate) => candidate.id === issue()?.statusId)
   return (
     <box id={workspaceResultId(props.result.id)} height={3} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? theme.selected : undefined} flexDirection="column">
       <text fg={props.selected ? theme.selectedText : props.result.kind === "change" ? theme.warning : theme.text} wrapMode="none">
         {props.selected ? ">" : " "} <Show when={issue()} fallback={props.result.title}>{(selectedIssue) => (
           <>
-            <span style={{ fg: issueTypeColor(state, selectedIssue()) }}>■ </span>
+            <span style={{ fg: issueTypeColor(state, selectedIssue()) }}>{icons.issueType({ name: issueTypeName(state, selectedIssue()), subtask: issueType()?.subtask, hierarchyLevel: issueType()?.hierarchyLevel ?? selectedIssue().typeHierarchyLevel })} </span>
             <span style={{ fg: issueColor(state, selectedIssue()) }}>{selectedIssue().key}</span>
             <span> {selectedIssue().title}</span>
           </>
@@ -173,9 +179,9 @@ function WorkspaceResultRow(props: { result: WorkspaceResult; selected: boolean 
         <Show when={issue()} fallback={props.result.subtitle}>{(selectedIssue) => (
           <>
             <span style={{ fg: issueTypeColor(state, selectedIssue()) }}>{issueTypeName(state, selectedIssue())}</span>
-            <span> · </span><span style={{ fg: priorityColor(selectedIssue()) }}>{selectedIssue().priority}</span><span> · {selectedIssue().assignee} · </span>
-            <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span>
-            <span>{selectedIssue().staleDays >= 7 ? ` · stale ${selectedIssue().staleDays}d` : ""}</span>
+            <span> · </span><span style={{ fg: priorityColor(selectedIssue()) }}>{icons.priority(selectedIssue().priority)} {selectedIssue().priority}</span><span> · {selectedIssue().assignee === "Unassigned" ? `${icons.catalog.exceptional.unassigned} ` : ""}{selectedIssue().assignee} · </span>
+            <span style={{ fg: statusColor(state, selectedIssue()) }}>{icons.status(status() ?? { name: statusName(state, selectedIssue()) })} {statusName(state, selectedIssue())}</span>
+            <span>{selectedIssue().staleDays >= 7 ? ` · ${icons.catalog.exceptional.stale} stale ${selectedIssue().staleDays}d` : ""}</span>
           </>
         )}</Show>
       </text>
@@ -185,8 +191,11 @@ function WorkspaceResultRow(props: { result: WorkspaceResult; selected: boolean 
 
 function WorkspaceCard(props: { item: WorkspaceItem; selected: boolean; active: boolean; tone?: "warning" | "danger" | "muted" }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const issue = () => props.item.issueKey ? issueByKey(state, props.item.issueKey) : undefined
+  const issueType = () => configuredIssueTypes(state).find((type) => type.id === issue()?.type || type.name === issue()?.type || type.name === issue()?.typeName)
+  const status = () => configuredStatuses(state).find((candidate) => candidate.id === issue()?.statusId)
   const accent = () => props.tone === "danger" ? theme.danger : props.tone === "warning" ? theme.warning : props.tone === "muted" ? theme.textSubtle : theme.accent
   return (
     <box id={workspaceCardId(props.item.id)} height={3} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={props.selected && props.active ? theme.selected : undefined} flexDirection="column">
@@ -194,7 +203,7 @@ function WorkspaceCard(props: { item: WorkspaceItem; selected: boolean; active: 
         <text fg={props.selected && props.active ? theme.selectedText : props.selected ? theme.accent : theme.text} wrapMode="none">
           {props.selected ? ">" : " "} <Show when={issue()} fallback={props.item.title}>{(selectedIssue) => (
             <>
-              <span style={{ fg: issueTypeColor(state, selectedIssue()) }}>■ </span>
+              <span style={{ fg: issueTypeColor(state, selectedIssue()) }}>{icons.issueType({ name: issueTypeName(state, selectedIssue()), subtask: issueType()?.subtask, hierarchyLevel: issueType()?.hierarchyLevel ?? selectedIssue().typeHierarchyLevel })} </span>
               <span style={{ fg: issueColor(state, selectedIssue()) }}>{selectedIssue().key}</span>
             </>
           )}</Show>
@@ -207,7 +216,7 @@ function WorkspaceCard(props: { item: WorkspaceItem; selected: boolean; active: 
         <Show when={issue()} fallback={props.item.subtitle}>{(selectedIssue) => (
           <>
             <span>{selectedIssue().title} · </span>
-            <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span>
+            <span style={{ fg: statusColor(state, selectedIssue()) }}>{icons.status(status() ?? { name: statusName(state, selectedIssue()) })} {statusName(state, selectedIssue())}</span>
           </>
         )}</Show>
       </text>

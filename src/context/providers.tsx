@@ -2,6 +2,7 @@ import { AppStateProvider } from "./app-state"
 import { ConfigProvider } from "./config"
 import { DialogProvider } from "./dialog"
 import { ExitProvider } from "./exit"
+import { IconProvider } from "./icons"
 import { ThemeProvider } from "./theme"
 import { ToastProvider } from "./toast"
 import type { ProviderProps } from "./helper"
@@ -15,11 +16,13 @@ export function AppProviders(props: ProviderProps<{ config: AppConfig; initialSt
     <ConfigProvider value={props.config}>
       <ExitProvider onExit={props.onExit}>
         <ThemeProvider>
-          <ToastProvider>
-            <DialogProvider>
-              <AppStateProvider initialState={props.initialState} initialWorkspaceSelection={props.initialWorkspaceSelection} source={props.source} saveWorkspaceConfig={props.saveWorkspaceConfig}>{props.children}</AppStateProvider>
-            </DialogProvider>
-          </ToastProvider>
+          <IconProvider>
+            <ToastProvider>
+              <DialogProvider>
+                <AppStateProvider initialState={props.initialState} initialWorkspaceSelection={props.initialWorkspaceSelection} source={props.source} saveWorkspaceConfig={props.saveWorkspaceConfig}>{props.children}</AppStateProvider>
+              </DialogProvider>
+            </ToastProvider>
+          </IconProvider>
         </ThemeProvider>
       </ExitProvider>
     </ConfigProvider>

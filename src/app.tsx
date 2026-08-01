@@ -85,6 +85,7 @@ export function App() {
             appState.cancelComment()
             return
           }
+          if (state.authOnboarding.open) return false
           if (isPlainTextEditing()) return false
           if (state.pendingDeleteIssueKey) {
             appState.cancelIssueDelete()

@@ -3,10 +3,13 @@ import { useTerminalDimensions } from "@opentui/solid"
 import { createEffect, For, Show } from "solid-js"
 import type { JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
+import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { IssueSummary } from "../state/app-state"
 import { issueByKey } from "../state/issue-drafts"
+import { routeBindingsBlocked } from "../state/keyboard-context"
+import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueColor, issueTypeColor, issueTypeName, priorityColor, statusColor, statusName } from "../state/selectors"
 import { RichText } from "../ui/rich-text"
 import { ParentBadge } from "../ui/parent-badge"
@@ -28,7 +31,7 @@ export function IssueDetailRoute() {
       { name: "detail.scroll.half-up", run: () => scrollHalfPage(-1) },
       { name: "detail.open-parent", run: () => appState.openParentIssue() },
     ],
-    bindings: state.searchOpen ? [] : [
+    bindings: state.route !== "issue-detail" || routeBindingsBlocked(state) ? [] : [
       { key: "j", cmd: "detail.scroll.down", preventDefault: false },
       { key: "down", cmd: "detail.scroll.down", preventDefault: false },
       { key: "k", cmd: "detail.scroll.up", preventDefault: false },
@@ -190,18 +193,21 @@ function BodyEditor(props: { issue: IssueSummary }) {
 
 function IssueHeader(props: { issue: IssueSummary }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
+  const issueType = () => configuredIssueTypes(state).find((type) => type.id === props.issue.type || type.name === props.issue.type || type.name === props.issue.typeName)
+  const status = () => configuredStatuses(state).find((candidate) => candidate.id === props.issue.statusId)
 
   return (
     <box flexDirection="column" gap={1} marginBottom={1}>
       <text attributes={TextAttributes.BOLD} fg={issueColor(state, props.issue)} wrapMode="none">{props.issue.key}{props.issue.isDraft ? " draft" : ""}</text>
       <text attributes={TextAttributes.BOLD} fg={theme.text}>{props.issue.title}</text>
        <box flexDirection="row" gap={1}>
-         <text fg={issueTypeColor(state, props.issue)} wrapMode="none">■ {issueTypeName(state, props.issue)}</text>
-         <text fg={statusColor(state, props.issue)} wrapMode="none">● {statusName(state, props.issue)}</text>
-         <text fg={priorityColor(props.issue)} wrapMode="none">◆ {props.issue.priority}</text>
-        <text fg={props.issue.blocked ? theme.danger : theme.textSubtle} wrapMode="none">{props.issue.blocked ? "Blocked" : "Not blocked"}</text>
-        <text fg={props.issue.staleDays >= 7 ? theme.warning : theme.textSubtle} wrapMode="none">Stale {props.issue.staleDays}d</text>
+         <text fg={issueTypeColor(state, props.issue)} wrapMode="none">{icons.issueType({ name: issueTypeName(state, props.issue), subtask: issueType()?.subtask, hierarchyLevel: issueType()?.hierarchyLevel ?? props.issue.typeHierarchyLevel })} {issueTypeName(state, props.issue)}</text>
+         <text fg={statusColor(state, props.issue)} wrapMode="none">{icons.status(status() ?? { name: statusName(state, props.issue) })} {statusName(state, props.issue)}</text>
+         <text fg={priorityColor(props.issue)} wrapMode="none">{icons.priority(props.issue.priority)} {props.issue.priority}</text>
+         <text fg={props.issue.blocked ? theme.danger : theme.textSubtle} wrapMode="none">{props.issue.blocked ? `${icons.catalog.exceptional.blocked} ` : ""}{props.issue.blocked ? "Blocked" : "Not blocked"}</text>
+         <text fg={props.issue.staleDays >= 7 ? theme.warning : theme.textSubtle} wrapMode="none">{props.issue.staleDays >= 7 ? `${icons.catalog.exceptional.stale} ` : ""}Stale {props.issue.staleDays}d</text>
        </box>
        <ParentBadge issue={props.issue} />
       <text fg={theme.textSubtle}>{props.issue.parentKey ? "Enter parent · " : ""}j/k line scroll · d/u half page · e edit body · q/Esc back</text>

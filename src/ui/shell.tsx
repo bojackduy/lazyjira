@@ -3,6 +3,7 @@ import { useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { createEffect, For, onCleanup, onMount, Show, type JSX } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useConfig } from "../context/config"
+import { useIcons } from "../context/icons"
 import { useTheme } from "../context/theme"
 import { useToast } from "../context/toast"
 import { RouteSurface } from "../routes"
@@ -14,7 +15,8 @@ import { boardCapabilities, routeLabel, sidebarQuickFilterIndex, sidebarRoutesFo
 import { allIssues, issueList } from "../state/selectors"
 import { stagedChanges, type StagedChange } from "../state/staged-changes"
 import { IssueInspector } from "./issue-inspector"
-import { paletteCommandsForBoard, searchPaletteCommands, type PaletteCommand } from "../keymap/commands"
+import { paletteCommandsForBoard, routeHelpCommands, searchPaletteCommands, type PaletteCommand, type PaletteCommandIcon } from "../keymap/commands"
+import type { SemanticIconCatalog } from "../icons/catalog"
 import { useBindings, useKeymap } from "../context/keymap"
 
 export function AppShell() {
@@ -48,6 +50,7 @@ export function AppShell() {
 function Sidebar() {
   const { state, setFocusedPane, setRoute, toggleQuickFilter } = useAppState()
   const config = useConfig()
+  const icons = useIcons()
   const theme = useTheme()
   const focused = () => state.focusedPane === "sidebar"
   const routes = () => sidebarRoutesForBoard(state.board)
@@ -77,7 +80,7 @@ function Sidebar() {
                   setRoute(route.id)
                 }}
               >
-                {selected() ? ">" : current() ? "*" : " "} {route.shortLabel}
+                {selected() ? icons.catalog.structural.selection : current() ? icons.catalog.status.inProgress : " "} {routeIcon(icons.catalog, route.id)} {route.shortLabel}
               </text>
             )
           }}
@@ -99,7 +102,7 @@ function Sidebar() {
                   setRoute(route.id)
                 }}
               >
-                {selected() ? ">" : current() ? "*" : " "} {route.shortLabel}
+                {selected() ? icons.catalog.structural.selection : current() ? icons.catalog.status.inProgress : " "} {routeIcon(icons.catalog, route.id)} {route.shortLabel}
               </text>
             )
           }}
@@ -129,7 +132,7 @@ function Sidebar() {
       </box>
       <box paddingTop={1} flexDirection="column">
         <text fg={theme.warning}>Pending</text>
-        <text fg={pendingCount() ? theme.text : theme.textMuted}>  {pendingCount()} staged {pendingCount() === 1 ? "change" : "changes"}</text>
+        <text fg={pendingCount() ? theme.text : theme.textMuted}>  {icons.catalog.exceptional.staged} {pendingCount()} staged {pendingCount() === 1 ? "change" : "changes"}</text>
       </box>
     </box>
   )
@@ -137,13 +140,14 @@ function Sidebar() {
 
 function MainSurface() {
   const { state, setFocusedPane } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const focused = () => state.focusedPane === "main"
 
   return (
     <box borderStyle="rounded" borderColor={focused() ? theme.borderActive : theme.border} padding={1} flexGrow={1} flexShrink={1} minWidth={0} minHeight={0} onMouseUp={() => setFocusedPane("main")}>
       <box flexDirection="row" justifyContent="space-between">
-        <text attributes={TextAttributes.BOLD} fg={theme.text}>{routeLabel(state.route, state.board)}</text>
+        <text attributes={TextAttributes.BOLD} fg={theme.text}>{routeIcon(icons.catalog, state.route)} {routeLabel(state.route, state.board)}</text>
         <text fg={theme.textSubtle}>{state.board.name}</text>
       </box>
       <Show when={(state.workspaceLoading || state.workspaceLoadError) && !!Object.keys(state.issues).length}>
@@ -163,12 +167,13 @@ function MainSurface() {
 
 function WorkspaceLoadSurface() {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
 
   return (
     <box flexGrow={1} minHeight={0} flexDirection="column" alignItems="center" justifyContent="center" gap={1}>
       <text attributes={TextAttributes.BOLD} fg={state.workspaceLoadError ? theme.danger : theme.accent}>
-        {state.workspaceLoadError ? "Jira workspace load failed" : "[loading] Loading Jira workspace"}
+        {state.workspaceLoadError ? `${icons.catalog.exceptional.error} Jira workspace load failed` : `${icons.catalog.exceptional.loading} Loading Jira workspace`}
       </text>
       <text fg={theme.text}>{state.project.key} {state.project.name} · {state.board.name}</text>
       <Show when={state.workspaceLoadError} fallback={<text fg={theme.textMuted}>Loading board metadata, sprints, and the first issue pages...</text>}>
@@ -181,11 +186,12 @@ function WorkspaceLoadSurface() {
 
 function WorkspaceRefreshStatus() {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
 
   return (
     <text fg={state.workspaceLoadError ? theme.danger : theme.warning} wrapMode="none">
-      {state.workspaceLoadError ? `Workspace refresh failed: ${state.workspaceLoadError} · r retry` : "[refreshing] Updating Jira workspace..."}
+      {state.workspaceLoadError ? `${icons.catalog.exceptional.error} Workspace refresh failed: ${state.workspaceLoadError} · r retry` : `${icons.catalog.action.refresh} Updating Jira workspace...`}
     </text>
   )
 }
@@ -193,6 +199,7 @@ function WorkspaceRefreshStatus() {
 function SearchBar() {
   const appState = useAppState()
   const { state } = appState
+  const icons = useIcons()
   const theme = useTheme()
   let input: InputRenderable | undefined
   const visible = () => state.route !== "config" && (state.searchOpen || !!state.searchQuery || !!state.remoteSearchQuery || !!state.remoteSearchIssueKeys.length || state.remoteSearchPageState.loading || !!state.remoteSearchPageState.error)
@@ -205,11 +212,11 @@ function SearchBar() {
   return (
     <Show when={visible()}>
       <box borderStyle="rounded" borderColor={state.searchOpen ? theme.borderActive : theme.border} paddingLeft={1} paddingRight={1} height={3} flexShrink={0} flexDirection="row" gap={1} alignItems="center">
-        <text attributes={TextAttributes.BOLD} fg={remoteMode() ? theme.accent : theme.warning} wrapMode="none">{remoteMode() ? "Search Jira" : "Filter loaded"}</text>
+        <text attributes={TextAttributes.BOLD} fg={remoteMode() ? theme.accent : theme.warning} wrapMode="none">{icons.catalog.action.search} {remoteMode() ? "Search Jira" : "Filter loaded"}</text>
         <Show when={state.searchOpen} fallback={
           <text fg={state.remoteSearchPageState.error && remoteMode() ? theme.danger : theme.textMuted} wrapMode="none">
             {remoteMode()
-              ? `${state.remoteSearchQuery || "empty"} · ${remoteLoadedCount()}${remoteTotal()} Jira results${state.remoteSearchPageState.loading ? " · loading" : state.remoteSearchPageState.error ? ` · ${state.remoteSearchPageState.error}` : ""} · S edit`
+              ? `${state.remoteSearchQuery || "empty"} · ${remoteLoadedCount()}${remoteTotal()} Jira results${state.remoteSearchPageState.loading ? ` · ${icons.catalog.exceptional.loading} loading` : state.remoteSearchPageState.error ? ` · ${icons.catalog.exceptional.error} ${state.remoteSearchPageState.error}` : ""} · S edit`
               : `${state.searchQuery || "empty"} · ${filteredCount()}/${loadedCount()} loaded · / edit · empty Enter clears`}
           </text>
         }>
@@ -260,6 +267,7 @@ function CommandPalettePopup() {
   const appState = useAppState()
   const { state } = appState
   const theme = useTheme()
+  const icons = useIcons()
   const keymap = useKeymap()
   const dimensions = useTerminalDimensions()
   let input: InputRenderable | undefined
@@ -281,7 +289,7 @@ function CommandPalettePopup() {
     <Show when={state.commandPaletteOpen}>
       <ModalFrame borderColor={theme.accent} width={88} centered>
         <box flexDirection="row" justifyContent="space-between">
-          <text attributes={TextAttributes.BOLD} fg={theme.accent}>Command Palette</text>
+          <text attributes={TextAttributes.BOLD} fg={theme.accent}>{icons.catalog.action.search} Command Palette</text>
           <text fg={theme.textSubtle}>; · : actions</text>
         </box>
         <input
@@ -318,12 +326,13 @@ function CommandPalettePopup() {
 }
 
 function CommandPaletteRow(props: { id: string; command: PaletteCommand; selected: boolean }) {
+  const icons = useIcons()
   const theme = useTheme()
   return (
     <box id={props.id} height={3} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? theme.selected : undefined} flexDirection="column">
       <box flexDirection="row" gap={2}>
         <text fg={props.selected ? theme.selectedText : theme.warning} width={16} wrapMode="none">{props.command.keys}</text>
-        <text attributes={TextAttributes.BOLD} fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">{props.command.label}</text>
+        <text attributes={TextAttributes.BOLD} fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">{props.command.icon ? `${paletteIcon(icons.catalog, props.command.icon)} ` : ""}{props.command.label}</text>
       </box>
       <text fg={props.selected ? theme.selectedText : theme.textMuted} wrapMode="none">{props.command.description} · {props.command.group}</text>
     </box>
@@ -368,7 +377,7 @@ function HelpPopup() {
         </box>
         <text fg={theme.textMuted}>Commands reflect the current lazyjira keyboard workflow.</text>
         <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} height={listHeight()} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
-          <For each={paletteCommandsForBoard(state.board)}>
+          <For each={[...routeHelpCommands(state.route), ...paletteCommandsForBoard(state.board)]}>
             {(command) => (
               <box height={2} flexDirection="column">
                 <box flexDirection="row" gap={2}>
@@ -406,6 +415,7 @@ function FooterHints(props: { items: string[] }) {
 
 function DeleteConfirm() {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const issue = () => state.pendingDeleteIssueKey ? state.issues[state.pendingDeleteIssueKey] : undefined
 
@@ -413,7 +423,7 @@ function DeleteConfirm() {
     <Show when={issue()}>
       {(selectedIssue) => (
         <box borderStyle="rounded" borderColor={theme.danger} paddingLeft={1} paddingRight={1} marginLeft={1} marginRight={1} flexDirection="row" justifyContent="space-between">
-          <text fg={theme.danger} wrapMode="none">Delete {selectedIssue().key}: {selectedIssue().title}?</text>
+          <text fg={theme.danger} wrapMode="none">{icons.catalog.action.delete} Delete {selectedIssue().key}: {selectedIssue().title}?</text>
           <text fg={theme.text} wrapMode="none">y stage delete · n/Esc cancel · w render · W write Jira</text>
         </box>
       )}
@@ -424,6 +434,7 @@ function DeleteConfirm() {
 function StagedDiscardPopup() {
   const appState = useAppState()
   const { state } = appState
+  const icons = useIcons()
   const theme = useTheme()
   const changes = () => stagedChanges(state)
   useStagedDiscardKeyboard(appState)
@@ -432,7 +443,7 @@ function StagedDiscardPopup() {
     <Show when={state.stagedDiscardOpen}>
       <ModalFrame borderColor={theme.warning} width={84}>
         <box flexDirection="row" justifyContent="space-between">
-          <text attributes={TextAttributes.BOLD} fg={theme.warning}>Discard Staged Changes</text>
+          <text attributes={TextAttributes.BOLD} fg={theme.warning}>{icons.catalog.exceptional.staged} Discard Staged Changes</text>
           <text fg={theme.textSubtle}>j/k choose · space mark · enter discard · esc/q close</text>
         </box>
         <Show when={changes().length} fallback={<text fg={theme.textMuted}>No staged changes to discard.</text>}>
@@ -456,6 +467,7 @@ function StagedDiscardPopup() {
 function RemoteApplyPopup() {
   const appState = useAppState()
   const { state } = appState
+  const icons = useIcons()
   const theme = useTheme()
   const plan = () => planJiraWrites(state)
   const counts = () => writePlanCounts(plan())
@@ -465,7 +477,7 @@ function RemoteApplyPopup() {
     <Show when={state.remoteApplyOpen}>
       <ModalFrame borderColor={theme.danger} width={86}>
         <box flexDirection="row" justifyContent="space-between">
-          <text attributes={TextAttributes.BOLD} fg={theme.danger}>Apply To Jira</text>
+          <text attributes={TextAttributes.BOLD} fg={theme.danger}>{state.remoteApplyApplying ? icons.catalog.exceptional.loading : icons.catalog.action.apply} Apply To Jira</text>
           <text fg={theme.textSubtle}>{state.remoteApplyApplying ? "Applying Jira operations..." : state.remoteDeleteConfirmationArmed ? "W permanently deletes staged issues · esc/q cancel" : "W applies planned operations · esc/q cancel"}</text>
         </box>
         <text fg={theme.textMuted}>Review planned Jira operations before any remote mutation is enabled.</text>
@@ -475,7 +487,7 @@ function RemoteApplyPopup() {
             {(item) => <WritePlanRow item={item} />}
           </For>
         </Show>
-        <text fg={state.remoteDeleteConfirmationArmed ? theme.danger : theme.warning} wrapMode="none">{state.remoteDeleteConfirmationArmed ? "Remote delete armed: press W again to confirm permanent deletion." : "Delete operations require a second W confirmation."}</text>
+        <text fg={state.remoteDeleteConfirmationArmed ? theme.danger : theme.warning} wrapMode="none">{icons.catalog.exceptional.warning} {state.remoteDeleteConfirmationArmed ? "Remote delete armed: press W again to confirm permanent deletion." : "Delete operations require a second W confirmation."}</text>
       </ModalFrame>
     </Show>
   )
@@ -484,6 +496,7 @@ function RemoteApplyPopup() {
 function CommentComposerPopup() {
   const appState = useAppState()
   const { state } = appState
+  const icons = useIcons()
   const theme = useTheme()
   let textarea: TextareaRenderable | undefined
   const issue = () => issueByKey(state, state.selectedIssueKey)
@@ -498,7 +511,7 @@ function CommentComposerPopup() {
       {(selectedIssue) => (
         <ModalFrame borderColor={theme.accent} width={82}>
           <box flexDirection="row" justifyContent="space-between">
-            <text attributes={TextAttributes.BOLD} fg={theme.accent}>Stage Jira Comment</text>
+            <text attributes={TextAttributes.BOLD} fg={theme.accent}>{icons.catalog.exceptional.staged} Stage Jira Comment</text>
             <text fg={theme.textSubtle}>Ctrl-Enter stage · Esc cancel</text>
           </box>
           <text fg={theme.textMuted}>Comment for {selectedIssue().key}: {selectedIssue().title}</text>
@@ -520,13 +533,14 @@ function CommentComposerPopup() {
 }
 
 function WritePlanRow(props: { item: JiraWritePlanItem }) {
+  const icons = useIcons()
   const theme = useTheme()
   const color = () => props.item.status === "blocked" ? theme.danger : theme.accent
 
   return (
     <box flexDirection="column" gap={0}>
       <text fg={color()} wrapMode="none">
-        {props.item.status === "blocked" ? "!" : ">"} {props.item.title}
+        {props.item.status === "blocked" ? icons.catalog.exceptional.error : icons.catalog.action.apply} {props.item.title}
       </text>
       <text fg={theme.textSubtle} wrapMode="none">{props.item.detail}</text>
       <Show when={props.item.method && props.item.endpoint}>
@@ -545,6 +559,7 @@ function WritePlanRow(props: { item: JiraWritePlanItem }) {
 function AuthOnboardingPopup() {
   const appState = useAppState()
   const { state } = appState
+  const icons = useIcons()
   const theme = useTheme()
   const step = () => state.authOnboarding.step
   const value = () => state.authOnboarding[authOnboardingField(step())]
@@ -561,7 +576,7 @@ function AuthOnboardingPopup() {
         <text fg={theme.textSubtle}>Config file: ~/.config/lazyjira/config.json · CLI alternative: lazyjira auth login</text>
         <text fg={theme.warning} wrapMode="none">Step {stepIndex(step())}/3 · {stepTitle(step())}</text>
         <Show when={state.authOnboarding.error}>
-          {(error) => <text fg={theme.danger} wrapMode="none">{error()}</text>}
+          {(error) => <text fg={theme.danger} wrapMode="none">{icons.catalog.exceptional.error} {error()}</text>}
         </Show>
         <input
           value={value()}
@@ -583,7 +598,7 @@ function AuthOnboardingPopup() {
         </Show>
         <text fg={theme.textSubtle} wrapMode="none">Enter continue/save · Esc skip prod setup</text>
         <Show when={state.authOnboarding.saving}>
-          <text fg={theme.textMuted}>Saving credentials...</text>
+          <text fg={theme.textMuted}>{icons.catalog.exceptional.loading} Saving credentials...</text>
         </Show>
       </ModalFrame>
     </Show>
@@ -593,6 +608,7 @@ function AuthOnboardingPopup() {
 function ProjectPickerPopup() {
   const appState = useAppState()
   const { state } = appState
+  const icons = useIcons()
   const theme = useTheme()
   let searchInput: InputRenderable | undefined
   const rows = () => projectPickerRows(state)
@@ -609,7 +625,7 @@ function ProjectPickerPopup() {
     <Show when={state.projectPicker.open}>
       <ModalFrame borderColor={theme.accent} width={88}>
         <box flexDirection="row" justifyContent="space-between">
-          <text attributes={TextAttributes.BOLD} fg={theme.accent}>{projectPickerTitle(state)}</text>
+          <text attributes={TextAttributes.BOLD} fg={theme.accent}>{projectPickerIcon(icons.catalog, state)} {projectPickerTitle(state)}</text>
           <text fg={theme.textSubtle}>{projectPickerHint(state)}</text>
         </box>
         <text fg={theme.textMuted}>P switches saved workspaces instantly. Press a only when you want Jira discovery.</text>
@@ -620,14 +636,14 @@ function ProjectPickerPopup() {
           {(project) => <text fg={theme.warning} wrapMode="none">Project: {project().key} {project().name} · choose the Scrum or Kanban board that defines this workspace</text>}
         </Show>
         <Show when={state.projectPicker.error}>
-          {(error) => <text fg={theme.danger} wrapMode="none">{error()}</text>}
+          {(error) => <text fg={theme.danger} wrapMode="none">{icons.catalog.exceptional.error} {error()}</text>}
         </Show>
         <Show when={state.projectPicker.loading || state.projectPicker.saving}>
-          <text fg={theme.textMuted}>{state.projectPicker.saving ? "Saving workspace..." : "Loading from Jira..."}</text>
+          <text fg={theme.textMuted}>{icons.catalog.exceptional.loading} {state.projectPicker.saving ? "Saving workspace..." : "Loading from Jira..."}</text>
         </Show>
         <Show when={state.projectPicker.searchOpen || state.projectPicker.searchQuery} fallback={<text fg={theme.textSubtle}>{projectPickerCountText(state, rows().length, totalCount(), optionLabel())}</text>}>
           <box borderStyle="rounded" borderColor={state.projectPicker.searchOpen ? theme.borderActive : theme.border} paddingLeft={1} paddingRight={1} height={3} flexDirection="row" gap={1} alignItems="center">
-            <text attributes={TextAttributes.BOLD} fg={theme.warning} wrapMode="none">{state.projectPicker.mode === "remote-projects" ? "Search Jira" : "Filter"}</text>
+            <text attributes={TextAttributes.BOLD} fg={theme.warning} wrapMode="none">{icons.catalog.action.search} {state.projectPicker.mode === "remote-projects" ? "Search Jira" : "Filter"}</text>
             <input
               value={state.projectPicker.searchQuery}
               onInput={(value) => appState.updateProjectPickerSearch(value)}
@@ -880,6 +896,23 @@ function stagedChangeText(change: StagedChange, issueTitle?: string) {
   return `${change.issueKey} ${change.label} · ${preview}`
 }
 
+function routeIcon(catalog: SemanticIconCatalog, route: AppRoute) {
+  if (route === "issue-detail") return catalog.route.issueDetail
+  return catalog.route[route]
+}
+
+function paletteIcon(catalog: SemanticIconCatalog, icon: PaletteCommandIcon) {
+  if (icon.group === "route") return catalog.route[icon.name]
+  if (icon.group === "action") return catalog.action[icon.name]
+  return catalog.exceptional[icon.name]
+}
+
+function projectPickerIcon(catalog: SemanticIconCatalog, state: AppState) {
+  if (state.projectPicker.mode === "remote-projects") return catalog.action.create
+  if (state.projectPicker.mode === "remote-boards") return catalog.route.board
+  return catalog.route.workspace
+}
+
 export function footerItems(focusedPane: string, route: AppRoute, board: AppState["board"], stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerMode?: AppState["projectPicker"]["mode"], hasParent = false) {
   if (authOnboardingOpen) return ["prod setup", "Enter continue/save", "Esc skip setup"]
   if (projectPickerMode === "local") return ["workspace switcher", "/ filter local", "enter switch", "a choose Jira project", "esc/q close"]
@@ -892,8 +925,8 @@ export function footerItems(focusedPane: string, route: AppRoute, board: AppStat
   if (route === "issue-detail") return ["detail", ...(hasParent ? ["enter parent"] : []), "j/k line", "d/u half-page", "e edit body", "r refresh", "ctrl-enter stage", "W Jira"]
   if (route === "workspace") return ["workspace", "j/k choose", "d/u page", "enter open", "R refresh", "/ filter", "S Jira search", "W Jira"]
   if (route === "config") return ["config", "j/k choose", "d/u page", "h/l pane", "a add", "e rename", "c color", "R refresh", "W Jira"]
-  if (route === "timeline") return ["timeline", "j/k row", "h/l pan", "[/] viewport", "space collapse", "z zoom", "t today", "enter detail", "L load more"]
-  if (route === "list") return ["list", "j/k row", "g/G ends", "ctrl-u/d page", "h/l columns", "enter detail", "/ filter", "L load more"]
+  if (route === "timeline") return ["timeline", "j/k row", "d/u half-page", "h/l pan", "[/] viewport", "space collapse", "z zoom", "t today", "enter detail", "L load more"]
+  if (route === "list") return ["list", "j/k row", "g/G ends", "d/u half-page", "h/l columns", "enter detail", "/ filter", "L load more"]
   if (route === "board") return boardCapabilities(board).supportsSprints
     ? ["active sprints", "j/k card", "h/l column", "enter open/new", "p priority", "R refresh", "/ filter", "W Jira"]
     : ["board", "j/k row", "h/l column", "enter open/new", "p priority", "R refresh", "L load more", "W Jira"]

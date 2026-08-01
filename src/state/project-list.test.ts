@@ -26,6 +26,9 @@ describe("project list state", () => {
     expect(projectListSelection(keys, "PROJ-2", "first")).toBe("PROJ-1")
     expect(projectListSelection(keys, "PROJ-2", "last")).toBe("PROJ-3")
     expect(projectListSelection([], undefined, 1)).toBeUndefined()
+    expect(projectListSelection(keys, "PROJ-1", 2)).toBe("PROJ-3")
+    expect(projectListSelection(keys, "PROJ-3", -2)).toBe("PROJ-1")
+    expect(projectListSelection(keys, "PROJ-2", 20)).toBe("PROJ-3")
   })
 
   test("orders List rows by parent hierarchy and exposes indentation depth", () => {

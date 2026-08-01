@@ -20,6 +20,18 @@ lazyjira
 
 Use `lazyjira dev` to run with bundled fixture data and no Jira credentials.
 
+### Terminal Icons
+
+`lazyjira` uses portable Unicode icons by default. Set `LAZYJIRA_ICON_MODE` when you want a different terminal profile:
+
+```bash
+LAZYJIRA_ICON_MODE=nerd lazyjira   # requires a patched Nerd Font
+LAZYJIRA_ICON_MODE=unicode lazyjira
+LAZYJIRA_ICON_MODE=ascii lazyjira
+```
+
+Invalid or missing values fall back to `unicode`. Icons always supplement text labels, so Jira state and destructive confirmations remain readable in every profile.
+
 ## Why lazyjira
 
 - **Overview first:** Timeline, Backlog, List, and the board-aware Active sprints/Board view are first-class project destinations.
@@ -169,7 +181,7 @@ The app should use lazy-family muscle memory, adapted to Jira's board and backlo
 | `h` / `l` | Move between panes or board columns |
 | `j` / `k` | Move through cards, rows, options, or document lines |
 | `g` / `G` | Jump to top/bottom |
-| `Ctrl-u` / `Ctrl-d` | Half-page up/down |
+| `d` / `u`, `Ctrl-d` / `Ctrl-u` | Selection-aware half-page down/up |
 | `Enter` | Open or confirm |
 | `Space` | Select/toggle for bulk work |
 | `r` | Refresh current screen |

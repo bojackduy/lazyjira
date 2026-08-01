@@ -2,6 +2,7 @@ import { TextAttributes, type InputRenderable, type ScrollBoxRenderable } from "
 import { useTerminalDimensions } from "@opentui/solid"
 import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
+import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { AppState, ConfigSectionId } from "../state/app-state"
@@ -15,6 +16,7 @@ import {
 } from "../state/config-drafts"
 import { issueFields } from "../state/issue-fields"
 import { priorityColors } from "../state/metadata-colors"
+import { routeBindingsBlocked } from "../state/keyboard-context"
 import { allIssues } from "../state/selectors"
 
 type ConfigRow = {
@@ -36,6 +38,7 @@ type ConfigSection = {
 export function ConfigRoute() {
   const appState = useAppState()
   const { state } = appState
+  const icons = useIcons()
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   const compact = () => dimensions().width < 110
@@ -49,7 +52,7 @@ export function ConfigRoute() {
       { name: "config.page.down", run: () => pageConfig(1) },
       { name: "config.page.up", run: () => pageConfig(-1) },
     ],
-    bindings: state.searchOpen || state.configEditing ? [] : [
+    bindings: state.route !== "config" || routeBindingsBlocked(state) ? [] : [
       { key: "d", cmd: "config.page.down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "config.page.down" },
       { key: "u", cmd: "config.page.up", preventDefault: false },
@@ -70,7 +73,7 @@ export function ConfigRoute() {
   return (
     <box flexDirection="column" gap={1} flexGrow={1} minHeight={0}>
       <box height={compact() ? 5 : 4} flexShrink={0} flexDirection="column">
-        <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">Metadata Config</text>
+        <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">{icons.catalog.route.config} Metadata Config</text>
         <text fg={theme.textMuted} wrapMode="none">Inspect Jira metadata locally. Columns summarize board lanes; statuses show workflow details.</text>
         <text fg={theme.textSubtle} wrapMode="none">j/k choose · d/u page · h/l sections/rows · enter/e rename · w render · W Jira</text>
         <Show when={compact()}>
@@ -133,6 +136,7 @@ function ConfigRows(props: { section: ConfigSection; focused: boolean }) {
 }
 
 function ConfigRowView(props: { row: ConfigRow; index: number; sectionId: ConfigSectionId; focused: boolean }) {
+  const icons = useIcons()
   const theme = useTheme()
   const { state } = useAppState()
   const selected = () => state.configFocusedArea === "rows" && state.configSelectedRowIndex === props.index
@@ -140,7 +144,7 @@ function ConfigRowView(props: { row: ConfigRow; index: number; sectionId: Config
   return (
     <box id={configRowElementId(props.sectionId, props.index)} height={3} flexShrink={0} paddingLeft={1} paddingRight={1} backgroundColor={selected() && props.focused ? theme.selected : undefined} flexDirection="column">
       <text fg={selected() && props.focused ? theme.selectedText : props.row.color ?? theme.text} wrapMode="none">
-        {selected() ? ">" : " "} {props.row.color ? "● " : ""}{props.row.label}{staged() ? " *" : ""}
+        {selected() ? icons.catalog.structural.selection : " "} {configRowIcon(icons, props.sectionId, props.row)} {props.row.label}{staged() ? ` ${icons.catalog.exceptional.staged}` : ""}
       </text>
       <text fg={selected() && props.focused ? theme.selectedText : theme.textMuted} wrapMode="none">
         {props.row.detail}{props.row.capability ? ` · ${props.row.capability}` : ""}
@@ -149,16 +153,25 @@ function ConfigRowView(props: { row: ConfigRow; index: number; sectionId: Config
   )
 }
 
+function configRowIcon(icons: ReturnType<typeof useIcons>, sectionId: ConfigSectionId, row: ConfigRow) {
+  if (sectionId === "issue-types") return icons.issueType({ name: row.label })
+  if (sectionId === "statuses") return icons.status({ name: row.label })
+  if (sectionId === "priorities") return icons.priority(row.label)
+  if (sectionId === "columns") return icons.catalog.route.board
+  return icons.catalog.structural.leaf
+}
+
 function ConfigEditor() {
   const appState = useAppState()
   const { state } = appState
+  const icons = useIcons()
   const theme = useTheme()
   const editing = () => state.configEditing
   return (
     <Show when={editing()}>
       {(current) => (
         <box border={['top']} borderColor={theme.border} paddingTop={1} flexDirection="column" gap={1} flexShrink={0}>
-          <text attributes={TextAttributes.BOLD} fg={theme.warning} wrapMode="none">{editTitle(current().action, current().sectionId)}</text>
+          <text attributes={TextAttributes.BOLD} fg={theme.warning} wrapMode="none">{current().action === "add" ? icons.catalog.action.create : icons.catalog.action.edit} {editTitle(current().action, current().sectionId)}</text>
           <input
             value={state.configEditValue}
             onInput={(value) => appState.updateConfigEditValue(value)}
@@ -181,11 +194,12 @@ function ConfigEditor() {
 
 function ConfigDraftList() {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   return (
     <box border={['top']} borderColor={theme.border} paddingTop={1} flexDirection="column" gap={1} flexShrink={0}>
       <box flexDirection="row" justifyContent="space-between">
-        <text attributes={TextAttributes.BOLD} fg={theme.warning}>Staged Config</text>
+        <text attributes={TextAttributes.BOLD} fg={theme.warning}>{icons.catalog.exceptional.staged} Staged Config</text>
         <text fg={state.configDrafts.length ? theme.warning : theme.textSubtle}>{state.configDrafts.length} staged</text>
       </box>
       <For each={state.configDrafts} fallback={<text fg={theme.textSubtle}>No config changes staged.</text>}>

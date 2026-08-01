@@ -1,10 +1,12 @@
 import { TextAttributes, type InputRenderable, type ScrollBoxRenderable, type TextareaRenderable } from "@opentui/core"
 import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
+import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
+import { routeBindingsBlocked } from "../state/keyboard-context"
 import { isEditableField, issueFieldColor, issueFieldDisplayValue, issueFields, parentIssueChoices, type IssueFieldDefinition } from "../state/issue-fields"
 import { issueColor, issueTypeColor, issueTypeName, statusColor, statusName } from "../state/selectors"
 import { stagedChanges } from "../state/staged-changes"
@@ -14,19 +16,22 @@ export function IssueInspector(props: { compact: boolean }) {
   const appState = useAppState()
   const { state } = appState
   const theme = useTheme()
+  const icons = useIcons()
   let scrollbox: ScrollBoxRenderable | undefined
   const issue = () => issueByKey(state, state.selectedIssueKey)
   const focused = () => state.focusedPane === "inspector"
   const stagedCount = () => stagedChanges(state).length
   const stagedComments = () => state.commentDrafts.filter((draft) => draft.issueKey === state.selectedIssueKey)
   const stagedRank = () => state.rankDrafts[state.selectedIssueKey]
+  const selectedIssueType = () => configuredIssueTypes(state).find((type) => type.id === issue()?.type || type.name === issue()?.type || type.name === issue()?.typeName)
+  const selectedStatus = () => configuredStatuses(state).find((status) => status.id === issue()?.statusId)
 
   useBindings(() => ({
     commands: [
       { name: "inspector.scroll.down", run: () => scrollPage(1) },
       { name: "inspector.scroll.up", run: () => scrollPage(-1) },
     ],
-    bindings: state.searchOpen || state.inspectorEditingFieldId ? [] : [
+    bindings: routeBindingsBlocked(state) ? [] : [
       { key: "d", cmd: "inspector.scroll.down", preventDefault: false },
       { key: { name: "d", ctrl: true }, cmd: "inspector.scroll.down" },
       { key: "u", cmd: "inspector.scroll.up", preventDefault: false },
@@ -56,7 +61,7 @@ export function IssueInspector(props: { compact: boolean }) {
             <box flexDirection="column" flexShrink={0}>
               <text fg={issueColor(state, selectedIssue())} wrapMode="none">{selectedIssue().key}{selectedIssue().isDraft ? " draft" : ""}</text>
               <text fg={theme.text} wrapMode="none">{selectedIssue().title}</text>
-               <text fg={issueTypeColor(state, selectedIssue())} wrapMode="none">■ {issueTypeName(state, selectedIssue())} <span style={{ fg: statusColor(state, selectedIssue()) }}>● {statusName(state, selectedIssue())}</span></text>
+              <text fg={issueTypeColor(state, selectedIssue())} wrapMode="none">{icons.issueType({ name: issueTypeName(state, selectedIssue()), subtask: selectedIssueType()?.subtask, hierarchyLevel: selectedIssueType()?.hierarchyLevel ?? selectedIssue().typeHierarchyLevel })} {issueTypeName(state, selectedIssue())} <span style={{ fg: statusColor(state, selectedIssue()) }}>{icons.status(selectedStatus() ?? { name: statusName(state, selectedIssue()) })} {statusName(state, selectedIssue())}</span></text>
               <Show when={state.issueDeletes.includes(selectedIssue().key)}>
                 <text fg={theme.danger} wrapMode="none">Delete staged · w render · W write Jira</text>
               </Show>
@@ -122,13 +127,29 @@ function IssueFieldRow(props: { field: IssueFieldDefinition; index: number }) {
 }
 
 function FieldValue(props: { field: IssueFieldDefinition; value: string; selected: boolean; color?: string }) {
+  const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const color = () => props.color ?? (props.selected ? theme.selectedText : theme.textMuted)
+  const issue = () => issueByKey(state, state.selectedIssueKey)
+  const issueType = () => configuredIssueTypes(state).find((type) => type.id === issue()?.type || type.name === issue()?.type || type.name === issue()?.typeName)
+  const status = () => configuredStatuses(state).find((candidate) => candidate.id === issue()?.statusId)
+  const icon = () => {
+    const selectedIssue = issue()
+    if (!selectedIssue) return ""
+    if (props.field.id === "type") return icons.issueType({ name: issueTypeName(state, selectedIssue), subtask: issueType()?.subtask, hierarchyLevel: issueType()?.hierarchyLevel ?? selectedIssue.typeHierarchyLevel })
+    if (props.field.id === "statusId") return icons.status(status() ?? { name: statusName(state, selectedIssue) })
+    if (props.field.id === "priority") return icons.priority(selectedIssue.priority)
+    if (props.field.id === "parentKey" && props.value) return icons.catalog.exceptional.parent
+    if (props.field.id === "blocked" && props.value === "yes") return icons.catalog.exceptional.blocked
+    if (props.field.id === "assignee" && props.value === "Unassigned") return icons.catalog.exceptional.unassigned
+    return ""
+  }
   if (props.field.multiline) {
     const preview = props.value.split("\n").slice(0, 8).join("\n") || "empty"
     return <text fg={color()}>{preview}</text>
   }
-  return <text fg={color()} wrapMode="none">{props.value || "empty"}</text>
+  return <text fg={color()} wrapMode="none">{icon() ? `${icon()} ` : ""}{props.value || "empty"}</text>
 }
 
 function FieldEditor(props: { field: IssueFieldDefinition }) {
@@ -216,15 +237,16 @@ function UserPickerEditor(props: { fieldId: "assignee" | "reporter" }) {
 
 function ChoiceEditor(props: { field: IssueFieldDefinition }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const choices = () =>
     props.field.id === "statusId"
-      ? configuredStatuses(state).map((status) => ({ value: status.id, label: status.name, color: status.color }))
+      ? configuredStatuses(state).map((status) => ({ value: status.id, label: status.name, color: status.color, icon: icons.status(status) }))
       : props.field.id === "type"
-        ? configuredIssueTypes(state).map((type) => ({ value: type.id, label: type.name, color: type.color }))
+        ? configuredIssueTypes(state).map((type) => ({ value: type.id, label: type.name, color: type.color, icon: icons.issueType(type) }))
         : props.field.id === "sprintId"
-          ? [{ value: "", label: "Backlog", color: theme.textSubtle }, ...state.sprints.filter((sprint) => sprint.state !== "closed").map((sprint) => ({ value: sprint.id, label: sprint.name, color: theme.accent }))]
-          : [{ value: "", label: "No parent", color: theme.textSubtle }, ...(issueByKey(state, state.selectedIssueKey) ? parentIssueChoices(state, issueByKey(state, state.selectedIssueKey)!) : [])]
+          ? [{ value: "", label: "Backlog", color: theme.textSubtle, icon: icons.catalog.structural.leaf }, ...state.sprints.filter((sprint) => sprint.state !== "closed").map((sprint) => ({ value: sprint.id, label: sprint.name, color: theme.accent, icon: icons.catalog.structural.leaf }))]
+          : [{ value: "", label: "No parent", color: theme.textSubtle, icon: icons.catalog.exceptional.parent }, ...(issueByKey(state, state.selectedIssueKey) ? parentIssueChoices(state, issueByKey(state, state.selectedIssueKey)!).map((choice) => ({ ...choice, icon: icons.catalog.exceptional.parent })) : [])]
 
   return (
     <box flexDirection="column" gap={1}>
@@ -233,7 +255,7 @@ function ChoiceEditor(props: { field: IssueFieldDefinition }) {
           const selected = () => state.inspectorEditValue === choice.value
           return (
             <text fg={choice.color} bg={selected() ? theme.selected : undefined} wrapMode="none">
-              {selected() ? ">" : " "} {props.field.id === "statusId" ? "●" : props.field.id === "type" ? "■" : props.field.id === "sprintId" ? "○" : "◆"} {choice.label}
+              {selected() ? ">" : " "} {choice.icon} {choice.label}
             </text>
           )
         }}

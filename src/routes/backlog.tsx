@@ -2,6 +2,7 @@ import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
 import { createEffect, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
+import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
 import type { IssueSummary } from "../state/app-state"
@@ -9,11 +10,13 @@ import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts
 import { issueByKey } from "../state/issue-drafts"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageStatusText, sprintIssuePageSourceId } from "../state/issue-pages"
 import { boardCapabilities } from "../state/routes"
+import { routeBindingsBlocked } from "../state/keyboard-context"
 import { emptyLoadedIssuesText, groupBacklogIssues, groupModeLabel, issueColor, issueTypeColor, issueTypeName, priorityColor, statusColor, statusName } from "../state/selectors"
 import { ParentBadge } from "../ui/parent-badge"
 
 export function BacklogRoute() {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
@@ -27,7 +30,7 @@ export function BacklogRoute() {
       { name: "backlog.scroll.down", run: () => scrollPage(1) },
       { name: "backlog.scroll.up", run: () => scrollPage(-1) },
     ],
-    bindings: state.searchOpen || state.inspectorEditingFieldId ? [] : [
+    bindings: state.route !== "backlog" || routeBindingsBlocked(state) ? [] : [
       { key: "d", cmd: "backlog.scroll.down" },
       { key: { name: "d", ctrl: true }, cmd: "backlog.scroll.down" },
       { key: "u", cmd: "backlog.scroll.up" },
@@ -75,7 +78,7 @@ export function BacklogRoute() {
             {(group) => (
               <box id={`backlog-group-${group.id}`} borderStyle="rounded" borderColor={state.selectedBacklogGroupId === group.id ? theme.borderActive : theme.border} backgroundColor={state.selectedBacklogGroupId === group.id ? theme.panel : undefined} padding={1} flexDirection="column" gap={1} marginBottom={1} width="100%">
                 <box flexDirection="row" justifyContent="space-between">
-                  <text attributes={TextAttributes.BOLD} fg={theme.text}>{state.collapsedBacklogGroupIds.includes(group.id) ? ">" : "v"} {group.label}</text>
+                  <text attributes={TextAttributes.BOLD} fg={theme.text}>{state.collapsedBacklogGroupIds.includes(group.id) ? icons.catalog.structural.collapsed : icons.catalog.structural.expanded} {group.label}</text>
                   <text fg={theme.textSubtle}>{sectionPoints(group.issueKeys)} pts · {group.issueKeys.length} issues</text>
                 </box>
                 <Show when={!state.collapsedBacklogGroupIds.includes(group.id)}>
@@ -130,8 +133,9 @@ function backlogGroupSourceId(groupId: string) {
 
 function BacklogLegend(props: { width: number }) {
   const { state } = useAppState()
-  const issueTypeRows = () => packLegendRows(configuredIssueTypes(state).map((issueType) => ({ label: `■ ${shortType(issueType.name)}`, color: issueType.color })), props.width, 1)
-  const statusRows = () => packLegendRows(configuredStatuses(state).map((status) => ({ label: `● ${status.name}`, color: status.color })), props.width, 2)
+  const icons = useIcons()
+  const issueTypeRows = () => packLegendRows(configuredIssueTypes(state).map((issueType) => ({ label: `${icons.issueType(issueType)} ${shortType(issueType.name)}`, color: issueType.color })), props.width, 1)
+  const statusRows = () => packLegendRows(configuredStatuses(state).map((status) => ({ label: `${icons.status(status)} ${status.name}`, color: status.color })), props.width, 2)
 
   return (
     <box flexDirection="column" gap={0} flexShrink={0}>
@@ -207,19 +211,23 @@ export function backlogScrollTarget(groupId: string, selectedIssueKey: string, c
 
 function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: boolean }) {
   const { state } = useAppState()
+  const icons = useIcons()
   const theme = useTheme()
+  const issueType = () => configuredIssueTypes(state).find((type) => type.id === props.issue.type || type.name === props.issue.type || type.name === props.issue.typeName)
+  const status = () => configuredStatuses(state).find((candidate) => candidate.id === props.issue.statusId)
+  const typeIcon = () => icons.issueType({ name: issueTypeName(state, props.issue), subtask: issueType()?.subtask, hierarchyLevel: issueType()?.hierarchyLevel ?? props.issue.typeHierarchyLevel })
 
   if (props.compact) {
     return (
       <box id={`issue-${props.issue.key}`} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
         <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none">
-          <span style={{ fg: issueTypeColor(state, props.issue) }}>■ </span>
+          <span style={{ fg: issueTypeColor(state, props.issue) }}>{typeIcon()} </span>
           <span style={{ fg: issueColor(state, props.issue) }}>{props.issue.key}</span>
            <span style={{ fg: theme.textSubtle }}> {issueTypeName(state, props.issue)}</span>
           <span> {props.issue.title}</span>
         </text>
         <text fg={statusColor(state, props.issue)} wrapMode="none">
-          {statusName(state, props.issue)} · <span style={{ fg: priorityColor(props.issue) }}>{props.issue.priority}</span> · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
+          {icons.status(status() ?? { name: statusName(state, props.issue) })} {statusName(state, props.issue)} · <span style={{ fg: priorityColor(props.issue) }}>{icons.priority(props.issue.priority)} {props.issue.priority}</span> · {props.issue.assignee === "Unassigned" ? `${icons.catalog.exceptional.unassigned} ` : ""}{props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
         </text>
         <ParentBadge issue={props.issue} topLevelOnly />
       </box>
@@ -230,14 +238,14 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; compact: bo
     <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
       <box flexDirection="row" gap={1}>
         <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexGrow={1} flexShrink={1} minWidth={0}>
-          <span style={{ fg: issueTypeColor(state, props.issue) }}>■ </span>
+          <span style={{ fg: issueTypeColor(state, props.issue) }}>{typeIcon()} </span>
           <span style={{ fg: issueColor(state, props.issue) }}>{props.issue.key}</span>
           <span style={{ fg: theme.textSubtle }}> {issueTypeName(state, props.issue)}</span>
           <span> {props.issue.title}</span>
         </text>
         <box width={28} flexShrink={0}><ParentBadge issue={props.issue} width={28} topLevelOnly /></box>
         <text fg={statusColor(state, props.issue)} wrapMode="none" width={34} flexShrink={0}>
-          {statusName(state, props.issue)} · <span style={{ fg: priorityColor(props.issue) }}>{props.issue.priority}</span> · {props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
+          {icons.status(status() ?? { name: statusName(state, props.issue) })} {statusName(state, props.issue)} · <span style={{ fg: priorityColor(props.issue) }}>{icons.priority(props.issue.priority)} {props.issue.priority}</span> · {props.issue.assignee === "Unassigned" ? `${icons.catalog.exceptional.unassigned} ` : ""}{props.issue.assignee} · {props.issue.storyPoints ?? "?"} pts
         </text>
       </box>
     </box>
