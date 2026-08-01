@@ -90,11 +90,12 @@ describe("shell navigation and action icons", () => {
       state.selectedIssueKey = "PROJ-301"
     }, 120)
     const lines = frame.split("\n")
-    const identityIndex = lines.findIndex((line, index) => line.includes("PROJ-301") && lines[index + 1]?.includes("◉ In Progress"))
+    const identityIndex = lines.findIndex((line) => line.includes("◆ PROJ-301"))
 
     expect(identityIndex).toBeGreaterThan(-1)
     expect(lines[identityIndex]).toContain("PROJ-301")
-    expect(lines[identityIndex + 1]).toContain("◉ In Progress")
+    expect(lines[identityIndex + 1]).toContain("↑ PROJ-300 Workspace navigation program")
+    expect(lines[identityIndex + 2]).toContain("◉ In Progress")
   })
 
   test("keeps project picker loading and actionable error text visible", async () => {

@@ -112,7 +112,7 @@ Timeline projects the independently paged project issue source into a read-only 
 
 ### 3. Backlog
 
-Scrum Backlog shows collapsible active sprint, future sprint, and backlog groups with rank and move staging. Kanban Backlog shows the board backlog without sprint-only controls. Rows adapt to the measured Backlog pane: issue keys and titles lead, status remains visible, metadata moves to a second line as space narrows, and parent context consumes space only when present. Planning Signals appears only when enough width remains for a wide issue list. `L` loads the focused source page when Jira has more results.
+Scrum Backlog shows collapsible active sprint, future sprint, and backlog groups with rank and move staging. Kanban Backlog shows the board backlog without sprint-only controls. Balanced rows adapt to the measured Backlog pane: complete issue keys and ellipsized titles lead, a visible boundary separates inline metadata, top-level ancestor keys and names use a dedicated conditional line, and stacked metadata keeps status readable as space narrows. Every issue has one separator row; absent ancestors consume no additional space. Planning Signals appears only when enough width remains for a wide issue list. `L` loads the focused source page when Jira has more results.
 
 ### 4. List
 

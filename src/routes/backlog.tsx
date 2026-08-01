@@ -11,8 +11,7 @@ import { issueByKey } from "../state/issue-drafts"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageStatusText, sprintIssuePageSourceId } from "../state/issue-pages"
 import { boardCapabilities } from "../state/routes"
 import { routeBindingsBlocked } from "../state/keyboard-context"
-import { emptyLoadedIssuesText, groupBacklogIssues, groupModeLabel, issueColor, issueTypeColor, issueTypeName, priorityColor, statusColor, statusName } from "../state/selectors"
-import { ParentBadge } from "../ui/parent-badge"
+import { emptyLoadedIssuesText, groupBacklogIssues, groupModeLabel, issueColor, issueTypeColor, issueTypeName, parentIssueColor, priorityColor, statusColor, statusName, topLevelLoadedAncestor } from "../state/selectors"
 
 export function BacklogRoute() {
   const { state } = useAppState()
@@ -224,13 +223,6 @@ export type BacklogLayout = {
   mode: BacklogRowMode
   rowWidth: number
   showHealth: boolean
-  showTypeName: boolean
-  parentLabel: "key" | "key-title"
-  showParent: boolean
-  showPriorityLabel: boolean
-  showPoints: boolean
-  showAssignee: boolean
-  showUnassignedIndicator: boolean
 }
 
 export function backlogLayout(viewportWidth: number, supportsSprintHealth: boolean): BacklogLayout {
@@ -242,13 +234,6 @@ export function backlogLayout(viewportWidth: number, supportsSprintHealth: boole
     mode,
     rowWidth,
     showHealth,
-    showTypeName: rowWidth >= 126,
-    parentLabel: rowWidth >= 155 ? "key-title" : "key",
-    showParent: rowWidth >= 68,
-    showPriorityLabel: rowWidth >= 48,
-    showPoints: rowWidth >= 58,
-    showAssignee: rowWidth >= 92,
-    showUnassignedIndicator: rowWidth >= 52,
   }
 }
 
@@ -265,75 +250,176 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; layout: Acc
   const icons = useIcons()
   const theme = useTheme()
   const issueType = () => configuredIssueTypes(state).find((type) => type.id === props.issue.type || type.name === props.issue.type || type.name === props.issue.typeName)
+  const status = () => configuredStatuses(state).find((candidate) => candidate.id === props.issue.statusId)
+  const ancestor = () => topLevelLoadedAncestor(state, props.issue)
   const typeIcon = () => icons.issueType({ name: issueTypeName(state, props.issue), subtask: issueType()?.subtask, hierarchyLevel: issueType()?.hierarchyLevel ?? props.issue.typeHierarchyLevel })
+  const contentWidth = () => Math.max(20, props.layout().rowWidth - 6)
+  const plan = () => planBacklogRow({
+    width: contentWidth(),
+    allowInline: props.layout().mode === "wide",
+    typeIcon: typeIcon(),
+    issueKey: props.issue.key,
+    typeName: issueTypeName(state, props.issue),
+    title: props.issue.title,
+    status: `${icons.status(status() ?? { name: statusName(state, props.issue) })} ${statusName(state, props.issue)}`,
+    priority: `${icons.priority(props.issue.priority)} ${props.issue.priority}`,
+    priorityIcon: icons.priority(props.issue.priority),
+    points: `${props.issue.storyPoints ?? "?"} pts`,
+    assignee: props.issue.assignee === "Unassigned" ? `${icons.catalog.exceptional.unassigned} Unassigned` : props.issue.assignee,
+    unassigned: props.issue.assignee === "Unassigned",
+  })
+  const ancestorText = () => {
+    const value = ancestor()
+    if (!value) return undefined
+    const name = value.title ?? value.typeName ?? value.type ?? "Parent"
+    return truncateCellText(`${icons.catalog.exceptional.parent} ${value.key} ${name}`, Math.max(1, contentWidth() - 2))
+  }
 
   return (
-    <Show
-      when={props.layout().mode === "wide"}
-      fallback={(
-        <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
-          <IssueIdentity issue={props.issue} selected={props.selected} typeIcon={typeIcon()} showTypeName={false} fill />
-          <BacklogMetadata issue={props.issue} layout={props.layout} />
+    <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} marginBottom={1} backgroundColor={props.selected ? "#172554" : undefined}>
+      <Show when={plan().inline} fallback={<IssueIdentity issue={props.issue} selected={props.selected} plan={plan()} />}>
+        <box flexDirection="row" minWidth={0}>
+          <IssueIdentity issue={props.issue} selected={props.selected} plan={plan()} />
+          <text fg={theme.textSubtle} wrapMode="none" flexShrink={0}>  │  </text>
+          <BacklogMetadata issue={props.issue} plan={plan()} />
         </box>
-      )}
-    >
-      <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? "#172554" : undefined}>
-        <box flexDirection="row" gap={1}>
-          <IssueIdentity issue={props.issue} selected={props.selected} typeIcon={typeIcon()} showTypeName={props.layout().showTypeName} />
-          <BacklogMetadata issue={props.issue} layout={props.layout} />
-        </box>
-      </box>
-    </Show>
+      </Show>
+      <Show when={ancestorText()}>
+        {(text) => (
+          <box paddingLeft={2} minWidth={0}>
+            <text fg={parentIssueColor(state, ancestor()!)} wrapMode="none">{text()}</text>
+          </box>
+        )}
+      </Show>
+      <Show when={!plan().inline}>
+        <box paddingLeft={2} minWidth={0}><BacklogMetadata issue={props.issue} plan={plan()} /></box>
+      </Show>
+    </box>
   )
 }
 
-function IssueIdentity(props: { issue: IssueSummary; selected: boolean; typeIcon: string; showTypeName: boolean; fill?: boolean }) {
+function IssueIdentity(props: { issue: IssueSummary; selected: boolean; plan: BacklogRowPlan }) {
   const { state } = useAppState()
   const theme = useTheme()
   return (
-    <box flexDirection="row" flexGrow={props.fill ? 1 : 0} flexShrink={1} minWidth={0}>
+    <box flexDirection="row" flexShrink={0} minWidth={0}>
       <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexShrink={0}>
-        <span style={{ fg: issueTypeColor(state, props.issue) }}>{props.typeIcon} </span>
+        <span style={{ fg: issueTypeColor(state, props.issue) }}>{props.plan.typeIcon} </span>
         <span style={{ fg: issueColor(state, props.issue) }}>{props.issue.key}</span>
       </text>
-      <Show when={props.showTypeName}>
-        <text fg={theme.textSubtle} wrapMode="none" flexShrink={0}> {issueTypeName(state, props.issue)}</text>
+      <Show when={props.plan.typeName}>
+        {(typeName) => <text fg={theme.textSubtle} wrapMode="none" flexShrink={0}> {typeName()}</text>}
       </Show>
-      <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexGrow={props.fill ? 1 : 0} flexShrink={1} minWidth={0}> {props.issue.title}</text>
+      <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexShrink={0}> {props.plan.title}</text>
     </box>
   )
 }
 
-function BacklogMetadata(props: { issue: IssueSummary; layout: Accessor<BacklogLayout> }) {
+function BacklogMetadata(props: { issue: IssueSummary; plan: BacklogRowPlan }) {
   const { state } = useAppState()
-  const icons = useIcons()
   const theme = useTheme()
-  const status = () => configuredStatuses(state).find((candidate) => candidate.id === props.issue.statusId)
-  const unassigned = () => props.issue.assignee === "Unassigned"
-  const statusWidth = () => props.layout().mode === "narrow" ? Math.max(12, Math.min(24, props.layout().rowWidth - 12)) : 24
+  const color = (kind: BacklogMetadataKind) => {
+    if (kind === "status") return statusColor(state, props.issue)
+    if (kind === "priority") return priorityColor(props.issue)
+    if (kind === "unassigned") return theme.warning
+    return theme.textSubtle
+  }
 
   return (
-    <box flexDirection="row" gap={1} flexShrink={props.layout().mode === "wide" ? 0 : 1} minWidth={0}>
-      <text fg={statusColor(state, props.issue)} wrapMode="none" maxWidth={statusWidth()} flexShrink={1} minWidth={8}>
-        {icons.status(status() ?? { name: statusName(state, props.issue) })} {statusName(state, props.issue)}
-      </text>
-      <Show when={props.layout().showParent}>
-        <ParentBadge issue={props.issue} maxWidth={props.layout().parentLabel === "key-title" ? 28 : 14} label={props.layout().parentLabel} flexShrink={1} topLevelOnly />
-      </Show>
-      <text fg={priorityColor(props.issue)} wrapMode="none" flexShrink={0}>
-        {icons.priority(props.issue.priority)}{props.layout().showPriorityLabel ? ` ${props.issue.priority}` : ""}
-      </text>
-      <Show when={props.layout().showPoints}>
-        <text fg={theme.textSubtle} wrapMode="none" flexShrink={0}>{props.issue.storyPoints ?? "?"} pts</text>
-      </Show>
-      <Show when={props.layout().showAssignee || (unassigned() && props.layout().showUnassignedIndicator)}>
-        <text fg={unassigned() ? theme.warning : theme.textSubtle} wrapMode="none" maxWidth={16} flexShrink={1}>
-          {unassigned() ? icons.catalog.exceptional.unassigned : ""}{props.layout().showAssignee ? `${unassigned() ? " " : ""}${props.issue.assignee}` : ""}
-        </text>
-      </Show>
+    <box flexDirection="row" flexShrink={0} minWidth={0}>
+      <For each={props.plan.metadata}>
+        {(token, index) => (
+          <>
+            <Show when={index() > 0}><text fg={theme.textSubtle} wrapMode="none" flexShrink={0}> · </text></Show>
+            <text fg={color(token.kind)} wrapMode="none" flexShrink={0}>{token.text}</text>
+          </>
+        )}
+      </For>
     </box>
   )
 }
+
+export type BacklogMetadataKind = "status" | "priority" | "points" | "assignee" | "unassigned"
+
+export type BacklogRowPlan = {
+  inline: boolean
+  typeIcon: string
+  typeName?: string
+  title: string
+  metadata: Array<{ kind: BacklogMetadataKind; text: string }>
+}
+
+export function planBacklogRow(input: {
+  width: number
+  allowInline: boolean
+  typeIcon: string
+  issueKey: string
+  typeName: string
+  title: string
+  status: string
+  priority: string
+  priorityIcon: string
+  points: string
+  assignee: string
+  unassigned: boolean
+}): BacklogRowPlan {
+  const width = Math.max(8, Math.floor(input.width))
+  const identityWidth = cellWidth(`${input.typeIcon} ${input.issueKey}`)
+  const minimumTitleWidth = Math.min(12, Math.max(1, width - identityWidth - 1))
+  const maximumInlineMetadataWidth = width - identityWidth - minimumTitleWidth - 1 - 5
+  const inline = input.allowInline && maximumInlineMetadataWidth >= cellWidth(input.status)
+  const metadataBudget = inline ? maximumInlineMetadataWidth : Math.max(1, width - 2)
+  const metadata = planMetadata(input, metadataBudget)
+  const metadataWidth = metadata.reduce((total, token, index) => total + cellWidth(token.text) + (index ? 3 : 0), 0)
+  const typeNameWidth = cellWidth(` ${input.typeName}`)
+  const titleBudgetWithoutType = Math.max(1, width - identityWidth - 1 - (inline ? 5 + metadataWidth : 0))
+  const showTypeName = inline && titleBudgetWithoutType - typeNameWidth >= minimumTitleWidth
+  const titleBudget = Math.max(1, titleBudgetWithoutType - (showTypeName ? typeNameWidth : 0))
+
+  return {
+    inline,
+    typeIcon: input.typeIcon,
+    typeName: showTypeName ? input.typeName : undefined,
+    title: truncateCellText(input.title, titleBudget),
+    metadata,
+  }
+}
+
+function planMetadata(input: Parameters<typeof planBacklogRow>[0], budget: number): BacklogRowPlan["metadata"] {
+  const metadata: BacklogRowPlan["metadata"] = [{ kind: "status", text: truncateCellText(input.status, budget) }]
+  let used = cellWidth(metadata[0]!.text)
+  const add = (kind: BacklogMetadataKind, text: string) => {
+    const required = 3 + cellWidth(text)
+    if (used + required > budget) return false
+    metadata.push({ kind, text })
+    used += required
+    return true
+  }
+
+  if (!add("priority", input.priority)) add("priority", input.priorityIcon)
+  if (input.unassigned) add("unassigned", input.assignee)
+  add("points", input.points)
+  if (!input.unassigned) add("assignee", input.assignee)
+  return metadata
+}
+
+export function truncateCellText(value: string, maxWidth: number) {
+  const width = Math.max(0, Math.floor(maxWidth))
+  if (!width) return ""
+  if (cellWidth(value) <= width) return value
+  if (width === 1) return "…"
+  let result = ""
+  for (const character of value) {
+    if (cellWidth(result + character) > width - 1) break
+    result += character
+  }
+  return `${result}…`
+}
+
+function cellWidth(value: string) {
+  return typeof Bun === "undefined" ? [...value].length : Bun.stringWidth(value)
+}
+
 
 function SprintHealth() {
   const { state } = useAppState()

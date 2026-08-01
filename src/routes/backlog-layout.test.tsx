@@ -19,44 +19,49 @@ afterEach(() => {
 })
 
 describe("adaptive backlog rows", () => {
-  test("uses a content-sized parent badge in a wide row", async () => {
+  test("separates wide identity and metadata and gives ancestors their own line", async () => {
     const frame = await renderBacklog(160)
-    const row = frame.split("\n").find((line) => line.includes("PROJ-301")) ?? ""
-    const topLevelRow = frame.split("\n").find((line) => line.includes("PROJ-300")) ?? ""
+    const lines = frame.split("\n")
+    const identityIndex = lines.findIndex((line) => line.includes("PROJ-301"))
+    const topLevelIndex = lines.findIndex((line) => line.includes("▲ PROJ-300"))
 
-    expect(row).toContain("PROJ-301")
-    expect(row).toContain("Timeline foundation")
-    expect(row).toContain("↑ PROJ-300")
-    expect(row).toContain("◉ In Progress")
-    expect(topLevelRow.indexOf("◉ In Progress") - (topLevelRow.indexOf("Workspace navigation program") + "Workspace navigation program".length)).toBeLessThanOrEqual(2)
+    expect(lines[identityIndex]).toContain("Timeline foundation │ ◉ In Progress")
+    expect(lines[identityIndex + 1]).toContain("↑ PROJ-300 Workspace navigation program")
+    expect(lines[identityIndex + 2]).not.toMatch(/PROJ-|In Progress|To Do/)
+    expect(lines[topLevelIndex]).toContain("Workspace navigation program │ ◉ In Progress")
+    expect(lines[topLevelIndex + 1]).not.toMatch(/PROJ-|In Progress|To Do/)
   })
 
-  test("moves metadata below identity and keeps parent keys visible at medium width", async () => {
+  test("stacks ancestor names and metadata below identity at medium width", async () => {
     const frame = await renderBacklog(90)
     const lines = frame.split("\n")
     const identityIndex = lines.findIndex((line) => line.includes("PROJ-301"))
 
     expect(identityIndex).toBeGreaterThan(-1)
     expect(lines[identityIndex]).toContain("Timeline foundation")
-    expect(lines[identityIndex + 1]).toContain("◉ In Progress")
-    expect(lines[identityIndex + 1]).toContain("↑ PROJ-300")
-    expect(lines[identityIndex + 1]).not.toContain("Workspace navigation program")
+    expect(lines[identityIndex + 1]).toContain("↑ PROJ-300 Workspace navigation program")
+    expect(lines[identityIndex + 2]).toContain("◉ In Progress")
+    expect(lines[identityIndex + 3]).not.toMatch(/PROJ-|In Progress|To Do/)
   })
 
-  test("preserves the full issue key before optional metadata at narrow width", async () => {
+  test("preserves complete keys, ancestor names, and status at narrow width", async () => {
     const frame = await renderBacklog(60)
     const lines = frame.split("\n")
     const identityIndex = lines.findIndex((line) => line.includes("PROJ-301"))
 
     expect(identityIndex).toBeGreaterThan(-1)
     expect(lines[identityIndex]).toContain("PROJ-301")
-    expect(lines[identityIndex + 1]).toContain("◉ In Progress")
-    expect(lines[identityIndex + 1]).not.toContain("PROJ-300")
+    expect(lines[identityIndex + 1]).toContain("↑ PROJ-300 Workspace navigation program")
+    expect(lines[identityIndex + 2]).toContain("◉ In Progress")
+    expect(lines[identityIndex + 3]).not.toMatch(/PROJ-|In Progress|To Do/)
   })
 
   test("replans existing rows after a terminal resize", async () => {
     const setup = await mountBacklog(160)
-    expect((setup.captureCharFrame().split("\n").find((line) => line.includes("PROJ-301")) ?? "")).toContain("↑ PROJ-300")
+    const wideLines = setup.captureCharFrame().split("\n")
+    const wideIdentityIndex = wideLines.findIndex((line) => line.includes("PROJ-301"))
+    expect(wideLines[wideIdentityIndex]).toContain("│ ◉ In Progress")
+    expect(wideLines[wideIdentityIndex + 1]).toContain("↑ PROJ-300 Workspace navigation program")
 
     setup.resize(60, 50)
     await setup.flush()
@@ -66,7 +71,8 @@ describe("adaptive backlog rows", () => {
 
     expect(identityIndex).toBeGreaterThan(-1)
     expect(lines[identityIndex]).toContain("PROJ-301")
-    expect(lines[identityIndex + 1]).not.toContain("PROJ-300")
+    expect(lines[identityIndex + 1]).toContain("↑ PROJ-300 Workspace navigation program")
+    expect(lines[identityIndex + 2]).toContain("◉ In Progress")
   })
 })
 
