@@ -84,6 +84,7 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     selectedBoardLocations: {},
     inspectorSelectedFieldIndex: 1,
     inspectorEditValue: "",
+    inspectorFieldPicker: undefined,
     inspectorUserPicker: undefined,
     userDraftAccountIds: {},
     issueDrafts: {},

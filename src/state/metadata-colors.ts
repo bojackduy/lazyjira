@@ -1,4 +1,4 @@
-import type { IssuePriority, StatusCategory } from "./app-state"
+import type { StatusCategory } from "./app-state"
 
 export const statusCategoryColors: Record<StatusCategory, string> = {
   todo: "#94A3B8",
@@ -66,7 +66,7 @@ export function issueTypeColorForName(name: string) {
   return issueTypeColors.task
 }
 
-export const priorityColors: Record<IssuePriority, string> = {
+export const priorityColors: Record<string, string> = {
   Critical: "#F85149",
   High: "#DB6D28",
   Medium: "#D29922",

@@ -25,6 +25,7 @@ const maxHydratedParents = 200
 
 export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConfig | undefined> = loadJiraAuthConfig, fetchImpl: FetchLike = fetch): WorkspaceSource {
   let cachedFields: { ids: JiraIssueFieldIds; startDate: TimelineStartDateField } | undefined
+  let cachedPriorities: Awaited<ReturnType<typeof fetchJiraPriorities>> | undefined
   let cachedPriorityColors = new Map<string, string>()
   const issueTypeColorCache = new Map<string, string>()
 
@@ -55,9 +56,10 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
         selection.board.type === "scrum" ? fetchBoardSprints(auth, selection.board.id, fetchImpl) : Promise.resolve([]),
         issueFields(auth),
         fetchCurrentJiraUser(auth, fetchImpl),
-        fetchJiraPriorities(auth, fetchImpl).catch(() => []),
+        fetchJiraPriorities(auth, fetchImpl).catch(() => undefined),
       ])
-      cachedPriorityColors = new Map(priorities.flatMap((priority) => {
+      cachedPriorities = priorities
+      cachedPriorityColors = new Map((priorities ?? []).flatMap((priority) => {
         const color = jiraMetadataColor(priority.statusColor)
         return priority.name && color ? [[priority.name, color] as const] : []
       }))
@@ -202,6 +204,33 @@ export function createProdWorkspaceSource(authLoader: () => Promise<JiraAuthConf
     },
     async rankIssue(issueKey, targetIssueKey, position) {
       await rankJiraIssue(await requireJiraAuth(authLoader), issueKey, targetIssueKey, position, fetchImpl)
+    },
+    async loadIssueFieldOptions(fieldId, issueKey) {
+      const auth = await requireJiraAuth(authLoader)
+      if (fieldId !== "priority") return []
+
+      let editMetadataError: unknown
+      let priorities: Awaited<ReturnType<typeof fetchJiraPriorities>> = []
+      try {
+        priorities = (await fetchJiraIssueEditMetadata(auth, issueKey, fetchImpl)).fields?.priority?.allowedValues ?? []
+      } catch (error) {
+        editMetadataError = error
+      }
+      if (!priorities.length) {
+        try {
+          priorities = cachedPriorities ?? await fetchJiraPriorities(auth, fetchImpl)
+          cachedPriorities = priorities
+        } catch (error) {
+          throw editMetadataError ?? error
+        }
+      }
+      if (!priorities.length) throw new Error(`Jira did not return any Priority choices for ${issueKey}.`)
+
+      return priorities.flatMap((priority) => priority.name ? [{
+        value: priority.name,
+        label: priority.name,
+        color: jiraMetadataColor(priority.statusColor) ?? cachedPriorityColors.get(priority.name),
+      }] : [])
     },
     async loadUserPicker(fieldId, issueKey, projectKey, query) {
       const auth = await requireJiraAuth(authLoader)

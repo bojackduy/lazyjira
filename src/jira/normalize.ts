@@ -305,11 +305,7 @@ function isSprintState(value: string | undefined): value is SprintSummary["state
 }
 
 function normalizePriority(name: string | undefined): IssuePriority {
-  const normalized = name?.toLowerCase() ?? ""
-  if (normalized.includes("critical") || normalized.includes("highest")) return "Critical"
-  if (normalized.includes("high")) return "High"
-  if (normalized.includes("low") || normalized.includes("lowest")) return "Low"
-  return "Medium"
+  return name?.trim() || "Medium"
 }
 
 function names(values: Array<{ name?: string }> | undefined) {

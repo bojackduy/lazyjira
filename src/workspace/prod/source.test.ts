@@ -210,6 +210,44 @@ describe("prod workspace source", () => {
     await source.postIssueComment("REAL-1", "Ready for review")
   })
 
+  test("loads issue-valid Priority choices from edit metadata", async () => {
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url) => {
+        expect(url).toBe("https://team.atlassian.net/rest/api/3/issue/REAL-1/editmeta")
+        return jsonResponse({ fields: { priority: { allowedValues: [
+          { id: "2", name: "High", statusColor: "#FF5630" },
+          { id: "3", name: "Medium", statusColor: "#FFAB00" },
+        ] } } })
+      },
+    )
+
+    await expect(source.loadIssueFieldOptions("priority", "REAL-1")).resolves.toEqual([
+      { value: "High", label: "High", color: "#FF5630" },
+      { value: "Medium", label: "Medium", color: "#FFAB00" },
+    ])
+  })
+
+  test("falls back to Jira's Priority catalog when edit metadata is unavailable", async () => {
+    const requests: string[] = []
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url) => {
+        requests.push(url)
+        if (url.endsWith("/editmeta")) return jsonResponse({ errorMessages: ["Edit metadata unavailable"] }, 404)
+        return jsonResponse([{ id: "4", name: "Low", statusColor: "#36B37E" }])
+      },
+    )
+
+    await expect(source.loadIssueFieldOptions("priority", "REAL-1")).resolves.toEqual([
+      { value: "Low", label: "Low", color: "#36B37E" },
+    ])
+    expect(requests).toEqual([
+      "https://team.atlassian.net/rest/api/3/issue/REAL-1/editmeta",
+      "https://team.atlassian.net/rest/api/3/priority",
+    ])
+  })
+
   test("loads bounded issue pages for a source", async () => {
     const requests: string[] = []
     const source = createProdWorkspaceSource(

@@ -109,7 +109,7 @@ export type JiraTransition = {
 }
 
 export type JiraEditMetadata = {
-  fields?: Record<string, { allowedValues?: Array<{ id?: string; name?: string }> }>
+  fields?: Record<string, { allowedValues?: Array<{ id?: string; name?: string; statusColor?: string; iconUrl?: string }> }>
 }
 
 export type JiraCreateIssueType = { id?: string; name?: string; hierarchyLevel?: number; subtask?: boolean; iconUrl?: string }

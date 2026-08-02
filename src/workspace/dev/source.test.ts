@@ -57,4 +57,10 @@ describe("dev workspace source", () => {
     expect(second.items.map((project) => project.key)).toEqual(["OPS"])
     expect(search.items.map((project) => project.key)).toEqual(["MOB"])
   })
+
+  test("provides deterministic Priority choices for Inspector editing", async () => {
+    const options = await createDevWorkspaceSource().loadIssueFieldOptions("priority", "PROJ-128")
+
+    expect(options.map((option) => option.value)).toEqual(["Critical", "Medium", "High", "Low"])
+  })
 })

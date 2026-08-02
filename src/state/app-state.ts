@@ -21,7 +21,7 @@ export type SprintSummary = {
   endDate?: string
 }
 
-export type IssuePriority = "Low" | "Medium" | "High" | "Critical"
+export type IssuePriority = string
 
 export type IssueType = string
 
@@ -75,6 +75,21 @@ export type IssueRankDraft = {
 export type JiraUserOption = {
   accountId: string
   displayName: string
+}
+
+export type JiraFieldOption = {
+  value: string
+  label: string
+  color?: string
+}
+
+export type InspectorFieldPicker = {
+  fieldId: "priority"
+  issueKey: string
+  options: JiraFieldOption[]
+  selectedIndex: number
+  loading: boolean
+  error?: string
 }
 
 export type InspectorUserPicker = {
@@ -359,6 +374,7 @@ export type AppState = {
   inspectorSelectedFieldIndex: number
   inspectorEditingFieldId?: IssueEditableField
   inspectorEditValue: string
+  inspectorFieldPicker?: InspectorFieldPicker
   inspectorUserPicker?: InspectorUserPicker
   userDraftAccountIds: Record<string, Partial<Record<"assignee" | "reporter", string>>>
   issueDrafts: Record<string, IssueDraft>

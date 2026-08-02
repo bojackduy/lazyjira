@@ -385,6 +385,16 @@ describe("Jira discovery client", () => {
     ])
   })
 
+  test("preserves Jira Priority labels instead of collapsing them to local names", () => {
+    const issue = normalizeJiraIssues([{
+      key: "PROJ-1",
+      fields: { summary: "Urgent work", status: { id: "todo" }, priority: { name: "Highest", statusColor: "#FF5630" } },
+    }], [{ id: "todo", name: "To Do", category: "todo", color: "#fff" }])[0]!
+
+    expect(issue.priority).toBe("Highest")
+    expect(issue.priorityColor).toBe("#FF5630")
+  })
+
   test("discovers Start date by system schema precedence and rejects ambiguous named date fields", () => {
     const fields = [
       { id: "customfield_1", name: "Start date", schema: { type: "date" } },

@@ -80,6 +80,13 @@ export function createDevWorkspaceSource(): WorkspaceSource {
     async rankIssue() {
       throw new Error("Remote Jira writes are unavailable in dev runtime")
     },
+    async loadIssueFieldOptions(fieldId, issueKey) {
+      const workspace = loadDevWorkspaceFixture(issueKey.split("-")[0] ?? "PROJ")
+      if (fieldId === "priority") {
+        return [...new Map(Object.values(workspace.issues).map((issue) => [issue.priority, { value: issue.priority, label: issue.priority, color: issue.priorityColor }])).values()]
+      }
+      return []
+    },
     async loadUserPicker(fieldId, issueKey, projectKey, query) {
       const members = [...new Set(Object.values(loadDevWorkspaceFixture(projectKey).issues).flatMap((issue) => [issue.assignee, issue.reporter]).filter((name) => name && name !== "Unassigned"))]
       const normalizedQuery = query.trim().toLowerCase()

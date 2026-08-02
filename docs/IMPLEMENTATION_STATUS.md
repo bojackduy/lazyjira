@@ -36,6 +36,7 @@ Current project navigation uses `Workspace`, `Timeline`, `Backlog`, `List`, and 
 - [x] Planner supports safe field-update previews for summary, priority, parent, due date, labels, components, versions, and ADF descriptions.
 - [x] Assignee and Reporter use Jira's issue-aware assignable-user picker and stage account IDs, never free text.
 - [x] User pickers use Up/Down selection, preserve all filter text keys, debounce stale-safe lookups, and clear picker state on cancel.
+- [x] Priority uses issue-specific Jira edit metadata with catalog fallback, loading/error feedback, and stale-safe choice staging instead of free text.
 - [x] Planner visibly blocks unsupported or high-risk rows: transitions, sprint moves, custom fields, type, links, create, delete, and config writes.
 - [x] Staged comment composer (`c`) and backlog rank staging (`J/K`) with exact Jira operation previews.
 - [x] A7.5 executes planned writes sequentially, clears only successful staged rows, retains failures, and refreshes affected issues.

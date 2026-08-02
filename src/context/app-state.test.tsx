@@ -746,6 +746,68 @@ describe("app state project picker", () => {
     expect(appState.state.issueDrafts["PROJ-128"]?.sprintId).toBe("sprint-25")
   })
 
+  test("stages only a Priority returned by Jira for the selected issue", async () => {
+    const requests: string[] = []
+    const appState = createTestAppState({
+      async loadIssueFieldOptions(fieldId, issueKey) {
+        requests.push(`${fieldId}:${issueKey}`)
+        return [
+          { value: "High", label: "High", color: "#FF5630" },
+          { value: "Medium", label: "Medium", color: "#FFAB00" },
+        ]
+      },
+    })
+    const priorityFieldIndex = issueFields.findIndex((field) => field.id === "priority")
+
+    appState.moveInspectorSelection(priorityFieldIndex - appState.state.inspectorSelectedFieldIndex)
+    appState.startInspectorEdit()
+    expect(appState.state.inspectorFieldPicker?.loading).toBe(true)
+    await flushPromises()
+    appState.moveInspectorChoice(1)
+    appState.commitInspectorEdit()
+
+    expect(requests).toEqual(["priority:PROJ-128"])
+    expect(appState.state.issueDrafts["PROJ-128"]?.priority).toBe("Medium")
+    expect(appState.state.inspectorFieldPicker).toBeUndefined()
+  })
+
+  test("keeps Priority editing open when Jira choices fail to load", async () => {
+    const appState = createTestAppState({
+      async loadIssueFieldOptions() {
+        throw new Error("Priority choices are unavailable")
+      },
+    })
+    const priorityFieldIndex = issueFields.findIndex((field) => field.id === "priority")
+
+    appState.moveInspectorSelection(priorityFieldIndex - appState.state.inspectorSelectedFieldIndex)
+    appState.startInspectorEdit()
+    await flushPromises()
+    appState.commitInspectorEdit()
+
+    expect(appState.state.inspectorEditingFieldId).toBe("priority")
+    expect(appState.state.inspectorFieldPicker?.error).toBe("Priority choices are unavailable")
+    expect(appState.state.issueDrafts["PROJ-128"]?.priority).toBeUndefined()
+  })
+
+  test("ignores a stale Priority response after editing is cancelled", async () => {
+    const response = deferred<Array<{ value: string; label: string }>>()
+    const appState = createTestAppState({
+      async loadIssueFieldOptions() {
+        return response.promise
+      },
+    })
+    const priorityFieldIndex = issueFields.findIndex((field) => field.id === "priority")
+
+    appState.moveInspectorSelection(priorityFieldIndex - appState.state.inspectorSelectedFieldIndex)
+    appState.startInspectorEdit()
+    appState.cancelInspectorEdit()
+    response.resolve([{ value: "High", label: "High" }])
+    await flushPromises()
+
+    expect(appState.state.inspectorEditingFieldId).toBeUndefined()
+    expect(appState.state.inspectorFieldPicker).toBeUndefined()
+  })
+
   test("posts successful comments and keeps failed comments staged", async () => {
     const posted: string[] = []
     const appState = createTestAppState({
@@ -1133,6 +1195,10 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
       },
       async rankIssue() {
         throw new Error("Remote Jira writes are unavailable in dev runtime")
+      },
+      async loadIssueFieldOptions(fieldId, issueKey) {
+        const issue = loadDevWorkspaceFixture("PROJ").issues[issueKey]
+        return issue ? [{ value: issue.priority, label: issue.priority, color: issue.priorityColor }] : []
       },
       async loadUserPicker(fieldId, issueKey, projectKey, query) {
         return [{ accountId: "duy-account", displayName: "Duy" }].filter((user) => !query || user.displayName.toLowerCase().includes(query.toLowerCase()))

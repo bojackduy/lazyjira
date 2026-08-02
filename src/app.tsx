@@ -174,8 +174,8 @@ export function App() {
       { name: "pane.left", run: () => moveHorizontal(-1) },
       { name: "pane.enter", run: () => openFocusedItem() },
       { name: "sidebar.toggle-filter", run: () => toggleSpaceAction() },
-      { name: "staged-discard.down", run: () => state.inspectorUserPicker ? appState.moveInspectorChoice(1) : (state.stagedDiscardOpen ? appState.moveStagedDiscardSelection(1) : moveVertical(1)) },
-      { name: "staged-discard.up", run: () => state.inspectorUserPicker ? appState.moveInspectorChoice(-1) : (state.stagedDiscardOpen ? appState.moveStagedDiscardSelection(-1) : moveVertical(-1)) },
+      { name: "staged-discard.down", run: () => state.inspectorUserPicker || state.inspectorFieldPicker ? appState.moveInspectorChoice(1) : (state.stagedDiscardOpen ? appState.moveStagedDiscardSelection(1) : moveVertical(1)) },
+      { name: "staged-discard.up", run: () => state.inspectorUserPicker || state.inspectorFieldPicker ? appState.moveInspectorChoice(-1) : (state.stagedDiscardOpen ? appState.moveStagedDiscardSelection(-1) : moveVertical(-1)) },
       { name: "staged-discard.confirm", run: () => (state.stagedDiscardOpen ? appState.confirmStagedDiscard() : openFocusedItem()) },
       { name: "staged-discard.toggle", run: () => (state.stagedDiscardOpen ? appState.toggleStagedDiscardSelection() : toggleSpaceAction()) },
       { name: "group.cycle", run: () => cycleGroup() },
@@ -309,7 +309,7 @@ export function App() {
       return
     }
     if (state.focusedPane === "inspector") {
-      if (state.inspectorEditingFieldId === "statusId" || state.inspectorEditingFieldId === "type" || state.inspectorEditingFieldId === "parentKey" || state.inspectorEditingFieldId === "sprintId") {
+      if (state.inspectorEditingFieldId === "statusId" || state.inspectorEditingFieldId === "type" || state.inspectorEditingFieldId === "priority" || state.inspectorEditingFieldId === "parentKey" || state.inspectorEditingFieldId === "sprintId") {
         appState.moveInspectorChoice(delta)
         return
       }
@@ -709,7 +709,7 @@ export function App() {
   }
 
   function isPlainTextEditing() {
-    return state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.iconModePickerOpen || state.helpOpen || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type" && state.inspectorEditingFieldId !== "parentKey" && state.inspectorEditingFieldId !== "sprintId")
+    return state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.iconModePickerOpen || state.helpOpen || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type" && state.inspectorEditingFieldId !== "priority" && state.inspectorEditingFieldId !== "parentKey" && state.inspectorEditingFieldId !== "sprintId")
   }
 
   function isAnyEditing() {

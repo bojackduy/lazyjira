@@ -42,6 +42,12 @@ export function IssueInspector(props: { compact: boolean }) {
   createEffect(() => {
     if (!focused()) return
     const fieldId = state.inspectorEditingFieldId
+    if (fieldId === "priority") {
+      const picker = state.inspectorFieldPicker
+      const value = picker?.options[picker.selectedIndex]?.value ?? state.inspectorEditValue
+      scrollbox?.scrollChildIntoView(choiceRowId(fieldId, value))
+      return
+    }
     if (fieldId === "statusId" || fieldId === "type" || fieldId === "parentKey" || fieldId === "sprintId") {
       scrollbox?.scrollChildIntoView(choiceRowId(fieldId, state.inspectorEditValue))
       return
@@ -162,6 +168,7 @@ function FieldEditor(props: { field: IssueFieldDefinition }) {
   const { state } = appState
   const theme = useTheme()
   if (props.field.id === "statusId" || props.field.id === "type" || props.field.id === "parentKey" || props.field.id === "sprintId") return <ChoiceEditor field={props.field} />
+  if (props.field.id === "priority") return <FieldOptionPickerEditor />
   if (props.field.id === "assignee" || props.field.id === "reporter") return <UserPickerEditor fieldId={props.field.id} />
   if (props.field.multiline) {
     let textarea: TextareaRenderable | undefined
@@ -199,6 +206,31 @@ function FieldEditor(props: { field: IssueFieldDefinition }) {
       backgroundColor={theme.panel}
       focusedBackgroundColor={theme.panel}
     />
+  )
+}
+
+function FieldOptionPickerEditor() {
+  const { state } = useAppState()
+  const icons = useIcons()
+  const theme = useTheme()
+  const picker = () => state.inspectorFieldPicker
+
+  return (
+    <box flexDirection="column" gap={1}>
+      <Show when={picker()?.loading}><text fg={theme.warning}>Loading Jira Priority choices...</text></Show>
+      <Show when={picker()?.error}>{(message) => <text fg={theme.danger}>{message()}</text>}</Show>
+      <For each={picker()?.options ?? []} fallback={<Show when={!picker()?.loading && !picker()?.error}><text fg={theme.textMuted}>No Jira Priority choices</text></Show>}>
+        {(option, index) => {
+          const selected = () => picker()?.selectedIndex === index()
+          return (
+            <text id={choiceRowId("priority", option.value)} fg={option.color ?? theme.text} bg={selected() ? theme.selected : undefined} wrapMode="none">
+              {selected() ? ">" : " "} {icons.priority(option.label)} {option.label}
+            </text>
+          )
+        }}
+      </For>
+      <text fg={theme.textSubtle}>j/k choose · Enter stage Jira Priority · Esc cancel</text>
+    </box>
   )
 }
 

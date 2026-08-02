@@ -200,6 +200,53 @@ describe("keyboard input ownership", () => {
     expect(setup.captureCharFrame()).toContain("> s Sub Test Execution")
   })
 
+  test("navigates and stages Jira Priority choices instead of editing free text", async () => {
+    const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    initialState.focusedPane = "inspector"
+    initialState.inspectorSelectedFieldIndex = issueFields.findIndex((field) => field.id === "priority")
+    const setup = await createTestRenderer({ width: 120, height: 24 })
+    renderers.push(setup.renderer)
+    const keymap = createDefaultOpenTuiKeymap(setup.renderer)
+    let appState: AppStateContext | undefined
+    const Capture = () => {
+      appState = useAppState()
+      return null
+    }
+
+    await render(() => (
+      <LazyJiraKeymapProvider keymap={keymap}>
+        <AppProviders
+          config={{ appName: "lazyjira", runtimeEnv: "dev" }}
+          initialState={initialState}
+          source={createDevWorkspaceSource()}
+          saveWorkspaceConfig={async () => undefined}
+          iconMode="ascii"
+          onExit={() => undefined}
+        >
+          <Capture />
+          <App />
+        </AppProviders>
+      </LazyJiraKeymapProvider>
+    ), setup.renderer)
+    await setup.flush()
+    const issueKey = appState!.state.selectedIssueKey
+
+    setup.mockInput.pressKey("e")
+    await setup.flush()
+    expect(appState!.state.inspectorEditValue).toBe("Critical")
+    expect(appState!.state.inspectorFieldPicker?.options.map((option) => option.value)).toEqual(["Critical", "Medium", "High", "Low"])
+    expect(appState!.state.inspectorFieldPicker?.selectedIndex).toBe(0)
+
+    setup.mockInput.pressKey("j")
+    await setup.flush()
+    expect(appState!.state.inspectorEditValue).toBe("Medium")
+    appState!.commitInspectorEdit()
+    await setup.flush()
+
+    expect(appState!.state.issueDrafts[issueKey]?.priority).toBe("Medium")
+    expect(appState!.state.inspectorEditingFieldId).toBeUndefined()
+  })
+
   test("opens icon mode selection from the command palette and applies it live", async () => {
     process.env.LAZYJIRA_ICON_MODE = "unicode"
     const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")

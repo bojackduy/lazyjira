@@ -33,7 +33,7 @@ function applyIssueField(issue: IssueSummary, fieldId: IssueEditableField, value
     case "statusId":
       return { ...issue, statusId: configuredStatuses(state).find((status) => status.id === trimmed || status.name.toLowerCase() === trimmed.toLowerCase())?.id ?? issue.statusId }
     case "priority":
-      return { ...issue, priority: priorityValue(trimmed) ?? issue.priority }
+      return { ...issue, priority: trimmed || issue.priority, priorityColor: trimmed && trimmed !== issue.priority ? undefined : issue.priorityColor }
     case "assignee":
     case "reporter":
     case "parentKey":
@@ -57,12 +57,6 @@ function applyIssueField(issue: IssueSummary, fieldId: IssueEditableField, value
     case "blocked":
       return { ...issue, blocked: ["1", "true", "yes", "y", "blocked"].includes(trimmed.toLowerCase()) }
   }
-}
-
-function priorityValue(value: string) {
-  if (["Low", "Medium", "High", "Critical"].includes(value)) return value as IssueSummary["priority"]
-  const match = ["Low", "Medium", "High", "Critical"].find((priority) => priority.toLowerCase() === value.toLowerCase())
-  return match as IssueSummary["priority"] | undefined
 }
 
 function splitList(value: string) {

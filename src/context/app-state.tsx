@@ -145,6 +145,7 @@ export { useAppState }
 export function AppStateProvider(props: ProviderProps<{ initialState: AppState; initialWorkspaceSelection?: WorkspaceSelection; source: WorkspaceSource; saveWorkspaceConfig: (workspace: JiraWorkspaceConfig) => Promise<unknown> }>) {
   const [state, setState] = createStore<AppState>(props.initialState)
   const toast = useToast()
+  let fieldPickerRequestId = 0
   let userPickerTimer: ReturnType<typeof setTimeout> | undefined
   let userPickerRequestId = 0
   let projectPickerTimer: ReturnType<typeof setTimeout> | undefined
@@ -339,6 +340,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("inspectorSelectedFieldIndex", 1)
     setState("inspectorEditingFieldId", undefined)
     setState("inspectorEditValue", "")
+    setState("inspectorFieldPicker", undefined)
     setState("inspectorUserPicker", undefined)
     setState("userDraftAccountIds", reconcile({}))
     setState("detailBodyEditing", false)
@@ -424,6 +426,20 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const picker = state.inspectorUserPicker
       if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || picker.query !== query || requestId !== userPickerRequestId) return
       setState("inspectorUserPicker", { ...picker, options: [], selectedIndex: 0, loading: false, error: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
+  async function loadInspectorFieldPicker(fieldId: "priority", issueKey: string, currentValue: string, requestId: number) {
+    try {
+      const options = await props.source.loadIssueFieldOptions(fieldId, issueKey)
+      const picker = state.inspectorFieldPicker
+      if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || requestId !== fieldPickerRequestId) return
+      const selectedIndex = Math.max(0, options.findIndex((option) => option.value === currentValue))
+      setState("inspectorFieldPicker", { ...picker, options, selectedIndex, loading: false, error: undefined })
+    } catch (error) {
+      const picker = state.inspectorFieldPicker
+      if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || requestId !== fieldPickerRequestId) return
+      setState("inspectorFieldPicker", { ...picker, options: [], selectedIndex: 0, loading: false, error: error instanceof Error ? error.message : String(error) })
     }
   }
 
@@ -1044,6 +1060,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     moveInspectorChoice(delta) {
       const fieldId = state.inspectorEditingFieldId
+      if (fieldId === "priority") {
+        const picker = state.inspectorFieldPicker
+        if (!picker || !picker.options.length) return
+        const selectedIndex = (picker.selectedIndex + delta + picker.options.length) % picker.options.length
+        setState("inspectorFieldPicker", "selectedIndex", selectedIndex)
+        setState("inspectorEditValue", picker.options[selectedIndex]!.value)
+        return
+      }
       if (fieldId === "assignee" || fieldId === "reporter") {
         const picker = state.inspectorUserPicker
         if (!picker || !picker.options.length) return
@@ -1069,7 +1093,12 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       if (!issue || !field || !field.editable || !isEditableField(field.id)) return
       setState("inspectorEditingFieldId", field.id)
       setState("inspectorEditValue", field.id === "statusId" ? issue.statusId : field.id === "type" ? issue.type : field.id === "parentKey" ? issue.parentKey ?? "" : field.id === "sprintId" ? issue.sprintId ?? "" : issueFieldDisplayValue(state, issue, field))
-      if (field.id === "assignee" || field.id === "reporter") {
+      if (field.id === "priority") {
+        const requestId = ++fieldPickerRequestId
+        const currentValue = issueFieldDisplayValue(state, issue, field)
+        setState("inspectorFieldPicker", { fieldId: field.id, issueKey: issue.key, options: [], selectedIndex: 0, loading: true })
+        void loadInspectorFieldPicker(field.id, issue.key, currentValue, requestId)
+      } else if (field.id === "assignee" || field.id === "reporter") {
         setState("inspectorUserPicker", { fieldId: field.id, issueKey: issue.key, query: "", allOptions: [], options: [], selectedIndex: 0, loading: true })
         scheduleInspectorUserPicker(field.id, issue.key, "")
       }
@@ -1087,6 +1116,19 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const issueKey = state.selectedIssueKey
       const fieldId = state.inspectorEditingFieldId
       if (!fieldId) return
+      if (fieldId === "priority") {
+        const picker = state.inspectorFieldPicker
+        const option = picker?.options[picker.selectedIndex]
+        if (!picker || !option) {
+          toast.show(picker?.loading ? "Wait for Jira Priority choices to load" : "Select a Priority returned by Jira")
+          return
+        }
+        setState("issueDrafts", { ...state.issueDrafts, [issueKey]: { ...(state.issueDrafts[issueKey] ?? {}), priority: option.value } })
+        setState("inspectorFieldPicker", undefined)
+        setState("inspectorEditingFieldId", undefined)
+        setState("inspectorEditValue", "")
+        return
+      }
       if (fieldId === "assignee" || fieldId === "reporter") {
         const picker = state.inspectorUserPicker
         const user = picker?.options[picker.selectedIndex]
@@ -1104,13 +1146,16 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("issueDrafts", { ...state.issueDrafts, [issueKey]: { ...(state.issueDrafts[issueKey] ?? {}), [fieldId]: state.inspectorEditValue } })
       setState("inspectorEditingFieldId", undefined)
       setState("inspectorEditValue", "")
+      setState("inspectorFieldPicker", undefined)
       setState("inspectorUserPicker", undefined)
     },
     cancelInspectorEdit() {
+      fieldPickerRequestId += 1
       if (userPickerTimer) clearTimeout(userPickerTimer)
       userPickerRequestId += 1
       setState("inspectorEditingFieldId", undefined)
       setState("inspectorEditValue", "")
+      setState("inspectorFieldPicker", undefined)
       setState("inspectorUserPicker", undefined)
     },
     discardInspectorFieldChange() {
@@ -1456,8 +1501,11 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("commentDrafts", reconcile(commentDrafts))
       setState("rankDrafts", reconcile(rankDrafts))
       if (editorsToClear.inspector) {
+        fieldPickerRequestId += 1
         setState("inspectorEditingFieldId", undefined)
         setState("inspectorEditValue", "")
+        setState("inspectorFieldPicker", undefined)
+        setState("inspectorUserPicker", undefined)
       }
       if (editorsToClear.detailBody) {
         setState("detailBodyEditing", false)
@@ -1477,8 +1525,11 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("stagedDiscardOpen", false)
       setState("stagedDiscardSelectedIndex", 0)
       setState("stagedDiscardSelections", [])
+      fieldPickerRequestId += 1
       setState("inspectorEditingFieldId", undefined)
       setState("inspectorEditValue", "")
+      setState("inspectorFieldPicker", undefined)
+      setState("inspectorUserPicker", undefined)
       setState("detailBodyEditing", false)
       setState("detailBodyEditValue", "")
       setState("commentEditing", false)

@@ -1,5 +1,5 @@
 import type { RuntimeEnv } from "../runtime/env"
-import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, JiraUserOption, ProjectListSort, ProjectOptionPage, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, TimelineStartDateField, WorkspaceStats } from "../state/app-state"
+import type { AppState, BoardSummary, IssuePageState, IssueSummary, IssueTypeDefinition, JiraFieldOption, JiraUserOption, ProjectListSort, ProjectOptionPage, ProjectSummary, QuickFilterDefinition, SprintSummary, StatusColumn, StatusDefinition, TimelineStartDateField, WorkspaceStats } from "../state/app-state"
 import { statusColorForCategory } from "../state/metadata-colors"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
 
@@ -67,6 +67,7 @@ export type WorkspaceSource = {
   createIssue: (issue: IssueSummary, projectKey: string) => Promise<string>
   createIssueLinks: (issueKey: string, targetIssueKeys: string[]) => Promise<void>
   rankIssue: (issueKey: string, targetIssueKey: string, position: "before" | "after") => Promise<void>
+  loadIssueFieldOptions: (fieldId: "priority", issueKey: string) => Promise<JiraFieldOption[]>
   loadUserPicker: (fieldId: "assignee" | "reporter", issueKey: string, projectKey: string, query: string) => Promise<JiraUserOption[]>
 }
 

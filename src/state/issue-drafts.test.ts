@@ -29,4 +29,14 @@ describe("issue draft render overlay", () => {
 
     expect(issueWithDraft(state, baseIssue).title).toBe(baseIssue.title)
   })
+
+  test("renders an exact Jira Priority draft without retaining the old Priority color", () => {
+    const state = loadDevWorkspaceState()
+    const baseIssue = state.issues["PROJ-128"]!
+    baseIssue.priorityColor = "#FF5630"
+    state.issueDrafts[baseIssue.key] = { priority: "Highest" }
+
+    expect(issueWithDraft(state, baseIssue)).toMatchObject({ priority: "Highest", priorityColor: undefined })
+    expect(baseIssue).toMatchObject({ priority: "High", priorityColor: "#FF5630" })
+  })
 })

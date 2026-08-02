@@ -66,6 +66,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [x] A7.11 Issue creation through project create metadata and Jira issue-type IDs.
 - [x] A7.12 Remote delete with a second destructive confirmation.
 - [x] A7.13 Apply lock and outcome reporting. Non-production smoke checklist is documented separately.
+- [x] A7.14 Priority editing uses issue-specific Jira allowed values with catalog fallback, stale-response protection, and no free-text staging.
 - [ ] A8 Documentation updates and real Jira smoke checklist.
 
 ## Wave 3
