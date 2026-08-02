@@ -502,6 +502,30 @@ describe("keyboard input ownership", () => {
     expect(list.setup.captureCharFrame()).toContain(`${structural.selection}${first}`)
   })
 
+  test("renders a bounded Timeline header with separated weekly cells", async () => {
+    const timeline = await renderRoute("timeline", 180, 30, (state) => {
+      state.timelineZoom = "week"
+      state.timelineWindowStart = "2026-06-15"
+    })
+    const frame = timeline.setup.captureCharFrame()
+
+    expect(frame).toMatch(/06\/15\s+06\/22\s+06\/29/)
+    expect(frame).not.toContain("06/1506/22")
+  })
+
+  test("keeps the visible center date anchored while zooming Timeline", async () => {
+    const timeline = await renderRoute("timeline", 200, 30, (state) => {
+      state.timelineZoom = "month"
+      state.timelineWindowStart = "2026-01-01"
+    })
+
+    timeline.setup.mockInput.pressKey("z")
+    await timeline.setup.flush()
+
+    expect(timeline.appState.state.timelineZoom).toBe("day")
+    expect(timeline.appState.state.timelineWindowStart).toBe("2026-06-11")
+  })
+
   test("renders structural states without column drift in every icon profile", async () => {
     for (const mode of ["nerd", "unicode", "ascii"] satisfies IconMode[]) {
       process.env.LAZYJIRA_ICON_MODE = mode

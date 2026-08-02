@@ -151,6 +151,7 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 - [x] `N5.5` Preserve selected row and date window across project-view switches in the same workspace.
 - [x] `N5.6` Add the narrow textual-date layout and avoid clipped or misleading schedule bars.
 - [x] `N5.7` Add scheduled, one-date, unscheduled, partial, missing-field, missing-parent, cycle, empty, loading, error, and narrow render tests.
+- [x] `N5.8` Cap every Timeline zoom at 11 responsive readable cells, separate header labels, and preserve the center date while zooming.
 
 ### N6: Rollout, Documentation, And Smoke Checks
 

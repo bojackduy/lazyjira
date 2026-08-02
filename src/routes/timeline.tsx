@@ -1,6 +1,6 @@
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, createMemo, For, Show } from "solid-js"
+import { batch, createEffect, createMemo, For, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
@@ -24,6 +24,7 @@ import {
   timelineTodayWindow,
   timelineUnparentedSectionKey,
   timelineWindowEnd,
+  zoomTimelineWindowStart,
   type TimelineCell,
   type TimelineProjectedIssueRow,
   type TimelineProjectedRow,
@@ -81,8 +82,11 @@ export function TimelineRoute() {
   function zoom() {
     if (state.focusedPane !== "main" || state.route !== "timeline") return false
     const nextZoom = cycleTimelineZoom(state.timelineZoom)
-    appState.setTimelineZoom(nextZoom)
-    appState.setTimelineWindowStart(timelineTodayWindow(state.timelineWindowStart, nextZoom))
+    const nextWindowStart = zoomTimelineWindowStart(state.timelineWindowStart, state.timelineZoom, layout().cellCount, nextZoom)
+    batch(() => {
+      appState.setTimelineZoom(nextZoom)
+      appState.setTimelineWindowStart(nextWindowStart)
+    })
   }
 
   function returnToToday() {
@@ -119,7 +123,7 @@ function TimelineGridHeader(props: { cells: TimelineCell[]; identityWidth: numbe
   return (
     <box flexDirection="row" flexShrink={0}>
       <text attributes={TextAttributes.BOLD} fg={theme.warning} width={props.identityWidth} wrapMode="none"> Work</text>
-      <For each={props.cells}>{(cell) => <text attributes={cell.today ? TextAttributes.BOLD : undefined} fg={cell.today ? theme.warning : theme.textSubtle} width={props.cellWidth} wrapMode="none">{fit(cell.today ? `|${cell.label}` : cell.label, props.cellWidth)}</text>}</For>
+      <For each={props.cells}>{(cell) => <text attributes={cell.today ? TextAttributes.BOLD : undefined} fg={cell.today ? theme.warning : theme.textSubtle} width={props.cellWidth} wrapMode="none">{fit(`${cell.today ? "|" : " "}${cell.label}`, props.cellWidth)}</text>}</For>
     </box>
   )
 }

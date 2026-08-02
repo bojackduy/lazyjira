@@ -25,6 +25,7 @@ import {
   timelineUnparentedExpandedKey,
   timelineUnparentedSectionKey,
   timelineWindowEnd,
+  zoomTimelineWindowStart,
 } from "./timeline"
 
 describe("timeline data model", () => {
@@ -184,6 +185,8 @@ describe("timeline data model", () => {
     expect(panTimelineWindow("2026-01-15", "month", -1)).toBe("2025-12-01")
     expect(timelineWindowEnd("2026-07-30", "week", 4)).toBe("2026-08-23")
     expect(formatTimelineDate("2026-08-03")).toBe("Aug 03")
+    expect(zoomTimelineWindowStart("2026-01-01", "month", 11, "day")).toBe("2026-06-11")
+    expect(zoomTimelineWindowStart("2026-08-01", "day", 11, "week")).toBe("2026-06-29")
   })
 
   test("builds bounded date cells with explicit today semantics", () => {
@@ -208,12 +211,14 @@ describe("timeline data model", () => {
     expect(timelineSchedule({ startDate: "2026-08-06", dueDate: "2026-08-05" }, cells)).toEqual({ kind: "text", text: "invalid range · Start Aug 06 · Due Aug 05" })
   })
 
-  test("uses a textual narrow fallback until identity plus three cells fit", () => {
-    expect(timelineLayout(45, "month").wide).toBe(false)
-    expect(timelineLayout(80, "day")).toMatchObject({ wide: true, viewportWidth: 76, cellWidth: 2 })
-    expect(timelineLayout(120, "week")).toMatchObject({ wide: true, viewportWidth: 50, cellWidth: 5 })
-    expect(timelineLayout(160, "week").wide).toBe(true)
-    expect(timelineLayout(200, "month").wide).toBe(true)
+  test("uses the same responsive cell count across zoom levels with an eleven-cell cap", () => {
+    expect(timelineLayout(45, "month")).toMatchObject({ wide: false, cellCount: 2, cellWidth: 7 })
+    expect(timelineLayout(80, "day")).toMatchObject({ wide: true, viewportWidth: 76, cellCount: 7, cellWidth: 6 })
+    expect(timelineLayout(120, "week")).toMatchObject({ wide: true, viewportWidth: 50, cellCount: 4, cellWidth: 6 })
+    expect(timelineLayout(160, "week")).toMatchObject({ wide: true, cellCount: 8, cellWidth: 6 })
+    const layouts = ["day", "week", "month"].map((zoom) => timelineLayout(200, zoom as "day" | "week" | "month"))
+    expect(layouts.map((layout) => layout.cellCount)).toEqual([11, 11, 11])
+    expect(layouts.every((layout) => layout.cellWidth >= 6)).toBe(true)
   })
 
   test("provides explicit copy for every hierarchy and schedule classification", () => {

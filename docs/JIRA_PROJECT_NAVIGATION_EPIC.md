@@ -557,13 +557,14 @@ Components consume capabilities and route definitions; they must not repeatedly 
 | `90-119` | Sidebar + main view; inspector becomes a focused stacked pane below or replaces main through `Tab` |
 | `< 90` | One pane at a time: sidebar, main, or inspector; active pane name remains visible in footer |
 
-Timeline switches to textual date ranges when the date grid cannot retain both issue identity and at least seven time cells. List drops optional columns in this order: Updated, Sprint, Parent, Due; Key and Summary never disappear. Board reuses its existing status-window behavior.
+Timeline targets the same maximum of 11 readable time cells for Day, Week, and Month. It reduces that count responsively and switches to textual date ranges when the date grid cannot retain both issue identity and at least three complete cells. List drops optional columns in this order: Updated, Sprint, Parent, Due; Key and Summary never disappear. Board reuses its existing status-window behavior.
 
 Timeline computes its main viewport from the same shell reservation used by the
-other overview surfaces. Day, Week, and Month use fixed cell widths, so resize
-decisions are deterministic and do not depend on issue dates. Wide rendering is
-bounded to the calculated cell count; narrow rendering keeps hierarchy,
-selection, group warnings, and exact Jira date copy.
+other overview surfaces. Every granularity reserves at least six terminal cells
+per time unit and shares the same 11-cell cap, so finer zooms change the represented
+duration rather than multiplying columns. Zoom preserves the visible center date.
+Wide rendering is bounded to the calculated cell count; narrow rendering keeps
+hierarchy, selection, group warnings, and exact Jira date copy.
 
 ## Loading, Empty, Error, And Partial States
 

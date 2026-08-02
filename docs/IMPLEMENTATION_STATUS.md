@@ -28,6 +28,7 @@ Current project navigation uses `Workspace`, `Timeline`, `Backlog`, `List`, and 
 - [x] Current-workspace refresh and switch-failure safety (A4.1/A4.2).
 - [x] Kanban uses a memoized board-cell model and defaults to ungrouped rendering to avoid repeated high-cardinality grouping work on route entry.
 - [x] Backlog retains empty sprint/backlog groups as focusable planning containers; `h/l` moves group focus and `L` loads the focused group when possible.
+- [x] Timeline Day, Week, and Month share an 11-cell responsive cap with readable header spacing and center-anchored zoom.
 
 ## Jira Write Safety
 

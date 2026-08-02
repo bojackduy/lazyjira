@@ -60,6 +60,9 @@ export type TimelineSchedule = {
   text: string
 }
 
+const timelineMaxCellCount = 11
+const timelineMinCellWidth = 6
+
 const millisecondsPerDay = 86_400_000
 export const timelineCreateRowKey = "__timeline-create__"
 export const timelineUnparentedSectionKey = "__timeline-unparented__"
@@ -243,12 +246,14 @@ export function timelineDateBounds(rows: TimelineHierarchyRow[]) {
   return dates.length ? { start: dates[0]!, end: dates[dates.length - 1]! } : undefined
 }
 
-export function timelineLayout(terminalWidth: number, zoom: TimelineZoom): TimelineLayout {
+export function timelineLayout(terminalWidth: number, _zoom?: TimelineZoom): TimelineLayout {
   const viewportWidth = Math.max(32, terminalWidth < 100 ? terminalWidth - 4 : terminalWidth - 70)
   const identityWidth = Math.min(40, Math.max(26, Math.floor(viewportWidth * 0.45)))
-  const cellWidth = zoom === "day" ? 2 : zoom === "week" ? 5 : 8
-  const cellCount = Math.max(0, Math.floor((viewportWidth - identityWidth) / cellWidth))
-  return { wide: cellCount >= 3, viewportWidth, identityWidth, cellWidth, cellCount: Math.max(1, cellCount) }
+  const scheduleWidth = Math.max(1, viewportWidth - identityWidth)
+  const fittingCellCount = Math.floor(scheduleWidth / timelineMinCellWidth)
+  const cellCount = Math.max(1, Math.min(timelineMaxCellCount, fittingCellCount))
+  const cellWidth = Math.max(1, Math.floor(scheduleWidth / cellCount))
+  return { wide: fittingCellCount >= 3, viewportWidth, identityWidth, cellWidth, cellCount }
 }
 
 export function timelineCells(windowStart: string, zoom: TimelineZoom, count: number, today: string): TimelineCell[] {
@@ -355,6 +360,13 @@ export function timelineTodayWindow(today: string, zoom: TimelineZoom) {
   return alignTimelineDate(today, zoom)
 }
 
+export function zoomTimelineWindowStart(windowStart: string, currentZoom: TimelineZoom, cellCount: number, nextZoom: TimelineZoom) {
+  const currentStart = alignTimelineDate(windowStart, currentZoom)
+  const currentEnd = timelineWindowEnd(currentStart, currentZoom, cellCount)
+  const midpoint = formatDate(new Date((parseDate(currentStart).valueOf() + parseDate(currentEnd).valueOf()) / 2))
+  return addTimelineUnits(alignTimelineDate(midpoint, nextZoom), nextZoom, -Math.floor(Math.max(1, cellCount) / 2))
+}
+
 export function timelineWindowEnd(windowStart: string, zoom: TimelineZoom, count: number) {
   return addDays(addTimelineUnits(alignTimelineDate(windowStart, zoom), zoom, Math.max(1, count)), -1)
 }
@@ -415,7 +427,7 @@ function timelineCellLabel(value: string, zoom: TimelineZoom) {
   const date = parseDate(value)
   if (zoom === "day") return String(date.getUTCDate()).padStart(2, "0")
   if (zoom === "week") return `${String(date.getUTCMonth() + 1).padStart(2, "0")}/${String(date.getUTCDate()).padStart(2, "0")}`
-  return `${monthNames[date.getUTCMonth()]} ${String(date.getUTCFullYear()).slice(2)}`
+  return `${monthNames[date.getUTCMonth()]}${String(date.getUTCFullYear()).slice(2)}`
 }
 
 function rangesOverlap(leftStart: string, leftEnd: string, rightStart: string, rightEnd: string) {
