@@ -6,6 +6,7 @@ describe("command palette registry", () => {
     expect(paletteCommandsForBoard().map((command) => command.name)).toEqual(expect.arrayContaining([
       "help.open",
       "command-palette.open",
+      "app.report-bug",
       "route.timeline",
       "route.board",
       "search.remote-open",

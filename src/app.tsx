@@ -1,5 +1,6 @@
 import { useTerminalDimensions } from "@opentui/solid"
 import { batch, createEffect } from "solid-js"
+import packageJson from "../package.json"
 import { useBindings } from "./context/keymap"
 import { useAppState } from "./context/app-state"
 import { useConfig } from "./context/config"
@@ -137,6 +138,7 @@ export function App() {
       { name: "help.open", run: () => (canRunGlobalShortcut() ? appState.openHelp() : false) },
       { name: "help.close", run: () => (state.helpOpen ? appState.closeHelp() : false) },
       { name: "command-palette.open", run: () => (canRunGlobalShortcut() ? appState.openCommandPalette() : false) },
+      { name: "app.report-bug", run: () => openBugReport() },
       { name: "command-palette.close", run: () => (state.commandPaletteOpen ? appState.closeCommandPalette() : false) },
       { name: "command-palette.next", run: () => moveCommandPaletteSelection(1) },
       { name: "command-palette.previous", run: () => moveCommandPaletteSelection(-1) },
@@ -204,6 +206,7 @@ export function App() {
       { key: "5", cmd: "route.board", preventDefault: false },
       { key: { name: "p", shift: true }, cmd: "project.switch", preventDefault: false },
       { key: "?", cmd: "help.open", preventDefault: false },
+      { key: { name: "b", shift: true }, cmd: "app.report-bug", preventDefault: false },
       { key: "p", cmd: "issue.priority", preventDefault: false },
       { key: ";", cmd: "command-palette.open", preventDefault: false },
       { key: ":", cmd: "command-palette.open", preventDefault: false },
@@ -492,6 +495,17 @@ export function App() {
       toast.show(`Opening ${state.selectedIssueKey} in Jira`)
     } catch (error) {
       toast.show(`Could not open Jira: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  function openBugReport() {
+    if (!canRunGlobalShortcut()) return false
+    const url = bugReportUrl({ runtimeLabel: config.runtimeEnv })
+    try {
+      Bun.spawn(browserOpenCommand(url), { stdout: "ignore", stderr: "ignore" }).unref()
+      toast.show("Opening a prefilled bug report in GitHub")
+    } catch (error) {
+      toast.show(`Could not open GitHub: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -914,4 +928,37 @@ export function browserOpenCommand(url: string, platform: NodeJS.Platform = proc
   if (platform === "darwin") return ["open", url]
   if (platform === "win32") return ["cmd", "/c", "start", "", url]
   return ["xdg-open", url]
+}
+
+export const LAZYJIRA_ISSUES_URL = "https://github.com/bojackduy/lazyjira/issues/new"
+
+export function bugReportUrl(context: { runtimeLabel?: string } = {}) {
+  const url = new URL(LAZYJIRA_ISSUES_URL)
+  url.searchParams.set("title", "bug: ")
+  url.searchParams.set("body", [
+    "## What happened?",
+    "",
+    "Describe the unexpected behavior.",
+    "",
+    "## What did you expect?",
+    "",
+    "Describe the expected behavior.",
+    "",
+    "## Steps to reproduce",
+    "",
+    "1. ",
+    "2. ",
+    "3. ",
+    "",
+    "## Environment",
+    "",
+    `- lazyjira version: ${packageJson.version}`,
+    `- runtime: ${context.runtimeLabel ?? ""}`,
+    `- OS: ${process.platform}`,
+    "- Terminal:",
+    "- Installation: npm / source / other",
+    "",
+    "Do not include API tokens, credentials, or confidential Jira content.",
+  ].join("\n"))
+  return url.toString()
 }

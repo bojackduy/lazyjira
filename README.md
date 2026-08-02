@@ -199,6 +199,7 @@ The app should use lazy-family muscle memory, adapted to Jira's board and backlo
 | `m` | Move issue to sprint/backlog/column when applicable |
 | `J` / `K` | Rank backlog item down/up |
 | `o` | Open in browser |
+| `B` | Open a prefilled GitHub bug report |
 | `y` | Copy issue key/link |
 
 Shortcuts should be generated into help and command surfaces so users can discover them from inside the app.

@@ -142,6 +142,7 @@ function Sidebar() {
 function MainSurface() {
   const { state, setFocusedPane } = useAppState()
   const icons = useIcons()
+  const keymap = useKeymap()
   const theme = useTheme()
   const focused = () => state.focusedPane === "main"
 
@@ -149,7 +150,12 @@ function MainSurface() {
     <box borderStyle="rounded" borderColor={focused() ? theme.borderActive : theme.border} padding={1} flexGrow={1} flexShrink={1} minWidth={0} minHeight={0} onMouseUp={() => setFocusedPane("main")}>
       <box flexDirection="row" justifyContent="space-between">
         <text attributes={TextAttributes.BOLD} fg={theme.text}>{routeIcon(icons.catalog, state.route)} {routeLabel(state.route, state.board)}</text>
-        <text fg={theme.textSubtle}>{state.board.name}</text>
+        <box flexDirection="row" gap={1}>
+          <text fg={theme.textSubtle}>{state.board.name}</text>
+          <box width={14} height={1} backgroundColor={theme.danger} alignItems="center" justifyContent="center" onMouseUp={() => keymap.runCommand("app.report-bug")}>
+            <text attributes={TextAttributes.BOLD} fg={theme.background}>B REPORT BUG</text>
+          </box>
+        </box>
       </box>
       <Show when={(state.workspaceLoading || state.workspaceLoadError) && !!Object.keys(state.issues).length}>
         <WorkspaceRefreshStatus />
