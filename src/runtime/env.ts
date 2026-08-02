@@ -1,5 +1,9 @@
 export type RuntimeEnv = "dev" | "prod"
 
+export function isVersionRequest(argv: string[]) {
+  return argv[0] === "--version" || argv[0] === "-v"
+}
+
 export function parseRuntimeEnv(argv: string[]): RuntimeEnv {
   const env = argv[0]
   if (!env) return "prod"

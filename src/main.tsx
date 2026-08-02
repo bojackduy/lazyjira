@@ -3,13 +3,14 @@
 import { createCliRenderer } from "@opentui/core"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { render } from "@opentui/solid"
+import packageJson from "../package.json"
 import { App } from "./app"
 import { runAuthCli } from "./auth/cli"
 import { jiraAuthSummary, loadJiraAuthConfig, loadLazyJiraConfig, saveDevWorkspaceConfig, saveIconModeConfig, saveProdWorkspaceConfig, type JiraWorkspaceConfig } from "./auth/config"
 import type { AppConfig } from "./context/config"
 import { LazyJiraKeymapProvider } from "./context/keymap"
 import { AppProviders } from "./context/providers"
-import { parseRuntimeEnv } from "./runtime/env"
+import { isVersionRequest, parseRuntimeEnv } from "./runtime/env"
 import { createInitialAppState } from "./state/initial"
 import { sidebarRoutesForBoard } from "./state/routes"
 import { loadDevWorkspaceFixture } from "./workspace/dev/fixtures"
@@ -18,6 +19,10 @@ import { createProdWorkspacePlaceholder, createProdWorkspaceSource } from "./wor
 import type { WorkspaceSelection } from "./workspace/types"
 
 const argv = process.argv.slice(2)
+if (isVersionRequest(argv)) {
+  console.log(`lazyjira ${packageJson.version}`)
+  process.exit(0)
+}
 if (await runAuthCli(argv)) process.exit(process.exitCode ?? 0)
 
 const runtimeEnv = parseRuntimeEnvOrExit(argv)

@@ -113,7 +113,7 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 - [x] `N2.8` Replace fixed Backlog parent and metadata columns with measured wide, medium, and narrow row layouts that preserve complete issue keys.
 - [x] `N2.9` Add balanced Backlog cards with ellipsized title boundaries, conditional top-level ancestor key/name lines, prioritized metadata, and consistent vertical separation.
 - [x] `N2.10` Center the destination issue or collapsed group after Backlog `h/l` group jumps while retaining keep-visible `j/k` row navigation.
-- [x] `N2.11` Size the Active sprints/Board scroll viewport from its actual remaining pane height so `j/k` selection cannot move behind outer clipping before `d/u` is used.
+- [x] `N2.11` Size the Active sprints/Board viewport from its actual pane and track grouped navigation by full-height row wrappers so `j/k` cannot move behind clipping before `d/u` is used.
 
 ### N3: Project List Data And Surface
 
@@ -297,7 +297,7 @@ Scope and design: `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`.
 - [x] `I4.4` Verify Unicode and ASCII modes on terminals without Nerd Font support.
 - [!] `I4.5` Automated Nerd profile width/render tests and dev startup pass; physical patched-font appearance remains a manual check.
 - [~] `I4.6` README installation notes, help, and render examples are updated; refresh the product screenshot after visual approval.
-- [~] `I4.7` Typecheck, 284 tests, production build, diff validation, and dev navigation smoke pass; physical wide/narrow Nerd Font smoke remains manual.
+- [~] `I4.7` Typecheck, 285 tests, production build, diff validation, and dev navigation smoke pass; physical wide/narrow Nerd Font smoke remains manual.
 
 ## Cross-Track Reviews
 

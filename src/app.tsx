@@ -421,12 +421,16 @@ export function App() {
       return
     }
     if (state.route === "board" && currentBoardMode() === "active-sprint") {
+      const mode = "active-sprint"
       appState.setActiveSprintGroupBy(nextBoardGroupBy(state.activeSprintGroupBy))
       appState.setActiveSprintStatusOffset(0)
+      appState.setSelectedBoardLocation(mode, selectedBoardLocation(state, mode))
     }
     if (state.route === "board" && currentBoardMode() === "kanban") {
+      const mode = "kanban"
       appState.setKanbanGroupBy(nextBoardGroupBy(state.kanbanGroupBy))
       appState.setKanbanStatusOffset(0)
+      appState.setSelectedBoardLocation(mode, selectedBoardLocation(state, mode))
     }
     if (state.route === "backlog" && boardCapabilities(state.board).supportsSprintBacklog) appState.setBacklogGroupBy(nextBacklogGroupBy(state.backlogGroupBy))
   }

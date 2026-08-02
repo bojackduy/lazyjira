@@ -1,6 +1,6 @@
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, createMemo, For, Show } from "solid-js"
+import { createEffect, createMemo, For, onCleanup, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
@@ -36,6 +36,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
+  let selectionScrollTimer: ReturnType<typeof setTimeout> | undefined
   const groupBy = () => boardGroupByForMode(state, props.mode)
   const board = createMemo(() => boardView(state, props.mode))
   const groups = () => board().groups
@@ -67,8 +68,14 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   createEffect(() => {
     if (state.route !== "board") return
     const location = selectedBoardItemLocation(state, props.mode)
-    if (location) scrollbox?.scrollChildIntoView(boardItemElementId(props.mode, location))
+    if (!location) return
+    groupBy()
+    visibleStatuses()
+    if (selectionScrollTimer) clearTimeout(selectionScrollTimer)
+    const targetId = boardRowElementId(props.mode, location)
+    selectionScrollTimer = setTimeout(() => scrollbox?.scrollChildIntoView(targetId), 16)
   })
+  onCleanup(() => selectionScrollTimer && clearTimeout(selectionScrollTimer))
 
   function scrollPage(delta: 1 | -1) {
     if (state.focusedPane !== "main" || state.route !== "board") return
@@ -133,7 +140,7 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
               </box>
               <For each={rowsForGroup(groupIndex())}>
                 {(row, rowIndex) => (
-                  <box flexDirection="row" gap={1} flexShrink={0} paddingRight={1}>
+                  <box id={boardRowElementId(props.mode, { groupIndex: groupIndex(), itemIndex: rowIndex() })} flexDirection="row" gap={1} flexShrink={0} paddingRight={1}>
                     <For each={row}>
                       {(item, statusWindowIndex) => {
                         const location = { groupIndex: groupIndex(), statusIndex: board().statuses.findIndex((status) => status.id === visibleStatuses()[statusWindowIndex()]?.id), itemIndex: rowIndex() }
@@ -234,4 +241,8 @@ function sameBoardLocation(left: BoardLocation | undefined, right: BoardLocation
 
 function boardItemElementId(mode: "active-sprint" | "kanban", location: BoardLocation) {
   return `${mode}-board-item-${location.groupIndex}-${location.statusIndex}-${location.itemIndex}`
+}
+
+function boardRowElementId(mode: "active-sprint" | "kanban", location: Pick<BoardLocation, "groupIndex" | "itemIndex">) {
+  return `${mode}-board-row-${location.groupIndex}-${location.itemIndex}`
 }

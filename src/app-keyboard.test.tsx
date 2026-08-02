@@ -41,9 +41,9 @@ describe("keyboard input ownership", () => {
     initialState.focusedPane = "main"
     initialState.board = { ...initialState.board, type: "scrum" }
     const baseIssue = initialState.issues["PROJ-121"]!
-    const issueKeys = Array.from({ length: 12 }, (_, index) => `SCROLL-${String(index + 1).padStart(2, "0")}`)
+    const issueKeys = Array.from({ length: 15 }, (_, index) => `SCROLL-${String(index + 1).padStart(2, "0")}`)
     for (const [index, key] of issueKeys.entries()) {
-      initialState.issues[key] = { ...baseIssue, key, title: `Scrollable sprint card ${index + 1}`, sprintId: initialState.activeSprintId }
+      initialState.issues[key] = { ...baseIssue, key, title: `Scrollable sprint card ${index + 1}`, assignee: index < 11 ? "Alice" : index < 13 ? "Bao" : "Dung", sprintId: initialState.activeSprintId }
     }
     initialState.issueKeysBySource[sprintIssuePageSourceId(initialState.activeSprintId)] = issueKeys
     initialState.selectedIssueKey = issueKeys[0]!
@@ -79,8 +79,16 @@ describe("keyboard input ownership", () => {
     ), setup.renderer)
     await setup.flush()
 
+    setup.mockInput.pressKey("g")
+    await setup.flush()
+    setup.mockInput.pressKey("g")
+    await setup.flush()
+    expect(appState!.state.activeSprintGroupBy).toBe("assignee")
+
     for (let index = 1; index < 10; index += 1) {
       setup.mockInput.pressKey("j")
+      await setup.flush()
+      await Bun.sleep(20)
       await setup.flush()
       const selectedKey = issueKeys[index]!
       const cardVisible = setup.captureCharFrame().split("\n").some((line) => {

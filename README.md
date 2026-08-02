@@ -19,6 +19,7 @@ lazyjira
 ```
 
 Use `lazyjira dev` to run with bundled fixture data and no Jira credentials.
+Use `lazyjira --version` or `lazyjira -v` to print the installed version.
 
 ### Terminal Icons
 
