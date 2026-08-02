@@ -1,6 +1,7 @@
 import type { AppState, BacklogGroupBy, BoardGroupBy, BoardMode, IssueSummary, IssueTypeDefinition, ParentIssueSummary, StatusDefinition } from "./app-state"
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { issueWithDraft } from "./issue-drafts"
+import { projectRankDrafts } from "./rank-projection"
 import { matchesIssueSearch } from "./issue-search"
 import { issueTypeColorForName, priorityColors, statusColorForCategory } from "./metadata-colors"
 import { boardCapabilities } from "./routes"
@@ -204,10 +205,10 @@ export function groupIssues(issues: IssueSummary[], groupBy: BoardGroupBy): Issu
 
 export function groupBacklogIssues(state: AppState, groupBy: BacklogGroupBy): IssueGroup[] {
   if (!boardCapabilities(state.board).supportsSprintBacklog) {
-    return [{ id: "backlog", label: "Board backlog", issueKeys: issuesForSource(state, backlogIssuePageSourceId).map((issue) => issue.key) }]
+    return [{ id: "backlog", label: "Board backlog", issueKeys: projectRankDrafts(issuesForSource(state, backlogIssuePageSourceId).map((issue) => issue.key), state.rankDrafts) }]
   }
   const issues = planningIssues(state)
-  if (groupBy !== "sprint") return groupIssues(issues, groupBy)
+  if (groupBy !== "sprint") return groupIssues(issues, groupBy).map((group) => ({ ...group, issueKeys: projectRankDrafts(group.issueKeys, state.rankDrafts) }))
 
   const groups: IssueGroup[] = []
   for (const sprint of state.sprints) {
@@ -215,10 +216,10 @@ export function groupBacklogIssues(state: AppState, groupBy: BacklogGroupBy): Is
     groups.push({
       id: sprint.id,
       label: `${sprint.state === "active" ? "Active" : "Future"} · ${sprint.name}${sprintDateRange(sprint.startDate, sprint.endDate)}`,
-      issueKeys,
+      issueKeys: projectRankDrafts(issueKeys, state.rankDrafts),
     })
   }
-  groups.push({ id: "backlog", label: "Backlog", issueKeys: issues.filter((issue) => !issue.sprintId).map((issue) => issue.key) })
+  groups.push({ id: "backlog", label: "Backlog", issueKeys: projectRankDrafts(issues.filter((issue) => !issue.sprintId).map((issue) => issue.key), state.rankDrafts) })
   return groups
 }
 

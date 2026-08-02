@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { detailBodyInitialValue } from "../context/app-state"
+import { groupBacklogIssues } from "./selectors"
 import { applyIssueDraft, issueFieldColor, issueFieldDisplayValue, issueFields, parentIssueChoices } from "./issue-fields"
 import { loadDevWorkspaceState } from "./dev"
 
@@ -86,5 +87,29 @@ describe("issue fields", () => {
 
     expect(parentIssueChoices(state, issue).map((choice) => choice.value)).toContain("PARENT-1")
     expect(parentIssueChoices(state, issue).map((choice) => choice.value)).not.toContain("CHILD-1")
+  })
+
+  test("derives Epic and Feature values from loaded Jira ancestors", () => {
+    const state = loadDevWorkspaceState()
+    const issue = { ...state.issues[state.selectedIssueKey]!, parentKey: "EPIC-1", epic: undefined, feature: undefined }
+    state.issues["EPIC-1"] = { ...issue, key: "EPIC-1", title: "Checkout epic", type: "Epic", parentKey: "FEATURE-1" }
+    state.issues["FEATURE-1"] = { ...issue, key: "FEATURE-1", title: "Payments feature", type: "Feature", parentKey: undefined }
+    const epicField = issueFields.find((field) => field.id === "epic")!
+    const featureField = issueFields.find((field) => field.id === "feature")!
+
+    expect(issueFieldDisplayValue(state, issue, epicField)).toBe("EPIC-1 Checkout epic")
+    expect(issueFieldDisplayValue(state, issue, featureField)).toBe("FEATURE-1 Payments feature")
+    expect(epicField.editable).toBe(false)
+    expect(featureField.editable).toBe(false)
+  })
+
+  test("shows a human-readable loaded Backlog position instead of LexoRank", () => {
+    const state = loadDevWorkspaceState()
+    const issueKey = groupBacklogIssues(state, state.backlogGroupBy).find((group) => group.issueKeys.length)?.issueKeys[0]!
+    const issue = state.issues[issueKey]!
+    const rankField = issueFields.find((field) => field.id === "rank")!
+
+    expect(issueFieldDisplayValue(state, issue, rankField)).toMatch(/^\d+ in loaded /)
+    expect(issueFieldDisplayValue(state, issue, rankField)).not.toContain("|")
   })
 })

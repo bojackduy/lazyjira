@@ -67,6 +67,8 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [x] A7.12 Remote delete with a second destructive confirmation.
 - [x] A7.13 Apply lock and outcome reporting. Non-production smoke checklist is documented separately.
 - [x] A7.14 Priority editing uses issue-specific Jira allowed values with catalog fallback, stale-response protection, and no free-text staging.
+- [x] A7.15 Backlog rank drafts project into local order, survive `w`, revert with discard, and materialize after successful Jira writes.
+- [x] A7.16 Inspector derives Epic/Feature hierarchy values, hides raw LexoRank, and provides Jira-backed label suggestions with custom entry.
 - [ ] A8 Documentation updates and real Jira smoke checklist.
 
 ## Wave 3

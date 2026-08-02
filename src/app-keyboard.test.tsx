@@ -150,6 +150,55 @@ describe("keyboard input ownership", () => {
     expect(centerDistance).toBeLessThanOrEqual(4)
   })
 
+  test("projects repeated Backlog rank keys against the currently visible order", async () => {
+    const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    initialState.route = "backlog"
+    initialState.focusedPane = "main"
+    initialState.board = { ...initialState.board, type: "scrum" }
+    initialState.backlogGroupBy = "sprint"
+    const group = groupBacklogIssues(initialState, "sprint").find((candidate) => candidate.issueKeys.length >= 3)!
+    const original = [...group.issueKeys]
+    initialState.selectedBacklogGroupId = group.id
+    initialState.selectedIssueKey = original[0]!
+    let appState: AppStateContext | undefined
+    const Capture = () => {
+      appState = useAppState()
+      return null
+    }
+    const setup = await createTestRenderer({ width: 180, height: 30 })
+    renderers.push(setup.renderer)
+    const keymap = createDefaultOpenTuiKeymap(setup.renderer)
+
+    await render(() => (
+      <LazyJiraKeymapProvider keymap={keymap}>
+        <AppProviders
+          config={{ appName: "lazyjira", runtimeEnv: "dev" }}
+          initialState={initialState}
+          source={createDevWorkspaceSource()}
+          saveWorkspaceConfig={async () => undefined}
+          iconMode="ascii"
+          onExit={() => undefined}
+        >
+          <Capture />
+          <App />
+        </AppProviders>
+      </LazyJiraKeymapProvider>
+    ), setup.renderer)
+    await setup.flush()
+
+    setup.mockInput.pressKey("j", { shift: true })
+    await setup.flush()
+    setup.mockInput.pressKey("j", { shift: true })
+    await setup.flush()
+
+    const projected = groupBacklogIssues(appState!.state, "sprint").find((candidate) => candidate.id === group.id)!.issueKeys
+    const first = original[0]!
+    const second = original[1]!
+    const third = original[2]!
+    expect(projected.slice(0, 3)).toEqual([second, third, first])
+    expect(appState!.state.rankDrafts[first]).toEqual({ issueKey: first, targetIssueKey: third, position: "after" })
+  })
+
   test("keeps long Inspector type choices visible while navigating", async () => {
     const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
     initialState.issueTypes = [

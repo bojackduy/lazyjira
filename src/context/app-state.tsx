@@ -3,7 +3,7 @@ import { createStore, reconcile } from "solid-js/store"
 import { createRequiredContext, type ProviderProps } from "./helper"
 import { normalizeBaseUrl, saveJiraAuthConfig, type JiraWorkspaceConfig } from "../auth/config"
 import { workspaceStats, type WorkspaceSelection, type WorkspaceSource, type LoadedWorkspace } from "../workspace/types"
-import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueEditableField, IssueSummary, JiraUserOption, ProjectOption, QuickFilterId, StatusCategory, TimelineZoom, WorkspaceOption } from "../state/app-state"
+import type { AppState, AuthOnboardingStep, BacklogGroupBy, BoardGroupBy, BoardLocation, BoardMode, BoardOption, ConfigDraft, ConfigFocusArea, ConfigSectionId, FocusPane, IssueEditableField, IssueSummary, JiraFieldOption, JiraUserOption, ProjectOption, QuickFilterId, StatusCategory, TimelineZoom, WorkspaceOption } from "../state/app-state"
 import {
   colorableConfigSection,
   configuredColumns,
@@ -28,6 +28,7 @@ import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState
 import { timelineCreateRowKey, timelineUnparentedSectionKey } from "../state/timeline"
 import { planJiraWrites, writePlanCounts } from "../state/jira-write-plan"
 import { groupBacklogIssues, resolvedBacklogSelection } from "../state/selectors"
+import { materializeRankDraft } from "../state/rank-projection"
 import { markdownToAdf } from "../jira/adf"
 import { useToast } from "./toast"
 
@@ -429,13 +430,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     }
   }
 
-  async function loadInspectorFieldPicker(fieldId: "priority", issueKey: string, currentValue: string, requestId: number) {
+  async function loadInspectorFieldPicker(fieldId: "priority" | "labels", issueKey: string, currentValue: string, requestId: number) {
     try {
-      const options = await props.source.loadIssueFieldOptions(fieldId, issueKey)
+      const allOptions = await props.source.loadIssueFieldOptions(fieldId, issueKey)
       const picker = state.inspectorFieldPicker
       if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || requestId !== fieldPickerRequestId) return
-      const selectedIndex = Math.max(0, options.findIndex((option) => option.value === currentValue))
-      setState("inspectorFieldPicker", { ...picker, options, selectedIndex, loading: false, error: undefined })
+      const options = fieldId === "labels" ? filterLabelOptions(allOptions, currentValue) : allOptions
+      const selectedIndex = fieldId === "priority" ? Math.max(0, options.findIndex((option) => option.value === currentValue)) : 0
+      setState("inspectorFieldPicker", { ...picker, allOptions, options, selectedIndex, loading: false, error: undefined })
     } catch (error) {
       const picker = state.inspectorFieldPicker
       if (!picker || picker.fieldId !== fieldId || picker.issueKey !== issueKey || requestId !== fieldPickerRequestId) return
@@ -1060,12 +1062,12 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     moveInspectorChoice(delta) {
       const fieldId = state.inspectorEditingFieldId
-      if (fieldId === "priority") {
+      if (fieldId === "priority" || fieldId === "labels") {
         const picker = state.inspectorFieldPicker
         if (!picker || !picker.options.length) return
         const selectedIndex = (picker.selectedIndex + delta + picker.options.length) % picker.options.length
         setState("inspectorFieldPicker", "selectedIndex", selectedIndex)
-        setState("inspectorEditValue", picker.options[selectedIndex]!.value)
+        setState("inspectorEditValue", fieldId === "labels" ? replaceCurrentLabel(state.inspectorEditValue, picker.options[selectedIndex]!.value) : picker.options[selectedIndex]!.value)
         return
       }
       if (fieldId === "assignee" || fieldId === "reporter") {
@@ -1093,10 +1095,10 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       if (!issue || !field || !field.editable || !isEditableField(field.id)) return
       setState("inspectorEditingFieldId", field.id)
       setState("inspectorEditValue", field.id === "statusId" ? issue.statusId : field.id === "type" ? issue.type : field.id === "parentKey" ? issue.parentKey ?? "" : field.id === "sprintId" ? issue.sprintId ?? "" : issueFieldDisplayValue(state, issue, field))
-      if (field.id === "priority") {
+      if (field.id === "priority" || field.id === "labels") {
         const requestId = ++fieldPickerRequestId
         const currentValue = issueFieldDisplayValue(state, issue, field)
-        setState("inspectorFieldPicker", { fieldId: field.id, issueKey: issue.key, options: [], selectedIndex: 0, loading: true })
+        setState("inspectorFieldPicker", { fieldId: field.id, issueKey: issue.key, allOptions: [], options: [], selectedIndex: 0, loading: true })
         void loadInspectorFieldPicker(field.id, issue.key, currentValue, requestId)
       } else if (field.id === "assignee" || field.id === "reporter") {
         setState("inspectorUserPicker", { fieldId: field.id, issueKey: issue.key, query: "", allOptions: [], options: [], selectedIndex: 0, loading: true })
@@ -1110,6 +1112,11 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         setState("inspectorUserPicker", "query", value)
         setState("inspectorUserPicker", "loading", true)
         scheduleInspectorUserPicker(picker.fieldId, picker.issueKey, value, 250)
+      }
+      const fieldPicker = state.inspectorFieldPicker
+      if (fieldPicker?.fieldId === "labels") {
+        const options = filterLabelOptions(fieldPicker.allOptions, value)
+        setState("inspectorFieldPicker", { ...fieldPicker, options, selectedIndex: 0 })
       }
     },
     commitInspectorEdit() {
@@ -1333,6 +1340,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
           if (item.operation === "rank") {
             if (!item.rankTargetIssueKey || !item.rankPosition) continue
             await props.source.rankIssue(issueKey, item.rankTargetIssueKey, item.rankPosition)
+            const rankDraft = state.rankDrafts[issueKey]
+            if (rankDraft) setState("issueKeysBySource", reconcile(materializeRankDraft(state.issueKeysBySource, rankDraft)))
             const drafts = { ...state.rankDrafts }
             delete drafts[issueKey]
             setState("rankDrafts", reconcile(drafts))
@@ -1766,6 +1775,18 @@ function splitJiraList(value: string) {
 function filterJiraUsers(users: JiraUserOption[], query: string) {
   const normalizedQuery = query.trim().toLowerCase()
   return normalizedQuery ? users.filter((user) => user.displayName.toLowerCase().includes(normalizedQuery)) : users
+}
+
+function filterLabelOptions(options: JiraFieldOption[], value: string) {
+  const parts = value.split(",")
+  const query = parts.at(-1)?.trim().toLowerCase() ?? ""
+  const selected = new Set(parts.slice(0, -1).map((label) => label.trim().toLowerCase()).filter(Boolean))
+  return options.filter((option) => !selected.has(option.value.toLowerCase()) && (!query || option.label.toLowerCase().includes(query))).slice(0, 20)
+}
+
+function replaceCurrentLabel(value: string, label: string) {
+  const selected = value.split(",").slice(0, -1).map((item) => item.trim()).filter(Boolean)
+  return [...selected, label].join(", ")
 }
 
 function jiraDocument(text: string) {

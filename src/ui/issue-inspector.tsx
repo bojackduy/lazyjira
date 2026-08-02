@@ -48,6 +48,12 @@ export function IssueInspector(props: { compact: boolean }) {
       scrollbox?.scrollChildIntoView(choiceRowId(fieldId, value))
       return
     }
+    if (fieldId === "labels") {
+      const picker = state.inspectorFieldPicker
+      const value = picker?.options[picker.selectedIndex]?.value
+      if (value) scrollbox?.scrollChildIntoView(choiceRowId(fieldId, value))
+      return
+    }
     if (fieldId === "statusId" || fieldId === "type" || fieldId === "parentKey" || fieldId === "sprintId") {
       scrollbox?.scrollChildIntoView(choiceRowId(fieldId, state.inspectorEditValue))
       return
@@ -169,6 +175,7 @@ function FieldEditor(props: { field: IssueFieldDefinition }) {
   const theme = useTheme()
   if (props.field.id === "statusId" || props.field.id === "type" || props.field.id === "parentKey" || props.field.id === "sprintId") return <ChoiceEditor field={props.field} />
   if (props.field.id === "priority") return <FieldOptionPickerEditor />
+  if (props.field.id === "labels") return <LabelPickerEditor />
   if (props.field.id === "assignee" || props.field.id === "reporter") return <UserPickerEditor fieldId={props.field.id} />
   if (props.field.multiline) {
     let textarea: TextareaRenderable | undefined
@@ -206,6 +213,40 @@ function FieldEditor(props: { field: IssueFieldDefinition }) {
       backgroundColor={theme.panel}
       focusedBackgroundColor={theme.panel}
     />
+  )
+}
+
+function LabelPickerEditor() {
+  const appState = useAppState()
+  const { state } = appState
+  const theme = useTheme()
+  const picker = () => state.inspectorFieldPicker
+
+  return (
+    <box flexDirection="column" gap={1}>
+      <input
+        value={state.inspectorEditValue}
+        onInput={(value) => appState.updateInspectorEditValue(value)}
+        onSubmit={() => appState.commitInspectorEdit()}
+        ref={(element: InputRenderable) => setTimeout(() => !element.isDestroyed && element.focus(), 1)}
+        placeholder="Comma-separated Jira labels"
+        placeholderColor={theme.textSubtle}
+        textColor={theme.text}
+        focusedTextColor={theme.text}
+        cursorColor={theme.accent}
+        backgroundColor={theme.panel}
+        focusedBackgroundColor={theme.panel}
+      />
+      <Show when={picker()?.loading}><text fg={theme.warning}>Loading Jira label suggestions...</text></Show>
+      <Show when={picker()?.error}>{(message) => <text fg={theme.danger}>Suggestions unavailable: {message()}</text>}</Show>
+      <For each={picker()?.options ?? []} fallback={<Show when={!picker()?.loading}><text fg={theme.textMuted}>Type a new label or continue with the current values</text></Show>}>
+        {(option, index) => {
+          const selected = () => picker()?.selectedIndex === index()
+          return <text id={choiceRowId("labels", option.value)} fg={selected() ? theme.selectedText : theme.text} bg={selected() ? theme.selected : undefined} wrapMode="none">{selected() ? ">" : " "} {option.label}</text>
+        }}
+      </For>
+      <text fg={theme.textSubtle}>Up/Down apply suggestion · Enter stage · custom labels allowed</text>
+    </box>
   )
 }
 

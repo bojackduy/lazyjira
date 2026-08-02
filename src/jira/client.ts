@@ -148,6 +148,11 @@ export async function fetchJiraPriorities(auth: JiraAuthConfig, fetchImpl: Fetch
   return Array.isArray(response) ? response : response.values ?? []
 }
 
+export async function fetchJiraLabels(auth: JiraAuthConfig, fetchImpl: FetchLike = fetch, maxResults = 1000): Promise<string[]> {
+  const response = await jiraRequest<{ values?: string[] }>(auth, `/rest/api/3/label?startAt=0&maxResults=${encodeURIComponent(String(maxResults))}`, { endpoint: "Jira labels" }, fetchImpl)
+  return response.values ?? []
+}
+
 export type JiraErrorCategory = "auth" | "permission" | "not-found" | "rate-limit" | "network" | "invalid-response" | "http"
 
 export type JiraApiErrorOptions = {

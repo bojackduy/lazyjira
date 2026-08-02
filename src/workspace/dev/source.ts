@@ -85,7 +85,7 @@ export function createDevWorkspaceSource(): WorkspaceSource {
       if (fieldId === "priority") {
         return [...new Map(Object.values(workspace.issues).map((issue) => [issue.priority, { value: issue.priority, label: issue.priority, color: issue.priorityColor }])).values()]
       }
-      return []
+      return [...new Set(Object.values(workspace.issues).flatMap((issue) => issue.labels))].sort().map((label) => ({ value: label, label }))
     },
     async loadUserPicker(fieldId, issueKey, projectKey, query) {
       const members = [...new Set(Object.values(loadDevWorkspaceFixture(projectKey).issues).flatMap((issue) => [issue.assignee, issue.reporter]).filter((name) => name && name !== "Unassigned"))]

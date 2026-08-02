@@ -248,6 +248,21 @@ describe("prod workspace source", () => {
     ])
   })
 
+  test("loads Jira label suggestions without restricting custom labels", async () => {
+    const source = createProdWorkspaceSource(
+      async () => ({ baseUrl: "https://team.atlassian.net", email: "duy@example.com", apiToken: "token" }),
+      async (url) => {
+        expect(url).toBe("https://team.atlassian.net/rest/api/3/label?startAt=0&maxResults=1000")
+        return jsonResponse({ values: ["auth", "release-blocker"] })
+      },
+    )
+
+    await expect(source.loadIssueFieldOptions("labels", "REAL-1")).resolves.toEqual([
+      { value: "auth", label: "auth" },
+      { value: "release-blocker", label: "release-blocker" },
+    ])
+  })
+
   test("loads bounded issue pages for a source", async () => {
     const requests: string[] = []
     const source = createProdWorkspaceSource(

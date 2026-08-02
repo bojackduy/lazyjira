@@ -63,4 +63,11 @@ describe("dev workspace source", () => {
 
     expect(options.map((option) => option.value)).toEqual(["Critical", "Medium", "High", "Low"])
   })
+
+  test("provides deterministic label suggestions for Inspector editing", async () => {
+    const options = await createDevWorkspaceSource().loadIssueFieldOptions("labels", "PROJ-128")
+
+    expect(options.map((option) => option.value)).toContain("auth")
+    expect(options.map((option) => option.value)).toContain("release-blocker")
+  })
 })

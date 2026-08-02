@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { deleteJiraIssue, fetchAccessibleProjectPage, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectIssueTypes, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
+import { deleteJiraIssue, fetchAccessibleProjectPage, fetchBoardBacklogIssuePage, fetchBoardBacklogIssues, fetchBoardConfiguration, fetchBoardIssuePage, fetchBoardSprints, fetchIssueComments, fetchIssueDetail, fetchJiraFields, fetchJiraIssueEditMetadata, fetchJiraIssueTransitions, fetchJiraLabels, fetchJiraPages, fetchJiraSearchIssuePage, fetchProjectBoards, fetchProjectIssueTypes, fetchProjectStatuses, fetchSprintIssuePage, fetchSprintIssues, fetchStatusesByIds, jiraRequest, JiraApiError, moveJiraIssueToSprint, postJiraIssueComment, rankJiraIssue, transitionJiraIssue, updateJiraIssue } from "./client"
 import { discoverJiraIssueFieldIds, discoverJiraStartDateField, mergeIssueDetail, normalizeBoardConfiguration, normalizeBoardSprints, normalizeJiraComments, normalizeJiraIssues, normalizeProjectStatuses, normalizeSprintIssues } from "./normalize"
 import type { JiraAuthConfig } from "../auth/config"
 
@@ -239,6 +239,15 @@ describe("Jira discovery client", () => {
     })
 
     expect(metadata.fields?.issuetype?.allowedValues).toEqual([{ id: "10001", name: "Bug" }])
+  })
+
+  test("loads bounded Jira label suggestions", async () => {
+    const labels = await fetchJiraLabels(auth, async (url) => {
+      expect(url).toBe("https://team.atlassian.net/rest/api/3/label?startAt=0&maxResults=1000")
+      return jsonResponse({ values: ["auth", "release-blocker"] })
+    })
+
+    expect(labels).toEqual(["auth", "release-blocker"])
   })
 
   test("deletes an issue", async () => {

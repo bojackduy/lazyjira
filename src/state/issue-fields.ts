@@ -1,7 +1,7 @@
-import type { AppState, IssueEditableField, IssueSummary } from "./app-state"
+import type { AppState, IssueEditableField, IssueSummary, ParentIssueSummary } from "./app-state"
 import { configuredIssueTypes, configuredStatuses } from "./config-drafts"
 import { applyIssueDraft, issueWithDraft } from "./issue-drafts"
-import { issueColor, issueTypeColor, issueTypeName, parentIssueColor, priorityColor, statusColor, statusName } from "./selectors"
+import { groupBacklogIssues, issueColor, issueTypeColor, issueTypeName, parentIssueColor, priorityColor, statusColor, statusName } from "./selectors"
 
 export { applyIssueDraft }
 
@@ -26,8 +26,8 @@ export const issueFields: IssueFieldDefinition[] = [
   { id: "storyPoints", label: "Story Points", editable: true, value: (issue) => String(issue.storyPoints ?? "") },
   { id: "estimate", label: "Estimate", editable: true, value: (issue) => String(issue.estimate ?? "") },
   { id: "dueDate", label: "Due Date", editable: true, value: (issue) => issue.dueDate ?? "" },
-  { id: "epic", label: "Epic", editable: true, value: (issue) => issue.epic ?? "" },
-  { id: "feature", label: "Feature", editable: true, value: (issue) => issue.feature ?? "" },
+  { id: "epic", label: "Epic", editable: false, value: (issue, state) => hierarchyValue(state, issue, "epic") ?? issue.epic ?? "" },
+  { id: "feature", label: "Feature", editable: false, value: (issue, state) => hierarchyValue(state, issue, "feature") ?? issue.feature ?? "" },
   { id: "space", label: "Space", editable: true, value: (issue) => issue.space ?? "" },
   { id: "labels", label: "Labels", editable: true, value: (issue) => issue.labels.join(", ") },
   { id: "components", label: "Components", editable: true, value: (issue) => issue.components.join(", ") },
@@ -37,7 +37,7 @@ export const issueFields: IssueFieldDefinition[] = [
   { id: "blocked", label: "Blocked", editable: true, value: (issue) => (issue.blocked ? "yes" : "no") },
   { id: "createdAt", label: "Created", editable: false, value: (issue) => issue.createdAt ?? "" },
   { id: "updatedAt", label: "Updated", editable: false, value: (issue) => issue.updatedAt ?? "" },
-  { id: "rank", label: "Rank", editable: false, value: (issue) => issue.rank ?? "" },
+  { id: "rank", label: "Backlog Order", editable: false, value: (issue, state) => backlogOrderValue(state, issue) },
   { id: "resolution", label: "Resolution", editable: false, value: (issue) => issue.resolution ?? "Unresolved" },
 ]
 
@@ -78,5 +78,29 @@ export function selectedIssueField(state: AppState) {
 }
 
 export function isEditableField(fieldId: IssueFieldDefinition["id"]): fieldId is IssueEditableField {
-  return !["key", "createdAt", "updatedAt", "rank", "resolution"].includes(fieldId)
+  return !["key", "epic", "feature", "createdAt", "updatedAt", "rank", "resolution"].includes(fieldId)
+}
+
+function hierarchyValue(state: AppState, issue: IssueSummary, expectedType: "epic" | "feature") {
+  const seen = new Set<string>()
+  let parentKey = issue.parentKey ?? issue.parent?.key
+  let inlineParent = issue.parent
+  while (parentKey && !seen.has(parentKey)) {
+    seen.add(parentKey)
+    const loadedAncestor = state.issues[parentKey]
+    const ancestor: IssueSummary | ParentIssueSummary | undefined = loadedAncestor ?? (inlineParent?.key === parentKey ? inlineParent : undefined)
+    if (!ancestor) break
+    const typeName = loadedAncestor ? issueTypeName(state, loadedAncestor) : ancestor.typeName ?? ancestor.type ?? ""
+    if (typeName.toLowerCase().includes(expectedType)) return `${ancestor.key}${ancestor.title ? ` ${ancestor.title}` : ""}`
+    parentKey = loadedAncestor?.parentKey ?? loadedAncestor?.parent?.key
+    inlineParent = loadedAncestor?.parent
+  }
+  return undefined
+}
+
+function backlogOrderValue(state: AppState, issue: IssueSummary) {
+  const group = groupBacklogIssues(state, state.backlogGroupBy).find((candidate) => candidate.issueKeys.includes(issue.key))
+  const index = group?.issueKeys.indexOf(issue.key) ?? -1
+  if (group && index >= 0) return `${index + 1} in loaded ${group.label}`
+  return issue.rank ? "Managed by Jira" : "Unavailable"
 }

@@ -84,8 +84,9 @@ export type JiraFieldOption = {
 }
 
 export type InspectorFieldPicker = {
-  fieldId: "priority"
+  fieldId: "priority" | "labels"
   issueKey: string
+  allOptions: JiraFieldOption[]
   options: JiraFieldOption[]
   selectedIndex: number
   loading: boolean

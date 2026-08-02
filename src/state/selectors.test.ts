@@ -88,6 +88,20 @@ describe("board selectors", () => {
     expect(backlogCreateSprintId(state)).toBeUndefined()
   })
 
+  test("projects staged rank changes into the visible Backlog order", () => {
+    const state = loadDevWorkspaceState()
+    state.board = { ...state.board, type: "scrum" }
+    const before = groupBacklogIssues(state, "sprint").find((group) => group.id === state.activeSprintId)!.issueKeys
+    const issueKey = before[0]!
+    const targetIssueKey = before[1]!
+    state.rankDrafts[issueKey] = { issueKey, targetIssueKey, position: "after" }
+
+    const after = groupBacklogIssues(state, "sprint").find((group) => group.id === state.activeSprintId)!.issueKeys
+
+    expect(after.slice(0, 2)).toEqual([targetIssueKey, issueKey])
+    expect(before.slice(0, 2)).toEqual([issueKey, targetIssueKey])
+  })
+
   test("formats complete and partial Scrum sprint dates without inventing missing dates", () => {
     expect(sprintDateRange("2026-07-27T00:00:00.000Z", "2026-08-07T00:00:00.000Z")).toBe(" · 07/27-08/07")
     expect(sprintDateRange("2026-07-27", undefined)).toBe(" · starts 07/27")

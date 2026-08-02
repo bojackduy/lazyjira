@@ -10,6 +10,7 @@ import type { LoadedIssueDetail, WorkspaceSelection, WorkspaceSource } from "../
 import type { JiraWorkspaceConfig } from "../auth/config"
 import { issueFields } from "../state/issue-fields"
 import { timelineCreateRowKey, timelineUnparentedSectionKey } from "../state/timeline"
+import { groupBacklogIssues } from "../state/selectors"
 
 const disposers: Array<() => void> = []
 
@@ -716,6 +717,26 @@ describe("app state project picker", () => {
     expect(appState.state.rankDrafts["PROJ-128"]).toEqual({ issueKey: "PROJ-128", targetIssueKey: "PROJ-121", position: "after" })
   })
 
+  test("keeps staged rank projection through w and restores source order on discard", () => {
+    const appState = createTestAppState()
+    appState.state.board = { ...appState.state.board, type: "scrum" }
+    const beforeGroup = groupBacklogIssues(appState.state, "sprint").find((group) => group.issueKeys.length >= 2)!
+    const groupId = beforeGroup.id
+    const before = beforeGroup.issueKeys
+    const issueKey = before[0]!
+    const targetIssueKey = before[1]!
+
+    appState.stageIssueRank(issueKey, targetIssueKey, "after")
+    expect(groupBacklogIssues(appState.state, "sprint").find((group) => group.id === groupId)!.issueKeys.slice(0, 2)).toEqual([targetIssueKey, issueKey])
+
+    appState.applyIssueChanges()
+    expect(groupBacklogIssues(appState.state, "sprint").find((group) => group.id === groupId)!.issueKeys.slice(0, 2)).toEqual([targetIssueKey, issueKey])
+
+    appState.openStagedDiscard()
+    appState.confirmStagedDiscard()
+    expect(groupBacklogIssues(appState.state, "sprint").find((group) => group.id === groupId)!.issueKeys.slice(0, 2)).toEqual(before.slice(0, 2))
+  })
+
   test("tracks backlog collapse independently and resets it on workspace switch", async () => {
     const appState = createTestAppState()
 
@@ -808,6 +829,28 @@ describe("app state project picker", () => {
     expect(appState.state.inspectorFieldPicker).toBeUndefined()
   })
 
+  test("filters Jira label suggestions while preserving custom label entry", async () => {
+    const appState = createTestAppState({
+      async loadIssueFieldOptions(fieldId) {
+        if (fieldId === "labels") return ["auth", "release-blocker", "regression"].map((label) => ({ value: label, label }))
+        return []
+      },
+    })
+    const labelsFieldIndex = issueFields.findIndex((field) => field.id === "labels")
+    appState.moveInspectorSelection(labelsFieldIndex - appState.state.inspectorSelectedFieldIndex)
+    appState.startInspectorEdit()
+    await flushPromises()
+
+    appState.updateInspectorEditValue("auth, rel")
+    expect(appState.state.inspectorFieldPicker?.options.map((option) => option.value)).toEqual(["release-blocker"])
+    appState.moveInspectorChoice(1)
+    expect(appState.state.inspectorEditValue).toBe("auth, release-blocker")
+    appState.updateInspectorEditValue("auth, custom-label")
+    appState.commitInspectorEdit()
+
+    expect(appState.state.issueDrafts["PROJ-128"]?.labels).toBe("auth, custom-label")
+  })
+
   test("posts successful comments and keeps failed comments staged", async () => {
     const posted: string[] = []
     const appState = createTestAppState({
@@ -855,6 +898,34 @@ describe("app state project picker", () => {
     expect(ranks).toEqual(["PROJ-128:after:PROJ-121"])
     expect(appState.state.issueDrafts["PROJ-128"]).toBeUndefined()
     expect(appState.state.rankDrafts["PROJ-128"]).toBeUndefined()
+  })
+
+  test("materializes successful remote rank order before clearing its projection", async () => {
+    const appState = createTestAppState({ async rankIssue() {} })
+    appState.state.board = { ...appState.state.board, type: "scrum" }
+    const [sourceId, issueKeys] = Object.entries(appState.state.issueKeysBySource).find(([, keys]) => keys.length >= 2)!
+    const issueKey = issueKeys[0]!
+    const targetIssueKey = issueKeys[1]!
+
+    appState.stageIssueRank(issueKey, targetIssueKey, "after")
+    await appState.confirmRemoteIssueApply()
+
+    expect(appState.state.issueKeysBySource[sourceId]!.slice(0, 2)).toEqual([targetIssueKey, issueKey])
+    expect(appState.state.rankDrafts[issueKey]).toBeUndefined()
+  })
+
+  test("retains a failed remote rank projection for retry", async () => {
+    const appState = createTestAppState({ async rankIssue() { throw new Error("rank failed") } })
+    appState.state.board = { ...appState.state.board, type: "scrum" }
+    const beforeGroup = groupBacklogIssues(appState.state, "sprint").find((group) => group.issueKeys.length >= 2)!
+    const issueKey = beforeGroup.issueKeys[0]!
+    const targetIssueKey = beforeGroup.issueKeys[1]!
+
+    appState.stageIssueRank(issueKey, targetIssueKey, "after")
+    await appState.confirmRemoteIssueApply()
+
+    expect(appState.state.rankDrafts[issueKey]).toEqual({ issueKey, targetIssueKey, position: "after" })
+    expect(groupBacklogIssues(appState.state, "sprint").find((group) => group.id === beforeGroup.id)!.issueKeys.slice(0, 2)).toEqual([targetIssueKey, issueKey])
   })
 
   test("requires a second remote confirmation before deleting an issue", async () => {
@@ -1198,7 +1269,10 @@ function createTestAppState(overrides: Partial<WorkspaceSource> = {}, saveWorksp
       },
       async loadIssueFieldOptions(fieldId, issueKey) {
         const issue = loadDevWorkspaceFixture("PROJ").issues[issueKey]
-        return issue ? [{ value: issue.priority, label: issue.priority, color: issue.priorityColor }] : []
+        if (!issue) return []
+        return fieldId === "priority"
+          ? [{ value: issue.priority, label: issue.priority, color: issue.priorityColor }]
+          : issue.labels.map((label) => ({ value: label, label }))
       },
       async loadUserPicker(fieldId, issueKey, projectKey, query) {
         return [{ accountId: "duy-account", displayName: "Duy" }].filter((user) => !query || user.displayName.toLowerCase().includes(query.toLowerCase()))
