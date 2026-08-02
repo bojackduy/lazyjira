@@ -1,6 +1,6 @@
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
-import { createEffect, For, Show } from "solid-js"
+import { createEffect, For, onCleanup, Show } from "solid-js"
 import { useAppState } from "../context/app-state"
 import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
@@ -16,6 +16,7 @@ export function ProjectListRoute() {
   const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
+  let selectionScrollTimer: ReturnType<typeof setTimeout> | undefined
   const rows = () => projectListRows(state)
   const columns = () => projectListColumns(projectListViewportWidth(dimensions().width), state.projectListHorizontalOffset)
   const visibleRows = () => Math.max(1, dimensions().height - 13)
@@ -35,8 +36,11 @@ export function ProjectListRoute() {
 
   createEffect(() => {
     if (state.route !== "list" || !state.projectListSelectedIssueKey) return
-    scrollbox?.scrollChildIntoView(`project-list-${state.projectListSelectedIssueKey}`)
+    if (selectionScrollTimer) clearTimeout(selectionScrollTimer)
+    const targetId = `project-list-${state.projectListSelectedIssueKey}`
+    selectionScrollTimer = setTimeout(() => scrollbox?.scrollChildIntoView(targetId), 16)
   })
+  onCleanup(() => selectionScrollTimer && clearTimeout(selectionScrollTimer))
 
   function moveHalfPage(delta: 1 | -1) {
     if (state.focusedPane !== "main" || state.route !== "list") return false

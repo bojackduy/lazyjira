@@ -117,7 +117,7 @@ Scrum Backlog shows collapsible active sprint, future sprint, and backlog groups
 
 ### 4. List
 
-List is a dense, project-wide paginated issue table independent from board, backlog, and remote search sources. Key and Summary remain visible as the terminal narrows; selection drives the shared inspector, `Space` independently collapses parent rows, and `Enter` opens detail.
+List is a dense, project-wide paginated issue table independent from board, backlog, and remote search sources. Key and Summary remain visible as the terminal narrows; selection drives the shared inspector and is synchronized after OpenTUI layout so rapid `j/k` navigation and route return cannot leave it outside the viewport. `Space` independently collapses parent rows, and `Enter` opens detail.
 
 ### 5. Active Sprints / Board
 

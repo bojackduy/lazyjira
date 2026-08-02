@@ -129,6 +129,7 @@ Scope and design: `docs/JIRA_PROJECT_NAVIGATION_EPIC.md`.
 - [x] `N3.7` Implement List `j/k`, `g/G`, `Ctrl-u/d`, `h/l`, `Space`, `Enter`, `/`, `S`, `L`, `r`, and `n` commands.
 - [x] `N3.8` Add responsive column degradation that never hides Key or Summary.
 - [x] `N3.9` Add API/state/render tests for initial load, append, dedupe, refresh, partial counts, empty, permission, failure, and narrow terminals.
+- [x] `N3.10` Defer List selection scrolling until post-layout and cover rapid `j/k` navigation plus route-return visibility.
 
 ### N4: Timeline Data Model
 

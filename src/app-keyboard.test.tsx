@@ -100,6 +100,64 @@ describe("keyboard input ownership", () => {
     }
   })
 
+  test("keeps List j/k selection visible before any manual paging", async () => {
+    const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    initialState.route = "list"
+    initialState.focusedPane = "main"
+    initialState.issueTypes = [{ id: "Initiative", name: "Initiative", color: "#22C55E", hierarchyLevel: 2 }]
+    const baseIssue = initialState.issues["PROJ-101"]!
+    const issueKeys = Array.from({ length: 20 }, (_, index) => `LIST-${String(index + 1).padStart(2, "0")}`)
+    initialState.issues = Object.fromEntries(issueKeys.map((key, index) => [key, { ...baseIssue, key, title: `Scrollable list row ${index + 1}`, type: "Initiative", typeName: "Initiative", typeHierarchyLevel: 2, parentKey: undefined, parent: undefined }]))
+    initialState.issueKeysBySource[projectListIssuePageSourceId] = issueKeys
+    initialState.projectListSelectedIssueKey = issueKeys[0]
+    initialState.selectedIssueKey = issueKeys[0]!
+    initialState.collapsedProjectListParentKeys = []
+    let appState: AppStateContext | undefined
+    const Capture = () => {
+      appState = useAppState()
+      return null
+    }
+    const setup = await createTestRenderer({ width: 120, height: 18 })
+    renderers.push(setup.renderer)
+    const keymap = createDefaultOpenTuiKeymap(setup.renderer)
+
+    await render(() => (
+      <LazyJiraKeymapProvider keymap={keymap}>
+        <AppProviders
+          config={{ appName: "lazyjira", runtimeEnv: "dev" }}
+          initialState={initialState}
+          source={createDevWorkspaceSource()}
+          saveWorkspaceConfig={async () => undefined}
+          iconMode="ascii"
+          onExit={() => undefined}
+        >
+          <Capture />
+          <App />
+        </AppProviders>
+      </LazyJiraKeymapProvider>
+    ), setup.renderer)
+    await setup.flush()
+
+    for (let index = 1; index < 15; index += 1) setup.mockInput.pressKey("j")
+    await setup.flush()
+    await Bun.sleep(20)
+    await setup.flush()
+
+    const selectedKey = issueKeys[14]!
+    expect(appState!.state.projectListSelectedIssueKey).toBe(selectedKey)
+    expect(setup.captureCharFrame()).toContain(`>${selectedKey}`)
+
+    setup.mockInput.pressKey("3")
+    await setup.flush()
+    setup.mockInput.pressKey("4")
+    await setup.flush()
+    await Bun.sleep(20)
+    await setup.flush()
+
+    expect(appState!.state.projectListSelectedIssueKey).toBe(selectedKey)
+    expect(setup.captureCharFrame()).toContain(`>${selectedKey}`)
+  })
+
   test("centers the selected Backlog issue after h/l group jumps", async () => {
     const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
     initialState.route = "backlog"
