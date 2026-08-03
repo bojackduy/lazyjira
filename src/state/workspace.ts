@@ -1,7 +1,7 @@
 import type { AppRoute } from "./routes"
 import type { AppState, IssueSummary } from "./app-state"
 import { effectiveIssueSearchQuery } from "./issue-search"
-import { loadedIssueCount } from "./issue-pages"
+import { issuePageActionVisible, loadedIssueCount } from "./issue-pages"
 import { allIssues, activeSprint, groupModeLabel, isAssignedToCurrentUser, issueList, statusName } from "./selectors"
 import { stagedChanges } from "./staged-changes"
 import { boardCapabilities } from "./routes"
@@ -180,6 +180,14 @@ export function workspaceResultsForItem(state: AppState, item?: WorkspaceItem): 
 
 export function workspaceCurrentResults(state: AppState) {
   return workspaceResultsForItem(state, workspaceSelectedItem(state))
+}
+
+export function workspaceRemoteLoadMoreVisible(state: AppState) {
+  return workspaceSelectedItem(state)?.id === "search:remote" && issuePageActionVisible(state.remoteSearchPageState)
+}
+
+export function workspaceResultSelectionCount(state: AppState) {
+  return workspaceCurrentResults(state).length + (workspaceRemoteLoadMoreVisible(state) ? 1 : 0)
 }
 
 function queueItem(id: string, title: string, subtitle: string, issues: IssueSummary[]): WorkspaceItem {

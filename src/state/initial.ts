@@ -82,6 +82,7 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     kanbanStatusOffset: 0,
     selectedIssueKey: workspace.selectedIssueKey,
     selectedBoardLocations: {},
+    selectedLoadMoreSourceId: undefined,
     inspectorSelectedFieldIndex: 1,
     inspectorEditValue: "",
     inspectorFieldPicker: undefined,

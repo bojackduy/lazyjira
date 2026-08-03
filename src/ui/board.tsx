@@ -14,6 +14,7 @@ import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts
 import { issueByKey } from "../state/issue-drafts"
 import { ParentBadge } from "./parent-badge"
 import { boardIssuePageSourceId, issuePageStatusText } from "../state/issue-pages"
+import { LoadMoreActionRow, PartialResultsBanner } from "./partial-results"
 import {
   activeSprint,
   boardGroupByForMode,
@@ -67,6 +68,11 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
 
   createEffect(() => {
     if (state.route !== "board") return
+    if (props.mode === "kanban" && state.selectedLoadMoreSourceId === boardIssuePageSourceId) {
+      if (selectionScrollTimer) clearTimeout(selectionScrollTimer)
+      selectionScrollTimer = setTimeout(() => scrollbox?.scrollChildIntoView("load-more-board"), 16)
+      return
+    }
     const location = selectedBoardItemLocation(state, props.mode)
     if (!location) return
     groupBy()
@@ -100,6 +106,9 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
           <text fg={theme.textSubtle}>Statuses {displayedStatusStart()}-{Math.min(displayedStatusStart() + visibleStatuses().length - 1, configuredStatuses(state).length)}/{configuredStatuses(state).length}</text>
           <Show when={props.mode === "kanban" && state.issuePageStateBySource[boardIssuePageSourceId]}>
             {(page) => <text fg={page().error ? theme.danger : page().loading ? theme.warning : theme.textSubtle} wrapMode="none">{issuePageStatusText(page())}</text>}
+          </Show>
+          <Show when={props.mode === "kanban"}>
+            <PartialResultsBanner page={state.issuePageStateBySource[boardIssuePageSourceId]} />
           </Show>
         </box>
       </box>
@@ -153,6 +162,9 @@ export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
             </>
           )}
         </For>
+        <Show when={props.mode === "kanban"}>
+          <LoadMoreActionRow page={state.issuePageStateBySource[boardIssuePageSourceId]} selected={state.selectedLoadMoreSourceId === boardIssuePageSourceId && state.focusedPane === "main"} id="load-more-board" />
+        </Show>
         </scrollbox>
       </Show>
     </box>

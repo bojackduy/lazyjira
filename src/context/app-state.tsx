@@ -23,9 +23,10 @@ import { issueByKey } from "../state/issue-drafts"
 import { isEditableField, issueFieldDisplayValue, issueFields, parentIssueChoices, selectedIssueField } from "../state/issue-fields"
 import { filteredProjectPickerBoards, filteredProjectPickerOptions, filteredProjectPickerProjects, filteredProjectPickerWorkspaces, normalizedProjectQuery, projectPageCacheKey } from "../state/project-picker"
 import { discardedActiveEditors, stagedChanges, stagedDiscardTargetIds } from "../state/staged-changes"
-import { workspaceCurrentResults, workspaceItems, workspaceSelectedItem } from "../state/workspace"
+import { workspaceCurrentResults, workspaceItems, workspaceRemoteLoadMoreVisible, workspaceResultSelectionCount, workspaceSelectedItem } from "../state/workspace"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, defaultIssuePageState, projectListIssuePageSourceId, remoteSearchIssuePageSourceId, sprintIssuePageSourceId } from "../state/issue-pages"
-import { timelineCreateRowKey, timelineUnparentedSectionKey } from "../state/timeline"
+import { timelineCreateRowKey, timelineLoadMoreRowKey, timelineUnparentedSectionKey } from "../state/timeline"
+import { projectListLoadMoreRowKey } from "../state/project-list"
 import { planJiraWrites, writePlanCounts } from "../state/jira-write-plan"
 import { groupBacklogIssues, resolvedBacklogSelection } from "../state/selectors"
 import { materializeRankDraft } from "../state/rank-projection"
@@ -130,6 +131,7 @@ export type AppStateContext = {
   applyIssueChanges: () => void
   createDraftIssue: (issue: IssueSummary) => void
   setSelectedBoardLocation: (mode: BoardMode, location: BoardLocation | undefined) => void
+  setSelectedLoadMoreSource: (sourceId: string | undefined) => void
   setActiveSprintGroupBy: (groupBy: BoardGroupBy) => void
   setKanbanGroupBy: (groupBy: BoardGroupBy) => void
   setBacklogGroupBy: (groupBy: BacklogGroupBy) => void
@@ -356,6 +358,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setState("kanbanStatusOffset", 0)
     setState("selectedBacklogGroupId", workspace.activeSprintId || "backlog")
     setState("collapsedBacklogGroupIds", [])
+    setState("selectedLoadMoreSourceId", undefined)
   }
 
   async function runRemoteSearch(query: string, append: boolean) {
@@ -372,6 +375,8 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     const pageState = append && state.remoteSearchQuery === trimmed
       ? state.remoteSearchPageState
       : defaultIssuePageState(remoteSearchIssuePageSourceId, 50)
+    const previousKeys = append ? [...state.remoteSearchIssueKeys] : []
+    const selectFirstAppended = append && state.workspaceFocusedArea === "results" && workspaceRemoteLoadMoreVisible(state) && state.workspaceResultSelectedIndex === state.remoteSearchIssueKeys.length
     const requestId = state.remoteSearchRequestId + 1
     setState("remoteSearchRequestId", requestId)
     setState("searchMode", "remote")
@@ -389,6 +394,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       const nextIssues = { ...state.issues }
       for (const issue of loaded.issues) nextIssues[issue.key] = mergeLoadedPageIssue(nextIssues[issue.key], issue)
       const nextKeys = uniqueStrings([...(append ? state.remoteSearchIssueKeys : []), ...loaded.issues.map((issue) => issue.key)])
+      const firstAppendedKey = loaded.issues.map((issue) => issue.key).find((key) => !previousKeys.includes(key))
       setState("issues", reconcile(nextIssues))
       setState("stats", workspaceStats(state.statuses, Object.values(nextIssues)))
       setState("remoteSearchIssueKeys", nextKeys)
@@ -397,9 +403,9 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("searchDraft", trimmed)
       setState("route", "workspace")
       setState("sidebarSelectedIndex", sidebarRoutesForBoard(state.board).findIndex((route) => route.id === "workspace"))
-      setState("workspaceFocusedArea", "cards")
       setState("workspaceSelectedIndex", remoteSearchWorkspaceItemIndex(state))
-      setState("workspaceResultSelectedIndex", 0)
+      setState("workspaceFocusedArea", selectFirstAppended && firstAppendedKey ? "results" : "cards")
+      setState("workspaceResultSelectedIndex", selectFirstAppended && firstAppendedKey ? nextKeys.indexOf(firstAppendedKey) : 0)
     } catch (error) {
       if (state.remoteSearchRequestId !== requestId) return
       const message = error instanceof Error ? error.message : String(error)
@@ -661,6 +667,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     setRoute(route) {
       const previousRoute = state.route
+      setState("selectedLoadMoreSourceId", undefined)
       setState("route", route)
       setState("focusedPane", "main")
       if (route === "backlog" && previousRoute !== "backlog") {
@@ -706,9 +713,9 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     moveWorkspaceSelection(delta) {
       if (state.workspaceFocusedArea === "results") {
-        const results = workspaceCurrentResults(state)
-        if (!results.length) return
-        setState("workspaceResultSelectedIndex", (state.workspaceResultSelectedIndex + delta + results.length) % results.length)
+        const selectionCount = workspaceResultSelectionCount(state)
+        if (!selectionCount) return
+        setState("workspaceResultSelectedIndex", (state.workspaceResultSelectedIndex + delta + selectionCount) % selectionCount)
         return
       }
       const items = workspaceItems(state)
@@ -718,7 +725,12 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     openWorkspaceSelection() {
       if (state.workspaceFocusedArea === "results") {
-        const result = workspaceCurrentResults(state)[state.workspaceResultSelectedIndex]
+        const results = workspaceCurrentResults(state)
+        if (workspaceRemoteLoadMoreVisible(state) && state.workspaceResultSelectedIndex === results.length) {
+          void context.loadMoreRemoteSearch()
+          return
+        }
+        const result = results[state.workspaceResultSelectedIndex]
         if (result?.issueKey) context.openIssueDetail(result.issueKey)
         return
       }
@@ -732,8 +744,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       else context.focusWorkspaceResults()
     },
     focusWorkspaceResults() {
-      const results = workspaceCurrentResults(state)
-      if (!results.length) return
+      if (!workspaceResultSelectionCount(state)) return
       setState("workspaceFocusedArea", "results")
       setState("workspaceResultSelectedIndex", 0)
     },
@@ -904,6 +915,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       toast.show(`${configDraftSummary(draft)} staged`)
     },
     selectIssue(issueKey) {
+      setState("selectedLoadMoreSourceId", undefined)
       setState("selectedIssueKey", issueKey)
     },
     openIssueDetail(issueKey) {
@@ -966,6 +978,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     async loadIssuePage(sourceId, refresh = false) {
       const retainedPage = state.issuePageStateBySource[sourceId]
       const currentPage = refresh ? defaultIssuePageState(sourceId, retainedPage?.maxResults ?? 50) : retainedPage ?? defaultIssuePageState(sourceId, sourceId === projectListIssuePageSourceId ? 50 : 100)
+      const previousSourceKeys = [...(state.issueKeysBySource[sourceId] ?? [])]
+      const selectedActionRoute = !refresh && sourceId === projectListIssuePageSourceId && state.route === "list" && state.projectListSelectedIssueKey === projectListLoadMoreRowKey
+        ? "list"
+        : !refresh && sourceId === projectListIssuePageSourceId && state.route === "timeline" && state.timelineSelectedIssueKey === timelineLoadMoreRowKey
+          ? "timeline"
+          : !refresh && state.selectedLoadMoreSourceId === sourceId
+            ? state.route
+            : undefined
       if (currentPage.loading) return
       if (!refresh && currentPage.isLast) {
         toast.show("No more Jira issues to load for this section")
@@ -994,6 +1014,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         for (const issue of loaded.issues) nextIssues[issue.key] = mergeLoadedPageIssue(nextIssues[issue.key], issue)
         for (const issue of loaded.relatedIssues ?? []) nextIssues[issue.key] = mergeLoadedPageIssue(nextIssues[issue.key], issue)
         const nextSourceKeys = uniqueStrings([...(refresh ? [] : state.issueKeysBySource[sourceId] ?? []), ...loaded.issues.map((issue) => issue.key)])
+        const firstAppendedKey = loaded.issues.map((issue) => issue.key).find((key) => !previousSourceKeys.includes(key))
         setState("issues", reconcile(nextIssues))
         setState("issueKeysBySource", sourceId, nextSourceKeys)
         setState("stats", workspaceStats(state.statuses, Object.values(nextIssues)))
@@ -1009,7 +1030,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
             })))
           }
           const selected = state.projectListSelectedIssueKey
-          if (!selected || !nextSourceKeys.includes(selected)) setState("projectListSelectedIssueKey", nextSourceKeys[0])
+          if (selectedActionRoute === "list") setState("projectListSelectedIssueKey", firstAppendedKey ?? nextSourceKeys.at(-1))
+          else if (!selected || (!nextSourceKeys.includes(selected) && selected !== projectListLoadMoreRowKey)) setState("projectListSelectedIssueKey", nextSourceKeys[0])
+        }
+        if (selectedActionRoute) {
+          setState("selectedLoadMoreSourceId", undefined)
+          if (selectedActionRoute === "timeline") setState("timelineSelectedIssueKey", firstAppendedKey ?? timelineCreateRowKey)
+          if (selectedActionRoute === "board") setState("selectedBoardLocations", "kanban", undefined)
+          if (firstAppendedKey) setState("selectedIssueKey", firstAppendedKey)
         }
         if (!state.selectedIssueKey && loaded.issues[0]) setState("selectedIssueKey", loaded.issues[0].key)
       } catch (error) {
@@ -1021,7 +1049,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     setProjectListSelection(issueKey) {
       setState("projectListSelectedIssueKey", issueKey)
-      if (issueKey) setState("selectedIssueKey", issueKey)
+      if (issueKey && issueKey !== projectListLoadMoreRowKey) setState("selectedIssueKey", issueKey)
     },
     setProjectListHorizontalOffset(offset) {
       setState("projectListHorizontalOffset", Math.max(0, offset))
@@ -1031,7 +1059,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     setTimelineSelection(issueKey) {
       setState("timelineSelectedIssueKey", issueKey)
-      if (issueKey && issueKey !== timelineUnparentedSectionKey && issueKey !== timelineCreateRowKey) setState("selectedIssueKey", issueKey)
+      if (issueKey && issueKey !== timelineUnparentedSectionKey && issueKey !== timelineLoadMoreRowKey && issueKey !== timelineCreateRowKey) setState("selectedIssueKey", issueKey)
     },
     setTimelineWindowStart(date) {
       setState("timelineWindowStart", date)
@@ -1561,7 +1589,11 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("inspectorEditValue", issue.title)
     },
     setSelectedBoardLocation(mode, location) {
+      setState("selectedLoadMoreSourceId", undefined)
       setState("selectedBoardLocations", mode, location)
+    },
+    setSelectedLoadMoreSource(sourceId) {
+      setState("selectedLoadMoreSourceId", sourceId)
     },
     setActiveSprintGroupBy(groupBy) {
       setState("activeSprintGroupBy", groupBy)
@@ -1573,6 +1605,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("backlogGroupBy", groupBy)
     },
     setSelectedBacklogGroup(groupId) {
+      setState("selectedLoadMoreSourceId", undefined)
       setState("selectedBacklogGroupId", groupId)
     },
     toggleBacklogGroupCollapsed(groupId) {

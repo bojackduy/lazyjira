@@ -1,5 +1,5 @@
 import type { AppState, IssueSummary } from "./app-state"
-import { projectListIssuePageSourceId } from "./issue-pages"
+import { issuePageActionVisible, projectListIssuePageSourceId } from "./issue-pages"
 import { issuesForSource } from "./selectors"
 import { projectTimelineRows, timelineModel } from "./timeline"
 
@@ -10,6 +10,8 @@ export type ProjectListColumn = {
   label: string
   width: number
 }
+
+export const projectListLoadMoreRowKey = "__project-list-load-more__"
 
 const fixedColumns: ProjectListColumn[] = [
   { id: "key", label: "Key", width: 12 },
@@ -59,6 +61,11 @@ export function projectListSelection(keys: string[], selectedKey: string | undef
   return keys[Math.max(0, Math.min(keys.length - 1, current + delta))]
 }
 
+export function projectListSelectionKeys(state: AppState) {
+  const keys = projectListIssues(state).map((issue) => issue.key)
+  return issuePageActionVisible(state.issuePageStateBySource[projectListIssuePageSourceId]) ? [...keys, projectListLoadMoreRowKey] : keys
+}
+
 export function projectListStateText(state: AppState) {
   const page = state.issuePageStateBySource[projectListIssuePageSourceId]
   const loaded = state.issueKeysBySource[projectListIssuePageSourceId]?.length ?? 0
@@ -70,7 +77,7 @@ export function projectListStateText(state: AppState) {
   if (page.refreshing) return `Refreshing project issues · ${loaded}${typeof page.total === "number" ? `/${page.total}` : ""} retained...`
   if (page.loading) return `Loading more project issues · ${loaded}${typeof page.total === "number" ? `/${page.total}` : ""} retained...`
   if (page.error) return `Project List append failed; ${loaded} rows retained · L retry: ${page.error}`
-  if (!visible && loaded) return `No loaded project issues match the active filters. ${loaded} rows remain loaded.`
+  if (!visible && loaded) return `No loaded project issues match the active filters. Only ${loaded} loaded Jira issues were searched; press S to search all Jira.`
   if (!loaded && page.isLast) return `Jira returned no issues for project ${state.project.key}.`
   const count = `${loaded}${typeof page.total === "number" ? `/${page.total}` : ""}`
   return page.isLast ? `${count} project issues loaded` : `${count} project issues loaded · L load more`

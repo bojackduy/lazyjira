@@ -5,9 +5,11 @@ import { useAppState } from "../context/app-state"
 import { useIcons } from "../context/icons"
 import { useBindings } from "../context/keymap"
 import { useTheme } from "../context/theme"
-import { projectListCell, projectListColumns, projectListRows, projectListSelection, projectListStateText, projectListViewportWidth, type ProjectListColumn } from "../state/project-list"
+import { projectListCell, projectListColumns, projectListLoadMoreRowKey, projectListRows, projectListSelection, projectListSelectionKeys, projectListStateText, projectListViewportWidth, type ProjectListColumn } from "../state/project-list"
+import { issuePageActionVisible, projectListIssuePageSourceId } from "../state/issue-pages"
 import { issueColor, issueTypeColor, priorityColor, statusColor } from "../state/selectors"
 import { halfViewportRows, routeBindingsBlocked } from "../state/keyboard-context"
+import { LoadMoreActionRow, PartialResultsBanner } from "../ui/partial-results"
 
 export function ProjectListRoute() {
   const appState = useAppState()
@@ -18,6 +20,7 @@ export function ProjectListRoute() {
   let scrollbox: ScrollBoxRenderable | undefined
   let selectionScrollTimer: ReturnType<typeof setTimeout> | undefined
   const rows = () => projectListRows(state)
+  const page = () => state.issuePageStateBySource[projectListIssuePageSourceId]
   const columns = () => projectListColumns(projectListViewportWidth(dimensions().width), state.projectListHorizontalOffset)
   const visibleRows = () => Math.max(1, dimensions().height - 13)
 
@@ -44,7 +47,7 @@ export function ProjectListRoute() {
 
   function moveHalfPage(delta: 1 | -1) {
     if (state.focusedPane !== "main" || state.route !== "list") return false
-    const keys = rows().map((row) => row.issue.key)
+    const keys = projectListSelectionKeys(state)
     appState.setProjectListSelection(projectListSelection(keys, state.projectListSelectedIssueKey, delta * halfViewportRows(visibleRows())))
   }
 
@@ -54,9 +57,10 @@ export function ProjectListRoute() {
         <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">List · {state.project.key} · {state.projectListSort === "rank" ? "Rank asc" : "Updated desc"}</text>
         <text fg={theme.textMuted} wrapMode="none">j/k row · g/G ends · d/u or Ctrl-u/d half page · h/l columns · Space collapse · Enter detail · / filter · S Jira search · L load more · r refresh</text>
         <text fg={state.issuePageStateBySource["project-list"]?.error ? theme.danger : state.issuePageStateBySource["project-list"]?.loading ? theme.warning : theme.textSubtle} wrapMode="none">{projectListStateText(state)}</text>
+        <PartialResultsBanner page={page()} />
       </box>
 
-      <Show when={rows().length} fallback={<ListEmptyState />}>
+      <Show when={rows().length || issuePageActionVisible(page())} fallback={<ListEmptyState />}>
         <box flexDirection="column" flexGrow={1} minHeight={0} overflow="hidden">
           <ListRow columns={columns()} />
           <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} flexGrow={1} minHeight={0} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }} verticalScrollbarOptions={{ visible: true, trackOptions: { backgroundColor: theme.panel, foregroundColor: theme.border } }}>
@@ -72,6 +76,7 @@ export function ProjectListRoute() {
                 </box>
               )}
             </For>
+            <LoadMoreActionRow page={page()} selected={state.projectListSelectedIssueKey === projectListLoadMoreRowKey && state.focusedPane === "main"} id={`project-list-${projectListLoadMoreRowKey}`} />
           </scrollbox>
         </box>
       </Show>

@@ -65,6 +65,7 @@ const timelineMinCellWidth = 6
 
 const millisecondsPerDay = 86_400_000
 export const timelineCreateRowKey = "__timeline-create__"
+export const timelineLoadMoreRowKey = "__timeline-load-more__"
 export const timelineUnparentedSectionKey = "__timeline-unparented__"
 export const timelineUnparentedExpandedKey = "__timeline-unparented-expanded__"
 
@@ -208,16 +209,16 @@ export function projectTimelineViewRows(rows: TimelineHierarchyRow[], collapsedK
   return result
 }
 
-export function timelineSelection(rows: readonly TimelineProjectedRow[], selectedKey: string | undefined, delta: number | "first" | "last") {
-  const keys = timelineSelectionKeys(rows)
+export function timelineSelection(rows: readonly TimelineProjectedRow[], selectedKey: string | undefined, delta: number | "first" | "last", includeLoadMore = false) {
+  const keys = timelineSelectionKeys(rows, includeLoadMore)
   if (delta === "first") return keys[0]
   if (delta === "last") return keys.at(-1)
   const current = Math.max(0, keys.indexOf(selectedKey ?? ""))
   return keys[Math.max(0, Math.min(keys.length - 1, current + delta))]
 }
 
-export function timelineSelectionKeys(rows: readonly TimelineProjectedRow[]) {
-  return [...rows.map(timelineProjectedRowKey), timelineCreateRowKey]
+export function timelineSelectionKeys(rows: readonly TimelineProjectedRow[], includeLoadMore = false) {
+  return [...rows.map(timelineProjectedRowKey), ...(includeLoadMore ? [timelineLoadMoreRowKey] : []), timelineCreateRowKey]
 }
 
 export function timelineProjectedRowKey(row: TimelineProjectedRow) {
@@ -227,6 +228,7 @@ export function timelineProjectedRowKey(row: TimelineProjectedRow) {
 export function timelineSelectionAction(selectedKey: string | undefined) {
   if (!selectedKey) return undefined
   if (selectedKey === timelineUnparentedSectionKey) return "toggle-unparented" as const
+  if (selectedKey === timelineLoadMoreRowKey) return "load-more" as const
   if (selectedKey === timelineCreateRowKey) return "create" as const
   return "open-issue" as const
 }
@@ -335,7 +337,7 @@ export function timelineStateText(state: AppState, model = timelineModel(state))
   if (page.refreshing) return `Refreshing Timeline · ${completeness(model)} retained...`
   if (page.loading) return `Loading more Timeline issues · ${completeness(model)} retained...`
   if (page.error) return `Timeline append failed; ${model.loaded} rows retained · L retry: ${page.error}`
-  if (!model.rows.length && model.loaded) return `No loaded Timeline issues match the active filters. ${model.loaded} project issues remain loaded.`
+  if (!model.rows.length && model.loaded) return `No loaded Timeline issues match the active filters. Only ${model.loaded} loaded Jira issues were searched; press S to search all Jira.`
   if (!model.loaded && page.isLast) return `Jira returned no issues for project ${state.project.key}.`
   return model.partial ? `${completeness(model)} project issues loaded · partial · L load more` : `${completeness(model)} project issues loaded · complete`
 }

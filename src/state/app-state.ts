@@ -372,6 +372,7 @@ export type AppState = {
   kanbanStatusOffset: number
   selectedIssueKey: string
   selectedBoardLocations: Partial<Record<BoardMode, BoardLocation>>
+  selectedLoadMoreSourceId?: string
   inspectorSelectedFieldIndex: number
   inspectorEditingFieldId?: IssueEditableField
   inspectorEditValue: string

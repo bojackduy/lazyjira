@@ -9,7 +9,8 @@ import { devBoardsByProjectKey, devProjects, loadDevWorkspaceFixture } from "../
 import type { LoadedIssueDetail, WorkspaceSelection, WorkspaceSource } from "../workspace/types"
 import type { JiraWorkspaceConfig } from "../auth/config"
 import { issueFields } from "../state/issue-fields"
-import { timelineCreateRowKey, timelineUnparentedSectionKey } from "../state/timeline"
+import { timelineCreateRowKey, timelineLoadMoreRowKey, timelineUnparentedSectionKey } from "../state/timeline"
+import { projectListLoadMoreRowKey } from "../state/project-list"
 import { groupBacklogIssues } from "../state/selectors"
 
 const disposers: Array<() => void> = []
@@ -494,13 +495,14 @@ describe("app state project picker", () => {
     appState.openSearch()
     appState.updateSearchDraft("oauth")
     appState.commitSearch()
+    appState.setProjectListSelection(projectListLoadMoreRowKey)
     await appState.loadIssuePage(projectListIssuePageSourceId)
 
     expect(calls).toBe(2)
     expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toEqual(["PROJ-121", "PROJ-128"])
     expect(appState.state.issueKeysBySource[boardIssuePageSourceId]).toEqual(boardKeys)
-    expect(appState.state.projectListSelectedIssueKey).toBe("PROJ-121")
-    expect(appState.state.selectedIssueKey).toBe("PROJ-121")
+    expect(appState.state.projectListSelectedIssueKey).toBe("PROJ-128")
+    expect(appState.state.selectedIssueKey).toBe("PROJ-128")
     expect(appState.state.projectListHorizontalOffset).toBe(2)
     expect(appState.state.searchQuery).toBe("oauth")
     expect(appState.state.issues["PROJ-121"]?.title).toBe("Fresh OAuth summary")
@@ -519,14 +521,16 @@ describe("app state project picker", () => {
 
     appState.setRoute("list")
     await flushPromises()
-    appState.setProjectListSelection(issue.key)
+    const selectedIssueKey = appState.state.selectedIssueKey
+    appState.setProjectListSelection(projectListLoadMoreRowKey)
     appState.openSearch()
     appState.updateSearchDraft("oauth")
     appState.commitSearch()
     await appState.loadIssuePage(projectListIssuePageSourceId)
 
     expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toEqual([issue.key])
-    expect(appState.state.projectListSelectedIssueKey).toBe(issue.key)
+    expect(appState.state.projectListSelectedIssueKey).toBe(projectListLoadMoreRowKey)
+    expect(appState.state.selectedIssueKey).toBe(selectedIssueKey)
     expect(appState.state.searchQuery).toBe("oauth")
     expect(appState.state.issuePageStateBySource[projectListIssuePageSourceId]).toMatchObject({ startAt: 1, cursor: "retry-cursor", error: "Jira 403: Project issue access denied", loading: false })
   })
@@ -591,6 +595,10 @@ describe("app state project picker", () => {
 
     appState.setTimelineSelection(timelineCreateRowKey)
     expect(appState.state.timelineSelectedIssueKey).toBe(timelineCreateRowKey)
+    expect(appState.state.selectedIssueKey).toBe(selectedIssueKey)
+
+    appState.setTimelineSelection(timelineLoadMoreRowKey)
+    expect(appState.state.timelineSelectedIssueKey).toBe(timelineLoadMoreRowKey)
     expect(appState.state.selectedIssueKey).toBe(selectedIssueKey)
   })
 
@@ -1187,9 +1195,15 @@ describe("app state project picker", () => {
     expect(appState.state.remoteSearchIssueKeys).toEqual(["PROJ-121"])
     expect(appState.state.route).toBe("workspace")
 
-    await appState.loadMoreRemoteSearch()
+    appState.focusWorkspaceResults()
+    appState.moveWorkspaceSelection(1)
+    expect(appState.state.workspaceResultSelectedIndex).toBe(1)
+    appState.openWorkspaceSelection()
+    await flushPromises()
     expect(searchCalls).toBe(2)
     expect(appState.state.remoteSearchIssueKeys).toEqual(["PROJ-121", "PROJ-998"])
+    expect(appState.state.workspaceFocusedArea).toBe("results")
+    expect(appState.state.workspaceResultSelectedIndex).toBe(1)
   })
 })
 

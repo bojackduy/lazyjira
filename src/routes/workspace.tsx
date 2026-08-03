@@ -16,11 +16,13 @@ import {
   workspaceJumpTargets,
   workspacePendingItem,
   workspaceRecentItems,
+  workspaceRemoteLoadMoreVisible,
   workspaceSearchItems,
   workspaceSelectedItem,
   type WorkspaceItem,
   type WorkspaceResult,
 } from "../state/workspace"
+import { LoadMoreActionRow, PartialResultsBanner } from "../ui/partial-results"
 
 export function WorkspaceRoute() {
   const appState = useAppState()
@@ -133,6 +135,7 @@ function WorkspacePreview(props: { height: number }) {
     if (state.route !== "workspace" || state.workspaceFocusedArea !== "results") return
     const result = results()[state.workspaceResultSelectedIndex]
     if (result) resultsScrollbox?.scrollChildIntoView(workspaceResultId(result.id))
+    else if (workspaceRemoteLoadMoreVisible(state)) resultsScrollbox?.scrollChildIntoView("workspace-remote-load-more")
   })
 
   return (
@@ -143,11 +146,17 @@ function WorkspacePreview(props: { height: number }) {
           <box flexDirection="column" gap={1} flexGrow={1} minHeight={0}>
             <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none">{selectedItem().title}</text>
             <text fg={theme.textMuted}>{previewHint(selectedItem(), results().length)}</text>
-            <Show when={results().length}>
+            <Show when={selectedItem().id === "search:remote"}>
+              <PartialResultsBanner page={state.remoteSearchPageState} />
+            </Show>
+            <Show when={results().length || workspaceRemoteLoadMoreVisible(state)}>
               <scrollbox ref={(element: ScrollBoxRenderable) => (resultsScrollbox = element)} width="100%" height={Math.max(3, props.height - 7)} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }}>
                 <For each={results()}>
                   {(result, index) => <WorkspaceResultRow result={result} selected={focused() && state.workspaceResultSelectedIndex === index()} />}
                 </For>
+                <Show when={selectedItem().id === "search:remote"}>
+                  <LoadMoreActionRow page={state.remoteSearchPageState} selected={focused() && state.workspaceResultSelectedIndex === results().length} id="workspace-remote-load-more" />
+                </Show>
               </scrollbox>
             </Show>
           </box>
@@ -228,6 +237,7 @@ function previewHint(item: WorkspaceItem, resultCount: number) {
   if (item.route) return "Enter opens the view."
   if (item.issueKey) return "Enter opens this issue."
   if (item.section === "pending") return resultCount ? "l/Enter focuses staged changes · W writes Jira · X discards" : "No staged changes."
+  if (item.id === "search:loaded" && !resultCount) return "No loaded issues match. Only loaded Jira issues were searched; press S to search all Jira."
   return resultCount ? "l/Enter focuses results · Enter on a row opens issue detail" : "No matching issues."
 }
 

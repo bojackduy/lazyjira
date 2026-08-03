@@ -52,6 +52,7 @@ Status legend: `[ ]` not started, `[~]` in progress, `[x]` complete, `[!]` block
 - [x] A5.5 Pagination/load-more API for backlog, future sprints, and board issues.
 - [x] A6 Remote search mode separate from `/` loaded filtering.
 - [x] A6.1 Remote search pagination append/dedupe.
+- [x] A6.2 Make partial pages explicit with warning banners, selectable source-specific load-more rows, retry retention, and first-appended selection.
 - [x] A7.0 Staged write review, discard safety, and blocked-row visibility.
 - [x] A7.1 Jira operation planner for field, comment, rank, create, delete, and config changes.
 - [x] A7.2 Comment execution with ADF payloads and partial-success retention.

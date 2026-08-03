@@ -8,10 +8,11 @@ import { useTheme } from "../context/theme"
 import type { IssueSummary } from "../state/app-state"
 import { configuredIssueTypes, configuredStatuses } from "../state/config-drafts"
 import { issueByKey } from "../state/issue-drafts"
-import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageStatusText, sprintIssuePageSourceId } from "../state/issue-pages"
+import { backlogIssuePageSourceId, issuePageActionVisible, issuePageStatusText, sprintIssuePageSourceId } from "../state/issue-pages"
 import { boardCapabilities } from "../state/routes"
 import { routeBindingsBlocked } from "../state/keyboard-context"
 import { emptyLoadedIssuesText, groupBacklogIssues, groupModeLabel, issueColor, issueTypeColor, issueTypeName, parentIssueColor, priorityColor, statusColor, statusName, topLevelLoadedAncestor } from "../state/selectors"
+import { LoadMoreActionRow, PartialResultsBanner } from "../ui/partial-results"
 
 export function BacklogRoute() {
   const { state } = useAppState()
@@ -59,7 +60,8 @@ export function BacklogRoute() {
     viewportWidth()
     const groupId = state.selectedBacklogGroupId
     const selectedGroup = groups().find((group) => group.id === groupId)
-    const targetId = backlogScrollTarget(groupId, state.selectedIssueKey, state.collapsedBacklogGroupIds.includes(groupId), selectedGroup?.issueKeys ?? [])
+    const sourceId = capabilities().supportsSprintBacklog ? backlogGroupSourceId(groupId) : backlogIssuePageSourceId
+    const targetId = state.selectedLoadMoreSourceId === sourceId ? `load-more-${sourceId}` : backlogScrollTarget(groupId, state.selectedIssueKey, state.collapsedBacklogGroupIds.includes(groupId), selectedGroup?.issueKeys ?? [])
     const groupChanged = groupId !== previousGroupId
     previousGroupId = groupId
     if (!scrollbox) return
@@ -116,7 +118,7 @@ export function BacklogRoute() {
                   </Show>
                 </Show>
                 <Show when={capabilities().supportsSprintBacklog ? state.backlogGroupBy === "sprint" : true}>
-                  <IssuePageLine sourceId={capabilities().supportsSprintBacklog ? backlogGroupSourceId(group.id) : boardIssuePageSourceId} />
+                  <IssuePageLine sourceId={capabilities().supportsSprintBacklog ? backlogGroupSourceId(group.id) : backlogIssuePageSourceId} />
                 </Show>
               </box>
             )}
@@ -140,13 +142,13 @@ function IssuePageLine(props: { sourceId: string }) {
   const page = () => state.issuePageStateBySource[props.sourceId]
 
   return (
-    <Show when={page()}>
-      {(value) => (
-        <text fg={value().error ? theme.danger : value().loading ? theme.warning : theme.textSubtle} wrapMode="none">
-          {issuePageStatusText(value())}
-        </text>
-      )}
-    </Show>
+    <box flexDirection="column" flexShrink={0}>
+      <PartialResultsBanner page={page()} />
+      <LoadMoreActionRow page={page()} selected={state.selectedLoadMoreSourceId === props.sourceId && state.focusedPane === "main"} id={`load-more-${props.sourceId}`} />
+      <Show when={page() && !issuePageActionVisible(page())}>
+        <text fg={page()?.error ? theme.danger : page()?.loading ? theme.warning : theme.textSubtle} wrapMode="none">{issuePageStatusText(page()!)}</text>
+      </Show>
+    </box>
   )
 }
 

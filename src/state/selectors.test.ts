@@ -113,7 +113,7 @@ describe("board selectors", () => {
     const state = loadDevWorkspaceState()
     expect(emptyLoadedIssuesText(state, "board issues")).toBe("No board issues are loaded from Jira.")
     state.activeQuickFilters = ["blocked"]
-    expect(emptyLoadedIssuesText(state, "board issues")).toBe("No loaded board issues match the active filters.")
+    expect(emptyLoadedIssuesText(state, "board issues")).toBe("No loaded board issues match the active filters. Only loaded Jira issues were searched; press S to search all Jira.")
   })
 
   test("does not treat a future sprint as an active sprint", () => {

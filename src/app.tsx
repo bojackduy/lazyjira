@@ -11,13 +11,14 @@ import { AppShell } from "./ui/shell"
 import { configuredIssueTypes, configuredStatuses } from "./state/config-drafts"
 import { issueByKey } from "./state/issue-drafts"
 import { issueFields } from "./state/issue-fields"
-import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageCanLoadMore, projectListIssuePageSourceId, sprintIssuePageSourceId } from "./state/issue-pages"
+import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageActionVisible, issuePageCanLoadMore, projectListIssuePageSourceId, sprintIssuePageSourceId } from "./state/issue-pages"
 import { boardCapabilities, boardModeForBoard, sidebarRoutesForBoard } from "./state/routes"
 import { searchPaletteCommands } from "./keymap/commands"
 import type { BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
 import { iconModes } from "./icons/catalog"
-import { projectListIssues, projectListMaxHorizontalOffset, projectListRows, projectListSelection, projectListViewportWidth } from "./state/project-list"
-import { panTimelineWindow, projectTimelineViewRows, timelineCreateRowKey, timelineModel, timelineSelection, timelineSelectionAction, timelineSelectionKeys, timelineUnparentedExpandedKey, timelineUnparentedSectionKey } from "./state/timeline"
+import { projectListLoadMoreRowKey, projectListMaxHorizontalOffset, projectListRows, projectListSelection, projectListSelectionKeys, projectListViewportWidth } from "./state/project-list"
+import { panTimelineWindow, projectTimelineViewRows, timelineCreateRowKey, timelineLoadMoreRowKey, timelineModel, timelineSelection, timelineSelectionAction, timelineSelectionKeys, timelineUnparentedExpandedKey, timelineUnparentedSectionKey } from "./state/timeline"
+import { workspaceSelectedItem } from "./state/workspace"
 import {
   boardCellItems,
   boardCellIssueKeys,
@@ -389,6 +390,10 @@ export function App() {
       return
     }
     if (state.route === "board") {
+      if (state.selectedLoadMoreSourceId === boardIssuePageSourceId) {
+        void appState.loadIssuePage(boardIssuePageSourceId)
+        return
+      }
       const mode = currentBoardMode()
       const location = selectedBoardItemLocation(state, mode)
       const issueKey = location ? boardIssueKeyAtLocation(state, mode, location) : undefined
@@ -397,16 +402,22 @@ export function App() {
       return
     }
     if (state.route === "backlog") {
+      if (state.selectedLoadMoreSourceId) {
+        void appState.loadIssuePage(state.selectedLoadMoreSourceId)
+        return
+      }
       const focusedGroup = groupBacklogIssues(state, state.backlogGroupBy).find((group) => group.id === state.selectedBacklogGroupId)
       const issueKey = focusedGroup?.issueKeys.includes(state.selectedIssueKey) ? state.selectedIssueKey : focusedGroup?.issueKeys[0]
       if (issueKey) appState.openIssueDetail(issueKey)
       else createIssueFromContext()
       return
     }
-    if (state.route === "list" && state.projectListSelectedIssueKey) appState.openIssueDetail(state.projectListSelectedIssueKey)
+    if (state.route === "list" && state.projectListSelectedIssueKey === projectListLoadMoreRowKey) void appState.loadIssuePage(projectListIssuePageSourceId)
+    else if (state.route === "list" && state.projectListSelectedIssueKey) appState.openIssueDetail(state.projectListSelectedIssueKey)
     if (state.route === "timeline") {
       const action = timelineSelectionAction(state.timelineSelectedIssueKey)
       if (action === "toggle-unparented") appState.toggleTimelineParentCollapsed(timelineUnparentedExpandedKey)
+      else if (action === "load-more") void appState.loadIssuePage(projectListIssuePageSourceId)
       else if (action === "create") createIssueFromContext()
       else if (action === "open-issue") appState.openIssueDetail(state.timelineSelectedIssueKey!)
     }
@@ -691,7 +702,7 @@ export function App() {
 
   function loadMoreIssues() {
     if (!canRunGlobalShortcut() || state.focusedPane !== "main") return false
-    if (state.searchMode === "remote" && state.remoteSearchQuery && issuePageCanLoadMore(state.remoteSearchPageState)) {
+    if (state.route === "workspace" && workspaceSelectedItem(state)?.id === "search:remote" && state.remoteSearchQuery && issuePageCanLoadMore(state.remoteSearchPageState)) {
       void appState.loadMoreRemoteSearch()
       return
     }
@@ -702,7 +713,7 @@ export function App() {
 
   function loadMoreSourceId() {
     if (state.route === "list" || state.route === "timeline") return issuePageCanLoadMore(state.issuePageStateBySource[projectListIssuePageSourceId]) ? projectListIssuePageSourceId : undefined
-    if (state.route === "board" && currentBoardMode() === "kanban") return boardIssuePageSourceId
+    if (state.route === "board" && currentBoardMode() === "kanban") return issuePageCanLoadMore(state.issuePageStateBySource[boardIssuePageSourceId]) ? boardIssuePageSourceId : undefined
     if (state.route !== "backlog") return undefined
     if (!boardCapabilities(state.board).supportsSprintBacklog) return issuePageCanLoadMore(state.issuePageStateBySource[backlogIssuePageSourceId]) ? backlogIssuePageSourceId : undefined
     if (state.backlogGroupBy === "sprint") {
@@ -716,6 +727,11 @@ export function App() {
       ...state.sprints.map((sprint) => sprintIssuePageSourceId(sprint.id)),
       backlogIssuePageSourceId,
     ].find((sourceId) => issuePageCanLoadMore(state.issuePageStateBySource[sourceId]))
+  }
+
+  function backlogLoadMoreSourceId(groupId: string) {
+    if (!boardCapabilities(state.board).supportsSprintBacklog) return backlogIssuePageSourceId
+    return groupId === "backlog" ? backlogIssuePageSourceId : sprintIssuePageSourceId(groupId)
   }
 
   function isPopupOpen() {
@@ -770,6 +786,10 @@ export function App() {
   }
 
   function moveBoardVertical(mode: BoardMode, delta: number) {
+    if (state.selectedLoadMoreSourceId === boardIssuePageSourceId) {
+      if (delta < 0) appState.setSelectedLoadMoreSource(undefined)
+      return
+    }
     const location = selectedBoardItemLocation(state, mode) ?? firstBoardLocation(state, mode)
     if (!location) return
     const cell = boardCellItems(state, mode, location.groupIndex, location.statusIndex)
@@ -787,9 +807,11 @@ export function App() {
         return
       }
     }
+    if (mode === "kanban" && delta > 0 && issuePageActionVisible(state.issuePageStateBySource[boardIssuePageSourceId])) appState.setSelectedLoadMoreSource(boardIssuePageSourceId)
   }
 
   function moveBoardHorizontal(mode: BoardMode, delta: number) {
+    if (state.selectedLoadMoreSourceId === boardIssuePageSourceId) return
     const location = selectedBoardItemLocation(state, mode) ?? firstBoardLocation(state, mode)
     if (!location) return
     const statuses = configuredStatuses(state)
@@ -803,20 +825,39 @@ export function App() {
   }
 
   function moveBacklogSelection(delta: number) {
-    if (state.collapsedBacklogGroupIds.includes(state.selectedBacklogGroupId)) return
     const groups = groupBacklogIssues(state, state.backlogGroupBy)
     const focusedGroup = groups.find((group) => group.id === state.selectedBacklogGroupId)
     const keys = focusedGroup?.issueKeys ?? groups.flatMap((group) => group.issueKeys)
+    const sourceId = backlogLoadMoreSourceId(focusedGroup?.id ?? state.selectedBacklogGroupId)
+    const hasAction = issuePageActionVisible(state.issuePageStateBySource[sourceId])
+    const entries = [...keys, ...(hasAction ? [sourceId] : [])]
+    if (state.collapsedBacklogGroupIds.includes(state.selectedBacklogGroupId)) {
+      if (hasAction) appState.setSelectedLoadMoreSource(sourceId)
+      return
+    }
+    if (state.selectedLoadMoreSourceId === sourceId) {
+      const next = entries[(keys.length + delta + entries.length) % entries.length]
+      if (next === sourceId) return
+      appState.setSelectedLoadMoreSource(undefined)
+      if (next) appState.selectIssue(next)
+      return
+    }
     if (!keys.length) {
+      if (hasAction) {
+        appState.setSelectedLoadMoreSource(sourceId)
+        return
+      }
       const fallbackGroup = groups.find((group) => group.issueKeys.length && !state.collapsedBacklogGroupIds.includes(group.id))
       const fallbackIssueKey = delta > 0 ? fallbackGroup?.issueKeys[0] : fallbackGroup?.issueKeys.at(-1)
       if (fallbackGroup) appState.setSelectedBacklogGroup(fallbackGroup.id)
       if (fallbackIssueKey) appState.selectIssue(fallbackIssueKey)
       return
     }
-    const currentIndex = keys.indexOf(state.selectedIssueKey)
+    const currentIndex = entries.indexOf(state.selectedIssueKey)
     const startIndex = currentIndex === -1 ? 0 : currentIndex
-    appState.selectIssue(keys[(startIndex + delta + keys.length) % keys.length] ?? keys[0]!)
+    const next = entries[(startIndex + delta + entries.length) % entries.length]
+    if (next === sourceId) appState.setSelectedLoadMoreSource(sourceId)
+    else if (next) appState.selectIssue(next)
   }
 
   function moveBacklogGroup(delta: number) {
@@ -833,21 +874,21 @@ export function App() {
   }
 
   function moveProjectList(delta: number) {
-    const keys = projectListIssues(state).map((issue) => issue.key)
+    const keys = projectListSelectionKeys(state)
     appState.setProjectListSelection(projectListSelection(keys, state.projectListSelectedIssueKey, delta))
   }
 
   function moveTimeline(delta: number) {
-    appState.setTimelineSelection(timelineSelection(visibleTimelineRows(), state.timelineSelectedIssueKey, delta))
+    appState.setTimelineSelection(timelineSelection(visibleTimelineRows(), state.timelineSelectedIssueKey, delta, issuePageActionVisible(state.issuePageStateBySource[projectListIssuePageSourceId])))
   }
 
   function moveToBoundary(boundary: "first" | "last") {
     if (!canRunGlobalShortcut() || state.focusedPane !== "main" || (state.route !== "list" && state.route !== "timeline")) return false
     if (state.route === "timeline") {
-      appState.setTimelineSelection(timelineSelection(visibleTimelineRows(), state.timelineSelectedIssueKey, boundary))
+      appState.setTimelineSelection(timelineSelection(visibleTimelineRows(), state.timelineSelectedIssueKey, boundary, issuePageActionVisible(state.issuePageStateBySource[projectListIssuePageSourceId])))
       return
     }
-    const keys = projectListIssues(state).map((issue) => issue.key)
+    const keys = projectListSelectionKeys(state)
     appState.setProjectListSelection(projectListSelection(keys, state.projectListSelectedIssueKey, boundary))
   }
 
@@ -857,9 +898,10 @@ export function App() {
   }
 
   function ensureProjectListSelection() {
-    const keys = projectListIssues(state).map((issue) => issue.key)
+    const keys = projectListSelectionKeys(state)
     const selected = keys.includes(state.projectListSelectedIssueKey ?? "") ? state.projectListSelectedIssueKey : keys[0]
-    if (selected !== state.projectListSelectedIssueKey || (selected && selected !== state.selectedIssueKey)) appState.setProjectListSelection(selected)
+    const selectedIssue = selected === projectListLoadMoreRowKey ? undefined : selected
+    if (selected !== state.projectListSelectedIssueKey || (selectedIssue && selectedIssue !== state.selectedIssueKey)) appState.setProjectListSelection(selected)
   }
 
   function visibleTimelineRows() {
@@ -870,7 +912,7 @@ export function App() {
     const rows = visibleTimelineRows()
     const model = timelineModel(state)
     if (!rows.length && !model.loaded && !state.issuePageStateBySource[projectListIssuePageSourceId]?.isLast) return
-    const keys = timelineSelectionKeys(rows)
+    const keys = timelineSelectionKeys(rows, issuePageActionVisible(state.issuePageStateBySource[projectListIssuePageSourceId]))
     const selected = keys.includes(state.timelineSelectedIssueKey ?? "") ? state.timelineSelectedIssueKey : keys[0]
     const selectedIssue = timelineSelectionAction(selected) === "open-issue" ? selected : undefined
     if (selected !== state.timelineSelectedIssueKey || (selectedIssue && selectedIssue !== state.selectedIssueKey)) appState.setTimelineSelection(selected)

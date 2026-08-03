@@ -275,7 +275,7 @@ export function sprintDateRange(startDate: string | undefined, endDate: string |
 
 export function emptyLoadedIssuesText(state: AppState, surface: string) {
   return state.activeQuickFilters.length || state.searchQuery.trim()
-    ? `No loaded ${surface} match the active filters.`
+    ? `No loaded ${surface} match the active filters. Only loaded Jira issues were searched; press S to search all Jira.`
     : `No ${surface} are loaded from Jira.`
 }
 

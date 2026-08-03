@@ -109,19 +109,19 @@ The global dashboard shows jump targets, attention queues, recent issues, loaded
 
 ### 2. Timeline
 
-Timeline projects the independently paged project issue source into a read-only hierarchy and schedule. It opens at Month zoom with loaded parent rows collapsed, then preserves user expansion and zoom choices. Day, Week, and Month use the same responsive grid of up to 11 readable cells; zoom keeps the current center date anchored instead of expanding finer granularities into dozens of colliding columns. It shows loaded/total completeness, discovered Start and Due dates, missing-parent or invalid-hierarchy notices, explicit unscheduled rows, and a textual narrow-terminal fallback. Dated sprint windows may appear as distinct fallback bars, never as invented issue Start or Due dates. A final create row starts the highest configured project hierarchy level.
+Timeline projects the independently paged project issue source into a read-only hierarchy and schedule. It opens at Month zoom with loaded parent rows collapsed, then preserves user expansion and zoom choices. Day, Week, and Month use the same responsive grid of up to 11 readable cells; zoom keeps the current center date anchored instead of expanding finer granularities into dozens of colliding columns. It shows loaded/total completeness, an always-visible partial-results warning, a selectable load-more row, discovered Start and Due dates, missing-parent or invalid-hierarchy notices, explicit unscheduled rows, and a textual narrow-terminal fallback. Dated sprint windows may appear as distinct fallback bars, never as invented issue Start or Due dates. A final create row starts the highest configured project hierarchy level.
 
 ### 3. Backlog
 
-Scrum Backlog shows collapsible active sprint, future sprint, and backlog groups with rank and move staging. `J/K` projects each relative rank change immediately, `w` retains the local preview, `X` restores source order, and a successful Jira write materializes the projected order before clearing its draft. Kanban Backlog shows the board backlog without sprint-only controls. Balanced rows adapt to the measured Backlog pane: complete issue keys and ellipsized titles lead, a visible boundary separates inline metadata, top-level ancestor keys and names use a dedicated conditional line, and stacked metadata keeps status readable as space narrows. Every issue has one separator row; absent ancestors consume no additional space. Planning Signals appears only when enough width remains for a wide issue list. `L` loads the focused source page when Jira has more results.
+Scrum Backlog shows collapsible active sprint, future sprint, and backlog groups with rank and move staging. `J/K` projects each relative rank change immediately, `w` retains the local preview, `X` restores source order, and a successful Jira write materializes the projected order before clearing its draft. Kanban Backlog shows the board backlog without sprint-only controls. Balanced rows adapt to the measured Backlog pane: complete issue keys and ellipsized titles lead, a visible boundary separates inline metadata, top-level ancestor keys and names use a dedicated conditional line, and stacked metadata keeps status readable as space narrows. Every issue has one separator row; absent ancestors consume no additional space. Planning Signals appears only when enough width remains for a wide issue list. Partial sprint and backlog sources show warning banners plus selectable load-more rows; `j/k` focuses them and `Enter` or `L` loads the next source page.
 
 ### 4. List
 
-List is a dense, project-wide paginated issue table independent from board, backlog, and remote search sources. Key and Summary remain visible as the terminal narrows; selection drives the shared inspector and is synchronized after OpenTUI layout so rapid `j/k` navigation and route return cannot leave it outside the viewport. `Space` independently collapses parent rows, and `Enter` opens detail.
+List is a dense, project-wide paginated issue table independent from board, backlog, and remote search sources. Key and Summary remain visible as the terminal narrows; selection drives the shared inspector and is synchronized after OpenTUI layout so rapid `j/k` navigation and route return cannot leave it outside the viewport. Partial data shows a warning banner and a selectable final load-more row without replacing the selected issue in the inspector. `Space` independently collapses parent rows, and `Enter` opens detail or loads the selected action.
 
 ### 5. Active Sprints / Board
 
-Scrum Active sprints loads complete active-sprint issue pages and retains sprint goal/date context. Kanban Board uses bounded board pages with explicit `L` load more. Both show workflow columns, create cards, local filters, issue actions, and the shared inspector.
+Scrum Active sprints loads complete active-sprint issue pages and retains sprint goal/date context. Kanban Board uses bounded board pages with a partial-results banner and a full-width load-more action after the grid. Both show workflow columns, create cards, local filters, issue actions, and the shared inspector.
 
 ### 6. Issue Detail And Inspector
 
@@ -160,6 +160,7 @@ Should support:
 
 - Search issues.
 - Search Jira remotely with an explicit command.
+- Navigate paged remote results into a selectable load-more row; successful appends focus the first new Jira result.
 - Resolve a numeric key such as `1812` to the current project's issue and match a full key such as `HPCE-1812` exactly.
 - Search boards/projects.
 - Search Confluence/docs links.

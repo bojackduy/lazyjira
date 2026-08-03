@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { createInitialAppState } from "./initial"
 import { projectListIssuePageSourceId } from "./issue-pages"
-import { projectListColumns, projectListRows, projectListSelection, projectListStateText, projectListViewportWidth } from "./project-list"
+import { projectListColumns, projectListLoadMoreRowKey, projectListRows, projectListSelection, projectListSelectionKeys, projectListStateText, projectListViewportWidth } from "./project-list"
 import { loadDevWorkspaceFixture } from "../workspace/dev/fixtures"
 import type { IssuePageState } from "./app-state"
 
@@ -29,6 +29,16 @@ describe("project list state", () => {
     expect(projectListSelection(keys, "PROJ-1", 2)).toBe("PROJ-3")
     expect(projectListSelection(keys, "PROJ-3", -2)).toBe("PROJ-1")
     expect(projectListSelection(keys, "PROJ-2", 20)).toBe("PROJ-3")
+  })
+
+  test("places a partial-page action after visible issues", () => {
+    const state = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    state.issueKeysBySource[projectListIssuePageSourceId] = ["PROJ-121"]
+    state.issuePageStateBySource[projectListIssuePageSourceId] = page({ startAt: 1, total: 5 })
+
+    expect(projectListSelectionKeys(state).at(-1)).toBe(projectListLoadMoreRowKey)
+    state.issuePageStateBySource[projectListIssuePageSourceId]!.isLast = true
+    expect(projectListSelectionKeys(state)).not.toContain(projectListLoadMoreRowKey)
   })
 
   test("orders List rows by parent hierarchy and exposes indentation depth", () => {

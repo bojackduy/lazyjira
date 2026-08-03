@@ -28,6 +28,33 @@ export function issuePageCanLoadMore(page: IssuePageState | undefined) {
   return !page || (!page.loading && !page.isLast)
 }
 
+export function issuePageActionVisible(page: IssuePageState | undefined) {
+  return !!page && !page.isLast && loadedIssueCount(page) > 0
+}
+
+export function issuePageNextCount(page: IssuePageState) {
+  const remaining = typeof page.total === "number" ? Math.max(0, page.total - loadedIssueCount(page)) : page.maxResults
+  return Math.min(page.maxResults, remaining || page.maxResults)
+}
+
+export function partialResultsBannerText(page: IssuePageState) {
+  if (!issuePageActionVisible(page)) return undefined
+  const loaded = loadedIssueCount(page)
+  const count = `${loaded}${typeof page.total === "number" ? `/${page.total}` : ""}`
+  const state = page.loading
+    ? `LOADING NEXT ${issuePageNextCount(page)}...`
+    : page.error
+      ? "LOAD FAILED · [L] RETRY"
+      : `[L] LOAD NEXT ${issuePageNextCount(page)}`
+  return `! PARTIAL RESULTS · ${count} loaded · ${state} · [S] SEARCH ALL JIRA`
+}
+
+export function loadMoreActionText(page: IssuePageState) {
+  if (page.loading) return `Loading next ${issuePageNextCount(page)}...`
+  if (page.error) return `[L] RETRY · Load next ${issuePageNextCount(page)}`
+  return `[L] LOAD NEXT ${issuePageNextCount(page)}`
+}
+
 export function issuePageStatusText(page: IssuePageState, subject = "Jira issues") {
   const loaded = loadedIssueCount(page)
   const count = `${loaded}${typeof page.total === "number" ? `/${page.total}` : ""}`

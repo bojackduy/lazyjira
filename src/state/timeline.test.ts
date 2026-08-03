@@ -12,6 +12,7 @@ import {
   projectTimelineViewRows,
   timelineCells,
   timelineCreateRowKey,
+  timelineLoadMoreRowKey,
   timelineDateBounds,
   timelineLayout,
   timelineNotices,
@@ -131,6 +132,9 @@ describe("timeline data model", () => {
     expect(model.rows.map((row) => row.issue.key)).toEqual(["ROOT", "CHILD", "LEAF", "OTHER"])
     expect(timelineSelection(projected, "ROOT", 1)).toBe(timelineUnparentedSectionKey)
     expect(timelineSelection(projected, timelineUnparentedSectionKey, 1)).toBe(timelineCreateRowKey)
+    expect(timelineSelection(projected, timelineUnparentedSectionKey, 1, true)).toBe(timelineLoadMoreRowKey)
+    expect(timelineSelection(projected, timelineLoadMoreRowKey, 1, true)).toBe(timelineCreateRowKey)
+    expect(timelineSelectionAction(timelineLoadMoreRowKey)).toBe("load-more")
     expect(timelineSelection(projected, timelineCreateRowKey, 1)).toBe(timelineCreateRowKey)
     expect(timelineSelection(projected, timelineUnparentedSectionKey, "first")).toBe("ROOT")
     expect(timelineSelection(projected, "ROOT", "last")).toBe(timelineCreateRowKey)

@@ -14,6 +14,7 @@ import {
   projectTimelineViewRows,
   timelineCells,
   timelineCreateRowKey,
+  timelineLoadMoreRowKey,
   timelineLayout,
   timelineModel,
   timelineNotices,
@@ -29,6 +30,8 @@ import {
   type TimelineProjectedIssueRow,
   type TimelineProjectedRow,
 } from "../state/timeline"
+import { issuePageActionVisible, projectListIssuePageSourceId } from "../state/issue-pages"
+import { LoadMoreActionRow, PartialResultsBanner } from "../ui/partial-results"
 
 export function TimelineRoute() {
   const appState = useAppState()
@@ -39,6 +42,7 @@ export function TimelineRoute() {
   const today = () => new Date().toISOString().slice(0, 10)
   const model = createMemo(() => timelineModel(state))
   const rows = createMemo(() => projectTimelineViewRows(model().rows, state.collapsedTimelineParentKeys))
+  const page = () => state.issuePageStateBySource[projectListIssuePageSourceId]
   const layout = createMemo(() => timelineLayout(dimensions().width, state.timelineZoom))
   const cells = createMemo(() => timelineCells(state.timelineWindowStart, state.timelineZoom, layout().cellCount, today()))
   const visibleRows = () => Math.max(1, dimensions().height - 14)
@@ -71,7 +75,7 @@ export function TimelineRoute() {
 
   function moveHalfPage(delta: 1 | -1) {
     if (state.focusedPane !== "main" || state.route !== "timeline") return false
-    appState.setTimelineSelection(timelineSelection(rows(), state.timelineSelectedIssueKey, delta * halfViewportRows(visibleRows())))
+    appState.setTimelineSelection(timelineSelection(rows(), state.timelineSelectedIssueKey, delta * halfViewportRows(visibleRows()), issuePageActionVisible(page())))
   }
 
   function pan(units: number) {
@@ -102,6 +106,7 @@ export function TimelineRoute() {
         </text>
         <text fg={theme.textMuted} wrapMode="none">j/k row · g/G ends · d/u or Ctrl-u/d half page · h/l pan · [/] viewport · Space collapse/section · z zoom · t today · Enter open/toggle/create · L load more</text>
         <text fg={state.issuePageStateBySource["project-list"]?.error ? theme.danger : state.issuePageStateBySource["project-list"]?.loading ? theme.warning : theme.textSubtle} wrapMode="none">{timelineStateText(state, model())}</text>
+        <PartialResultsBanner page={page()} />
         <For each={timelineNotices(model(), state.sprints)}>{(notice) => <text fg={theme.warning} wrapMode="none">{notice}</text>}</For>
       </box>
 
@@ -110,6 +115,7 @@ export function TimelineRoute() {
           <TimelineGridHeader cells={cells()} identityWidth={layout().identityWidth} cellWidth={layout().cellWidth} />
           <scrollbox ref={(element: ScrollBoxRenderable) => (scrollbox = element)} flexGrow={1} minHeight={0} scrollY={true} viewportCulling={true} viewportOptions={{ paddingRight: 1 }} verticalScrollbarOptions={{ visible: true, trackOptions: { backgroundColor: theme.panel, foregroundColor: theme.border } }}>
             <For each={rows()}>{(row, index) => <WideTimelineProjectedRow row={row} previousGroup={rows()[index() - 1]?.group} cells={cells()} identityWidth={layout().identityWidth} cellWidth={layout().cellWidth} />}</For>
+            <LoadMoreActionRow page={page()} selected={state.timelineSelectedIssueKey === timelineLoadMoreRowKey && state.focusedPane === "main"} id={`timeline-${timelineLoadMoreRowKey}`} />
             <WideTimelineCreateRow identityWidth={layout().identityWidth} scheduleWidth={cells().length * layout().cellWidth} />
           </scrollbox>
         </box>
@@ -191,6 +197,7 @@ function NarrowTimeline(props: { rows: TimelineProjectedRow[] }) {
       <For each={props.rows}>{(row, index) => (
         <NarrowTimelineProjectedRow row={row} previousGroup={props.rows[index() - 1]?.group} />
       )}</For>
+      <LoadMoreActionRow page={state.issuePageStateBySource[projectListIssuePageSourceId]} selected={state.timelineSelectedIssueKey === timelineLoadMoreRowKey && state.focusedPane === "main"} id={`timeline-${timelineLoadMoreRowKey}`} />
       <NarrowTimelineCreateRow />
     </scrollbox>
   )
