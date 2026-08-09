@@ -765,6 +765,58 @@ async function renderRoute(route: "timeline" | "list" | "backlog", width: number
   return { appState, setup }
 }
 
+test("detail section focus navigates sections and items via state", async () => {
+    const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
+    initialState.route = "issue-detail"
+    initialState.focusedPane = "main"
+    initialState.previousRoute = "board"
+    initialState.issueDetailLoadedAtByKey[initialState.selectedIssueKey] = new Date().toISOString()
+    let appState: AppStateContext | undefined
+    const Capture = () => {
+      appState = useAppState()
+      return null
+    }
+    const setup = await createTestRenderer({ width: 120, height: 26 })
+    renderers.push(setup.renderer)
+    const keymap = createDefaultOpenTuiKeymap(setup.renderer)
+
+    await render(() => (
+      <LazyJiraKeymapProvider keymap={keymap}>
+        <AppProviders
+          config={{ appName: "lazyjira", runtimeEnv: "dev" }}
+          initialState={initialState}
+          source={createDevWorkspaceSource()}
+          saveWorkspaceConfig={async () => undefined}
+          iconMode="ascii"
+          onExit={() => undefined}
+        >
+          <Capture />
+          <App />
+        </AppProviders>
+      </LazyJiraKeymapProvider>
+    ), setup.renderer)
+    await setup.flush()
+
+    appState!.setDetailSectionFocus(true)
+    expect(appState!.state.detailSectionIndex).toBe(0)
+    expect(appState!.state.detailSectionItemIndex).toBe(0)
+
+    appState!.setDetailSectionIndex(1)
+    expect(appState!.state.detailSectionIndex).toBe(1)
+    expect(appState!.state.detailSectionItemIndex).toBe(0)
+
+    appState!.moveDetailSectionItem(2, 13)
+    expect(appState!.state.detailSectionItemIndex).toBe(2)
+    appState!.moveDetailSectionItem(1, 13)
+    expect(appState!.state.detailSectionItemIndex).toBe(3)
+
+    appState!.setDetailSectionIndex(3)
+    expect(appState!.state.detailSectionItemIndex).toBe(0)
+
+    appState!.setDetailSectionFocus(false)
+    expect(appState!.state.detailSectionFocus).toBe(false)
+  })
+
 function disposeRenderer(renderer: Awaited<ReturnType<typeof createTestRenderer>>["renderer"]) {
   if (!renderer.isDestroyed) renderer.destroy()
   const index = renderers.indexOf(renderer)

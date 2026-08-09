@@ -417,6 +417,9 @@ export type AppState = {
   stagedDiscardSelections: string[]
   detailBodyEditing: boolean
   detailBodyEditValue: string
+  detailSectionFocus: boolean
+  detailSectionIndex: number
+  detailSectionItemIndex: number
   draftIssueCounter: number
   stats: WorkspaceStats
 }

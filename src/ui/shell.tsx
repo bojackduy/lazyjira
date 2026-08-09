@@ -270,7 +270,7 @@ function Footer() {
     ? ["command palette", "type filter", "up/down choose", "enter run", "esc close"]
     : state.searchOpen
     ? state.searchMode === "remote" ? ["search Jira", "type text", "enter run", "esc close", "empty enter clears"] : ["filter loaded", "type query", "enter apply", "esc close", "empty enter clears"]
-    : footerItems(state.focusedPane, state.route, state.board, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open ? state.projectPicker.mode : undefined, !!(selectedIssue()?.parentKey ?? selectedIssue()?.parent?.key))
+    : footerItems(state.focusedPane, state.route, state.board, state.stagedDiscardOpen, state.remoteApplyOpen, state.authOnboarding.open, state.projectPicker.open ? state.projectPicker.mode : undefined, !!(selectedIssue()?.parentKey ?? selectedIssue()?.parent?.key), state.detailSectionFocus)
 
   return (
     <box height={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.panel} flexDirection="row" justifyContent="space-between">
@@ -1016,7 +1016,7 @@ function projectPickerIcon(catalog: SemanticIconCatalog, state: AppState) {
   return catalog.route.workspace
 }
 
-export function footerItems(focusedPane: string, route: AppRoute, board: AppState["board"], stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerMode?: AppState["projectPicker"]["mode"], hasParent = false) {
+export function footerItems(focusedPane: string, route: AppRoute, board: AppState["board"], stagedDiscardOpen: boolean, remoteApplyOpen: boolean, authOnboardingOpen: boolean, projectPickerMode?: AppState["projectPicker"]["mode"], hasParent = false, sectionFocus = false) {
   if (authOnboardingOpen) return ["prod setup", "Enter continue/save", "Esc skip setup"]
   if (projectPickerMode === "local") return ["workspace switcher", "/ filter local", "enter switch", "a choose Jira project", "esc/q close"]
   if (projectPickerMode === "remote-projects") return ["remote projects", "/ search Jira", "[/] page", "j/k choose", "enter choose", "r refresh", "h local"]
@@ -1025,7 +1025,9 @@ export function footerItems(focusedPane: string, route: AppRoute, board: AppStat
   if (stagedDiscardOpen) return ["discard staged", "j/k choose", "space mark", "enter discard", "esc/q close"]
   if (focusedPane === "sidebar") return ["sidebar", "j/k choose", "enter/l open/toggle", "space filter", "P project", "R refresh", "q quit"]
   if (focusedPane === "inspector") return ["inspector", "j/k field", "e/enter edit", "ctrl-enter stage", "x delete", "X discard", "w render", "W Jira"]
-  if (route === "issue-detail") return ["detail", ...(hasParent ? ["enter parent"] : []), "j/k line", "d/u half-page", "e edit body", "r refresh", "ctrl-enter stage", "W Jira"]
+  if (route === "issue-detail") return sectionFocus
+    ? ["focus mode", "h/l section", "j/k item", "enter act", "esc exit"]
+    : ["detail", "tab focus", ...(hasParent ? ["enter parent"] : []), "j/k scroll", "d/u page", "e body", "c comment", "r refresh"]
   if (route === "workspace") return ["workspace", "j/k choose", "d/u page", "enter open", "R refresh", "/ filter", "S Jira search", "W Jira"]
   if (route === "config") return ["config", "j/k choose", "d/u page", "h/l pane", "a add", "e rename", "c color", "R refresh", "W Jira"]
   if (route === "timeline") return ["timeline", "j/k row", "d/u half-page", "h/l pan", "[/] viewport", "space collapse", "z zoom", "t today", "enter detail", "L load more"]

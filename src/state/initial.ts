@@ -126,6 +126,9 @@ export function createInitialAppState(workspace: LoadedWorkspace, runtimeEnv: Ru
     stagedDiscardSelections: [],
     detailBodyEditing: false,
     detailBodyEditValue: "",
+    detailSectionFocus: false,
+    detailSectionIndex: 0,
+    detailSectionItemIndex: 0,
     draftIssueCounter: 1,
     stats: workspace.stats,
   }

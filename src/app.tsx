@@ -146,6 +146,7 @@ export function App() {
           else if (state.configEditing) appState.cancelConfigEdit()
           else if (state.detailBodyEditing) appState.cancelDetailBodyEdit()
           else if (state.commentEditing) appState.cancelComment()
+          else if (state.detailSectionFocus) appState.setDetailSectionFocus(false)
           else if (state.route === "issue-detail") appState.closeIssueDetail()
           else appState.cancelInspectorEdit()
         },
@@ -189,7 +190,7 @@ export function App() {
       { name: "issue.rank-down", run: () => rankSelectedBacklogIssue("after") },
       { name: "issue.rank-up", run: () => rankSelectedBacklogIssue("before") },
       { name: "issue.move", run: () => moveSelectedBacklogIssue() },
-      { name: "focus.next", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(1)) },
+      { name: "focus.next", run: () => handleTab() },
       { name: "focus.previous", run: () => (isPlainTextEditing() || isPopupOpen() ? false : appState.focusNextPane(-1)) },
       { name: "pane.down", run: () => moveVertical(1) },
       { name: "pane.up", run: () => moveVertical(-1) },
@@ -787,6 +788,19 @@ export function App() {
   function backlogLoadMoreSourceId(groupId: string) {
     if (!boardCapabilities(state.board).supportsSprintBacklog) return backlogIssuePageSourceId
     return groupId === "backlog" ? backlogIssuePageSourceId : sprintIssuePageSourceId(groupId)
+  }
+
+  function handleTab() {
+    if (isPlainTextEditing() || isPopupOpen()) return false
+    if (state.route === "issue-detail" && state.focusedPane === "main" && !state.detailBodyEditing) {
+      if (state.detailSectionFocus) {
+        appState.setDetailSectionFocus(false)
+        return
+      }
+      appState.setDetailSectionFocus(true)
+      return
+    }
+    appState.focusNextPane(1)
   }
 
   function isPopupOpen() {

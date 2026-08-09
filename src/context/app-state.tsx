@@ -127,6 +127,10 @@ export type AppStateContext = {
   updateCommentValue: (value: string) => void
   commitComment: () => void
   cancelComment: () => void
+  setDetailSectionFocus: (focus: boolean) => void
+  setDetailSectionIndex: (index: number) => void
+  moveDetailSectionItem: (delta: number, max: number) => void
+  setDetailSectionItemIndex: (index: number) => void
   stageIssueRank: (issueKey: string, targetIssueKey: string, position: "before" | "after") => void
   openStagedDiscard: () => void
   closeStagedDiscard: () => void
@@ -673,6 +677,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     setRoute(route) {
       const previousRoute = state.route
       setState("selectedLoadMoreSourceId", undefined)
+      setState("detailSectionFocus", false)
       setState("route", route)
       setState("focusedPane", "main")
       if (route === "backlog" && previousRoute !== "backlog") {
@@ -1101,6 +1106,7 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     closeIssueDetail() {
       if (state.route !== "issue-detail") return
+      setState("detailSectionFocus", false)
       const previousIssueKey = state.issueDetailHistory.at(-1)
       if (previousIssueKey) {
         setState("issueDetailHistory", (history) => history.slice(0, -1))
@@ -1469,6 +1475,21 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     cancelComment() {
       setState("commentEditing", false)
       setState("commentEditValue", "")
+    },
+    setDetailSectionFocus(focus) {
+      setState("detailSectionFocus", focus)
+      if (focus) setState("detailSectionItemIndex", 0)
+    },
+    setDetailSectionIndex(index) {
+      setState("detailSectionIndex", index)
+      setState("detailSectionItemIndex", 0)
+    },
+    moveDetailSectionItem(delta, max) {
+      if (!max) return
+      setState("detailSectionItemIndex", (state.detailSectionItemIndex + delta + max) % max)
+    },
+    setDetailSectionItemIndex(index) {
+      setState("detailSectionItemIndex", index)
     },
     stageIssueRank(issueKey, targetIssueKey, position) {
       if (!state.issues[issueKey] || !state.issues[targetIssueKey] || issueKey === targetIssueKey) return
