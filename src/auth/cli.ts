@@ -1,9 +1,14 @@
 import { createInterface } from "node:readline/promises"
 import { loadJiraAuthConfig, lazyJiraConfigPath, removeJiraAuthConfig, saveJiraAuthConfig, type JiraAuthConfig } from "./config"
+import { initializeTheme, installTheme, loadThemeCatalog, selectTheme, themesDirectory } from "../themes/store"
 
 export async function runAuthCli(argv: string[]) {
   if (argv[0] === "--help" || argv[0] === "-h") {
     printRootHelp()
+    return true
+  }
+  if (argv[0] === "theme") {
+    await runThemeCommand(argv.slice(1))
     return true
   }
   if (argv[0] !== "auth") return false
@@ -56,6 +61,41 @@ async function login() {
     console.log(`Saved Jira credentials to ${path}`)
   } finally {
     if (!closed) rl.close()
+  }
+}
+
+async function runThemeCommand(args: string[]) {
+  const [action, value] = args
+  try {
+    if (action === "list" && args.length === 1) {
+      const catalog = await loadThemeCatalog()
+      for (const theme of catalog.themes) console.log(`${theme.id}\t${theme.name}\t${theme.source}`)
+      for (const error of catalog.errors) console.error(`Ignored theme ${error}`)
+      return
+    }
+    if (action === "path" && args.length === 1) {
+      console.log(themesDirectory())
+      return
+    }
+    if (action === "install" && value && args.length === 2) {
+      const result = await installTheme(value)
+      console.log(`Installed ${result.theme.name} (${result.theme.id}) at ${result.destination}`)
+      return
+    }
+    if (action === "init" && value && args.length === 2) {
+      const destination = await initializeTheme(value)
+      console.log(`Created editable theme at ${destination}`)
+      return
+    }
+    if (action === "use" && value && args.length === 2) {
+      await selectTheme(value)
+      console.log(`Selected theme: ${value}`)
+      return
+    }
+    throw new Error("Usage: lazyjira theme [list|path|install <file>|init <id>|use <id>]")
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : "Theme command failed.")
+    process.exitCode = 1
   }
 }
 
@@ -144,6 +184,11 @@ function printRootHelp() {
   console.log("  lazyjira auth login      Save Jira credentials")
   console.log("  lazyjira auth status     Show configured Jira account")
   console.log("  lazyjira auth logout     Remove saved Jira credentials")
+  console.log("  lazyjira theme list      List available themes")
+  console.log("  lazyjira theme use <id>  Select a theme")
+  console.log("  lazyjira theme init <id> Create an editable theme starter")
+  console.log("  lazyjira theme install <file>  Install a custom theme JSON file")
+  console.log("  lazyjira theme path      Print the themes directory")
 }
 
 function printAuthHelp() {

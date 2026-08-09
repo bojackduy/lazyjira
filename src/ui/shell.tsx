@@ -22,8 +22,13 @@ import { useBindings, useKeymap } from "../context/keymap"
 export function AppShell() {
   const dimensions = useTerminalDimensions()
   const narrow = () => dimensions().width < 100
-  const theme = useTheme()
+  const renderer = useRenderer()
+  const { theme, selectedTheme } = useTheme()
   const { state } = useAppState()
+
+  createEffect(() => {
+    renderer.setBackgroundColor(theme.background)
+  })
 
   return (
     <box width="100%" height="100%" backgroundColor={theme.background} flexDirection="column">
@@ -43,6 +48,7 @@ export function AppShell() {
       <CommentComposerPopup />
       <CommandPalettePopup />
       <IconModePickerPopup />
+      <ThemePickerPopup />
       <HelpPopup />
     </box>
   )
@@ -52,7 +58,7 @@ function Sidebar() {
   const { state, setFocusedPane, setRoute, toggleQuickFilter } = useAppState()
   const config = useConfig()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const focused = () => state.focusedPane === "sidebar"
   const routes = () => sidebarRoutesForBoard(state.board)
   const globalRoutes = () => routes().filter((route) => route.scope === "global")
@@ -143,7 +149,7 @@ function MainSurface() {
   const { state, setFocusedPane } = useAppState()
   const icons = useIcons()
   const keymap = useKeymap()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const focused = () => state.focusedPane === "main"
 
   return (
@@ -175,7 +181,7 @@ function MainSurface() {
 function WorkspaceLoadSurface() {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
 
   return (
     <box flexGrow={1} minHeight={0} flexDirection="column" alignItems="center" justifyContent="center" gap={1}>
@@ -194,7 +200,7 @@ function WorkspaceLoadSurface() {
 function WorkspaceRefreshStatus() {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
 
   return (
     <text fg={state.workspaceLoadError ? theme.danger : theme.warning} wrapMode="none">
@@ -207,7 +213,7 @@ function SearchBar() {
   const appState = useAppState()
   const { state } = appState
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   let input: InputRenderable | undefined
   const visible = () => state.route !== "config" && (state.searchOpen || !!state.searchQuery || !!state.remoteSearchQuery || !!state.remoteSearchIssueKeys.length || state.remoteSearchPageState.loading || !!state.remoteSearchPageState.error)
   const remoteMode = () => state.searchMode === "remote"
@@ -253,11 +259,13 @@ function SearchBar() {
 
 function Footer() {
   const { state } = useAppState()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const toast = useToast()
   const selectedIssue = () => issueByKey(state, state.selectedIssueKey)
   const items = () => state.iconModePickerOpen
     ? ["icon mode", "j/k choose", "enter apply", "esc close"]
+    : state.themePickerOpen
+    ? ["theme picker", "j/k choose", "enter apply", "esc close"]
     : state.commandPaletteOpen
     ? ["command palette", "type filter", "up/down choose", "enter run", "esc close"]
     : state.searchOpen
@@ -275,7 +283,7 @@ function Footer() {
 function CommandPalettePopup() {
   const appState = useAppState()
   const { state } = appState
-  const theme = useTheme()
+  const { theme } = useTheme()
   const icons = useIcons()
   const keymap = useKeymap()
   const dimensions = useTerminalDimensions()
@@ -336,7 +344,7 @@ function CommandPalettePopup() {
 
 function CommandPaletteRow(props: { id: string; command: PaletteCommand; selected: boolean }) {
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   return (
     <box id={props.id} height={3} paddingLeft={1} paddingRight={1} backgroundColor={props.selected ? theme.selected : undefined} flexDirection="column">
       <box flexDirection="row" gap={2}>
@@ -355,7 +363,7 @@ function commandPaletteRowId(index: number) {
 function IconModePickerPopup() {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
 
   return (
     <Show when={state.iconModePickerOpen}>
@@ -388,6 +396,50 @@ function IconModePickerPopup() {
   )
 }
 
+function ThemePickerPopup() {
+  const appState = useAppState()
+  const { state } = appState
+  const { theme, selectedTheme, setTheme } = useTheme()
+  const toast = useToast()
+
+  const options = () => state.themePickerCatalog?.length ? state.themePickerCatalog : [{ ...selectedTheme, source: "built-in" as const }]
+
+  function applyOption(option: NonNullable<typeof state.themePickerCatalog>[number]) {
+    setTheme(option)
+    appState.closeThemePicker()
+    toast.show(`Theme changed to ${option.name}.`)
+  }
+
+  return (
+    <Show when={state.themePickerOpen}>
+      <ModalFrame borderColor={theme.accent} width={72} centered>
+        <box flexDirection="row" justifyContent="space-between">
+          <text attributes={TextAttributes.BOLD} fg={theme.accent}>Change Theme</text>
+          <text fg={theme.textSubtle}>current: {selectedTheme.name}</text>
+        </box>
+        <Show when={state.themePickerMessage}>
+          {(message) => <text fg={theme.warning}>{message()}</text>}
+        </Show>
+        <For each={options()}>
+          {(option, index) => {
+            const selected = () => index() === state.themePickerSelectedIndex
+            return (
+              <box height={3} paddingLeft={1} paddingRight={1} backgroundColor={selected() ? theme.selected : undefined} onMouseUp={() => applyOption(option)}>
+                <box flexDirection="row" justifyContent="space-between">
+                  <text attributes={TextAttributes.BOLD} fg={selected() ? theme.selectedText : theme.text}>{selected() ? "> " : "  "}{option.name} ({option.id})</text>
+                  <text fg={selected() ? theme.selectedText : theme.textMuted}>{option.source}</text>
+                </box>
+                <text fg={selected() ? theme.selectedText : theme.textMuted}>accent {option.colors.accent}  background {option.colors.background}</text>
+              </box>
+            )
+          }}
+        </For>
+        <text fg={theme.textSubtle}>j/k or arrows preview · enter apply and save · esc close</text>
+      </ModalFrame>
+    </Show>
+  )
+}
+
 function iconModeLabel(mode: (typeof iconModes)[number]) {
   if (mode === "nerd") return "Nerd Font"
   if (mode === "unicode") return "Unicode"
@@ -397,7 +449,7 @@ function iconModeLabel(mode: (typeof iconModes)[number]) {
 function HelpPopup() {
   const appState = useAppState()
   const { state } = appState
-  const theme = useTheme()
+  const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
   const listHeight = () => Math.max(4, dimensions().height - 10)
@@ -446,7 +498,7 @@ function HelpPopup() {
 }
 
 function FooterHints(props: { items: string[] }) {
-  const theme = useTheme()
+  const { theme } = useTheme()
 
   return (
     <text wrapMode="none">
@@ -467,7 +519,7 @@ function FooterHints(props: { items: string[] }) {
 function DeleteConfirm() {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const issue = () => state.pendingDeleteIssueKey ? state.issues[state.pendingDeleteIssueKey] : undefined
 
   return (
@@ -486,7 +538,7 @@ function StagedDiscardPopup() {
   const appState = useAppState()
   const { state } = appState
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const changes = () => stagedChanges(state)
   useStagedDiscardKeyboard(appState)
 
@@ -519,7 +571,7 @@ function RemoteApplyPopup() {
   const appState = useAppState()
   const { state } = appState
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const plan = () => planJiraWrites(state)
   const counts = () => writePlanCounts(plan())
   useRemoteApplyKeyboard(appState)
@@ -548,7 +600,7 @@ function CommentComposerPopup() {
   const appState = useAppState()
   const { state } = appState
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   let textarea: TextareaRenderable | undefined
   const issue = () => issueByKey(state, state.selectedIssueKey)
 
@@ -585,7 +637,7 @@ function CommentComposerPopup() {
 
 function WritePlanRow(props: { item: JiraWritePlanItem }) {
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const color = () => props.item.status === "blocked" ? theme.danger : theme.accent
 
   return (
@@ -611,7 +663,7 @@ function AuthOnboardingPopup() {
   const appState = useAppState()
   const { state } = appState
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const step = () => state.authOnboarding.step
   const value = () => state.authOnboarding[authOnboardingField(step())]
   useAuthOnboardingKeyboard(appState)
@@ -660,7 +712,7 @@ function ProjectPickerPopup() {
   const appState = useAppState()
   const { state } = appState
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   let searchInput: InputRenderable | undefined
   const rows = () => projectPickerRows(state)
   const totalCount = () => projectPickerTotalCount(state)
@@ -907,7 +959,7 @@ function useProjectPickerKeyboard(appState: ReturnType<typeof useAppState>) {
 
 function ModalFrame(props: { borderColor: string; width: number; centered?: boolean; children: JSX.Element }) {
   const dimensions = useTerminalDimensions()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const width = () => Math.min(props.width, Math.max(1, dimensions().width - 2))
   const top = () => Math.max(1, Math.floor(dimensions().height * 0.2))
 

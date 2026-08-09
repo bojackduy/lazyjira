@@ -6,13 +6,14 @@ import { render } from "@opentui/solid"
 import packageJson from "../package.json"
 import { App } from "./app"
 import { runAuthCli } from "./auth/cli"
-import { jiraAuthSummary, loadJiraAuthConfig, loadLazyJiraConfig, saveDevWorkspaceConfig, saveIconModeConfig, saveProdWorkspaceConfig, type JiraWorkspaceConfig } from "./auth/config"
+import { jiraAuthSummary, loadJiraAuthConfig, loadLazyJiraConfig, saveDevWorkspaceConfig, saveIconModeConfig, saveProdWorkspaceConfig, saveThemeIdConfig, type JiraWorkspaceConfig } from "./auth/config"
 import type { AppConfig } from "./context/config"
 import { LazyJiraKeymapProvider } from "./context/keymap"
 import { AppProviders } from "./context/providers"
 import { isVersionRequest, parseRuntimeEnv } from "./runtime/env"
 import { createInitialAppState } from "./state/initial"
 import { sidebarRoutesForBoard } from "./state/routes"
+import { loadSelectedTheme } from "./themes/store"
 import { loadDevWorkspaceFixture } from "./workspace/dev/fixtures"
 import { createDevWorkspaceSource } from "./workspace/dev/source"
 import { createProdWorkspacePlaceholder, createProdWorkspaceSource } from "./workspace/prod/source"
@@ -80,6 +81,8 @@ initialState.projectPicker = {
 const saveWorkspaceConfig = runtimeEnv === "dev" ? saveDevWorkspaceConfig : saveProdWorkspaceConfig
 const iconModeOverride = process.env.LAZYJIRA_ICON_MODE
 const iconMode = iconModeOverride ?? savedConfig?.iconMode
+const themeOverride = process.env.LAZYJIRA_THEME
+const selectedTheme = (await loadSelectedTheme(themeOverride ?? savedConfig?.themeId)).selected
 const appConfig: AppConfig = {
   appName: "lazyjira",
   runtimeEnv,
@@ -115,6 +118,8 @@ try {
           iconMode={iconMode}
           iconModeLocked={iconModeOverride !== undefined}
           saveIconMode={saveIconModeConfig}
+          theme={selectedTheme}
+          saveTheme={(theme) => saveThemeIdConfig(theme.id)}
           onExit={() => {
             if (!renderer.isDestroyed) renderer.destroy()
           }}

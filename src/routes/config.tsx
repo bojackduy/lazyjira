@@ -39,7 +39,7 @@ export function ConfigRoute() {
   const appState = useAppState()
   const { state } = appState
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
   const compact = () => dimensions().width < 110
   const sections = () => configSections(state)
@@ -116,7 +116,7 @@ export function ConfigRoute() {
 
 function ConfigRows(props: { section: ConfigSection; focused: boolean }) {
   const { state } = useAppState()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
   const height = () => configRowsHeight(state, dimensions().height)
@@ -137,7 +137,7 @@ function ConfigRows(props: { section: ConfigSection; focused: boolean }) {
 
 function ConfigRowView(props: { row: ConfigRow; index: number; sectionId: ConfigSectionId; focused: boolean }) {
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const { state } = useAppState()
   const selected = () => state.configFocusedArea === "rows" && state.configSelectedRowIndex === props.index
   const staged = () => state.configDrafts.some((draft) => draft.sectionId === props.sectionId && draft.targetId === props.row.id)
@@ -165,7 +165,7 @@ function ConfigEditor() {
   const appState = useAppState()
   const { state } = appState
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const editing = () => state.configEditing
   return (
     <Show when={editing()}>
@@ -195,7 +195,7 @@ function ConfigEditor() {
 function ConfigDraftList() {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   return (
     <box border={['top']} borderColor={theme.border} paddingTop={1} flexDirection="column" gap={1} flexShrink={0}>
       <box flexDirection="row" justifyContent="space-between">

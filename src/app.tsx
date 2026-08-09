@@ -1,5 +1,5 @@
 import { useTerminalDimensions } from "@opentui/solid"
-import { batch, createEffect } from "solid-js"
+import { batch, createEffect, createSignal } from "solid-js"
 import packageJson from "../package.json"
 import { useBindings } from "./context/keymap"
 import { useAppState } from "./context/app-state"
@@ -7,6 +7,7 @@ import { useConfig } from "./context/config"
 import { useExit } from "./context/exit"
 import { useToast } from "./context/toast"
 import { useIcons } from "./context/icons"
+import { useTheme } from "./context/theme"
 import { AppShell } from "./ui/shell"
 import { configuredIssueTypes, configuredStatuses } from "./state/config-drafts"
 import { issueByKey } from "./state/issue-drafts"
@@ -14,7 +15,7 @@ import { issueFields } from "./state/issue-fields"
 import { backlogIssuePageSourceId, boardIssuePageSourceId, issuePageActionVisible, issuePageCanLoadMore, projectListIssuePageSourceId, sprintIssuePageSourceId } from "./state/issue-pages"
 import { boardCapabilities, boardModeForBoard, sidebarRoutesForBoard } from "./state/routes"
 import { searchPaletteCommands } from "./keymap/commands"
-import type { BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
+import type { AppState, BoardLocation, BoardMode, IssueSummary } from "./state/app-state"
 import { iconModes } from "./icons/catalog"
 import { projectListLoadMoreRowKey, projectListMaxHorizontalOffset, projectListRows, projectListSelection, projectListSelectionKeys, projectListViewportWidth } from "./state/project-list"
 import { panTimelineWindow, projectTimelineViewRows, timelineCreateRowKey, timelineLoadMoreRowKey, timelineModel, timelineSelection, timelineSelectionAction, timelineSelectionKeys, timelineUnparentedExpandedKey, timelineUnparentedSectionKey } from "./state/timeline"
@@ -49,6 +50,15 @@ export function App() {
   const config = useConfig()
   const toast = useToast()
   const icons = useIcons()
+  const { selectedTheme, setTheme } = useTheme()
+
+  function availableThemes() {
+    return state.themePickerCatalog ?? [{ ...selectedTheme, source: "built-in" }]
+  }
+
+  function previewTheme(next: NonNullable<AppState["themePickerCatalog"]>[number]) {
+    setTheme(next)
+  }
 
   createEffect(() => {
     if (state.route === "board") ensureSelectedIssue(visibleBoardIssueKeys(currentBoardMode()))
@@ -80,6 +90,10 @@ export function App() {
           }
           if (state.iconModePickerOpen) {
             appState.closeIconModePicker()
+            return
+          }
+          if (state.themePickerOpen) {
+            appState.closeThemePicker()
             return
           }
           if (state.helpOpen) {
@@ -124,6 +138,7 @@ export function App() {
           else if (state.projectPicker.open) appState.closeProjectPicker()
           else if (state.commandPaletteOpen) appState.closeCommandPalette()
           else if (state.iconModePickerOpen) appState.closeIconModePicker()
+          else if (state.themePickerOpen) appState.closeThemePicker()
           else if (state.helpOpen) appState.closeHelp()
           else if (state.searchOpen) appState.closeSearch()
           else if (state.pendingDeleteIssueKey) appState.cancelIssueDelete()
@@ -148,6 +163,11 @@ export function App() {
       { name: "icons.next", run: () => (state.iconModePickerOpen ? appState.moveIconModePickerSelection(1, iconModes.length) : false) },
       { name: "icons.previous", run: () => (state.iconModePickerOpen ? appState.moveIconModePickerSelection(-1, iconModes.length) : false) },
       { name: "icons.select", run: () => selectIconMode() },
+      { name: "theme.change", run: () => (canRunGlobalShortcut() ? appState.openThemePicker() : false) },
+      { name: "theme.close", run: () => (state.themePickerOpen ? appState.closeThemePicker() : false) },
+      { name: "theme.next", run: () => (state.themePickerOpen ? moveThemePickerSelection(1) : false) },
+      { name: "theme.previous", run: () => (state.themePickerOpen ? moveThemePickerSelection(-1) : false) },
+      { name: "theme.select", run: () => (state.themePickerOpen ? selectThemeFromPicker() : false) },
       { name: "route.workspace", run: () => (canRunGlobalShortcut() ? appState.setRoute("workspace") : false) },
       { name: "route.timeline", run: () => (canRunGlobalShortcut() ? appState.setRoute("timeline") : false) },
       { name: "route.backlog", run: () => (canRunGlobalShortcut() ? appState.setRoute("backlog") : false) },
@@ -193,7 +213,7 @@ export function App() {
       { name: "issue.cancel-delete", run: () => (canRunGlobalShortcut() ? appState.cancelIssueDelete() : false) },
       { name: "staged-discard.open", run: () => (isPlainTextEditing() || isPopupOpen() || isAnyEditing() ? false : appState.openStagedDiscard()) },
     ],
-    bindings: state.iconModePickerOpen ? iconModePickerBindings() : state.commandPaletteOpen ? commandPaletteBindings() : state.helpOpen ? helpBindings() : state.searchOpen ? searchBindings() : [
+    bindings: state.iconModePickerOpen ? iconModePickerBindings() : state.themePickerOpen ? themePickerBindings() : state.commandPaletteOpen ? commandPaletteBindings() : state.helpOpen ? helpBindings() : state.searchOpen ? searchBindings() : [
       { key: "q", cmd: "app.quit", preventDefault: false },
       { key: { name: "c", ctrl: true }, cmd: "app.force-quit" },
       { key: "escape", cmd: "edit.cancel" },
@@ -208,6 +228,7 @@ export function App() {
       { key: { name: "p", shift: true }, cmd: "project.switch", preventDefault: false },
       { key: "?", cmd: "help.open", preventDefault: false },
       { key: { name: "b", shift: true }, cmd: "app.report-bug", preventDefault: false },
+      { key: { name: "t", shift: true }, cmd: "theme.change", preventDefault: false },
       { key: "p", cmd: "issue.priority", preventDefault: false },
       { key: ";", cmd: "command-palette.open", preventDefault: false },
       { key: ":", cmd: "command-palette.open", preventDefault: false },
@@ -253,11 +274,23 @@ export function App() {
     return [
       { key: "escape", cmd: "icons.close", preventDefault: false },
       { key: "q", cmd: "icons.close", preventDefault: false },
-      { key: "down", cmd: "icons.next", preventDefault: false },
       { key: "j", cmd: "icons.next", preventDefault: false },
-      { key: "up", cmd: "icons.previous", preventDefault: false },
+      { key: "down", cmd: "icons.next", preventDefault: false },
       { key: "k", cmd: "icons.previous", preventDefault: false },
+      { key: "up", cmd: "icons.previous", preventDefault: false },
       { key: "return", cmd: "icons.select", preventDefault: false },
+    ]
+  }
+
+  function themePickerBindings() {
+    return [
+      { key: "escape", cmd: "theme.close", preventDefault: false },
+      { key: "q", cmd: "theme.close", preventDefault: false },
+      { key: "j", cmd: "theme.next", preventDefault: false },
+      { key: "down", cmd: "theme.next", preventDefault: false },
+      { key: "k", cmd: "theme.previous", preventDefault: false },
+      { key: "up", cmd: "theme.previous", preventDefault: false },
+      { key: "return", cmd: "theme.select", preventDefault: false },
     ]
   }
 
@@ -281,6 +314,28 @@ export function App() {
   function moveCommandPaletteSelection(delta: number) {
     if (!state.commandPaletteOpen) return false
     appState.moveCommandPaletteSelection(delta, searchPaletteCommands(state.commandPaletteQuery, state.board).length)
+  }
+
+  function moveThemePickerSelection(delta: number) {
+    if (!state.themePickerOpen) return false
+    const themes = availableThemes()
+    if (!themes.length) return false
+    const nextIndex = (state.themePickerSelectedIndex + delta + themes.length) % themes.length
+    appState.moveThemePickerSelection(delta, themes.length)
+    const next = themes[nextIndex]
+    if (next) previewTheme(next)
+    return true
+  }
+
+  function selectThemeFromPicker() {
+    if (!state.themePickerOpen) return false
+    const themes = availableThemes()
+    const selected = themes[state.themePickerSelectedIndex]
+    if (!selected) return false
+    setTheme(selected)
+    appState.closeThemePicker()
+    toast.show(`Theme changed to ${selected.name}.`)
+    return true
   }
 
   async function selectIconMode() {
@@ -735,11 +790,11 @@ export function App() {
   }
 
   function isPopupOpen() {
-    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.iconModePickerOpen || state.helpOpen || state.commentEditing
+    return state.remoteApplyOpen || state.stagedDiscardOpen || state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.iconModePickerOpen || state.themePickerOpen || state.helpOpen || state.commentEditing
   }
 
   function isPlainTextEditing() {
-    return state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.iconModePickerOpen || state.helpOpen || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type" && state.inspectorEditingFieldId !== "priority" && state.inspectorEditingFieldId !== "parentKey" && state.inspectorEditingFieldId !== "sprintId")
+    return state.authOnboarding.open || state.projectPicker.open || state.commandPaletteOpen || state.iconModePickerOpen || state.themePickerOpen || state.helpOpen || state.searchOpen || state.detailBodyEditing || state.commentEditing || !!state.configEditing || (!!state.inspectorEditingFieldId && state.inspectorEditingFieldId !== "statusId" && state.inspectorEditingFieldId !== "type" && state.inspectorEditingFieldId !== "priority" && state.inspectorEditingFieldId !== "parentKey" && state.inspectorEditingFieldId !== "sprintId")
   }
 
   function isAnyEditing() {

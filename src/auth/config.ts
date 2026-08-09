@@ -27,6 +27,7 @@ export type JiraWorkspaceConfig = {
 
 export type LazyJiraConfigFile = {
   iconMode?: IconMode
+  themeId?: string
   jira?: JiraAuthConfig
   prodWorkspace?: JiraWorkspaceConfig
   devWorkspace?: JiraWorkspaceConfig
@@ -85,10 +86,18 @@ export async function saveIconModeConfig(iconMode: IconMode, env: Record<string,
   return saveLazyJiraConfig({ ...current, iconMode: parseIconMode(iconMode) }, env)
 }
 
+export async function saveThemeIdConfig(themeId: string, env: Record<string, string | undefined> = process.env) {
+  const current = await loadExistingConfigForSave(env)
+  const normalized = themeId.trim()
+  if (!normalized) throw new Error("Theme id is required")
+  return saveLazyJiraConfig({ ...current, themeId: normalized }, env)
+}
+
 export async function saveLazyJiraConfig(config: LazyJiraConfigFile, env: Record<string, string | undefined> = process.env) {
   const path = lazyJiraConfigPath(env)
   const normalized: LazyJiraConfigFile = {
     iconMode: config.iconMode ? parseIconMode(config.iconMode) : undefined,
+    themeId: config.themeId ? config.themeId.trim() : undefined,
     jira: config.jira ? normalizeJiraAuthConfig(config.jira) : undefined,
     prodWorkspace: config.prodWorkspace ? normalizeJiraWorkspaceConfig(config.prodWorkspace) : undefined,
     devWorkspace: config.devWorkspace ? normalizeJiraWorkspaceConfig(config.devWorkspace) : undefined,
@@ -170,12 +179,13 @@ function jiraAuthFromEnv(env: Record<string, string | undefined>): JiraAuthConfi
 function parseConfigFile(value: unknown, path: string): LazyJiraConfigFile {
   if (!isRecord(value)) throw new Error(`Invalid lazyjira config shape at ${path}`)
   if (typeof value.baseUrl === "string" || typeof value.email === "string" || typeof value.apiToken === "string") {
-    return { iconMode: iconModeFromValue(value.iconMode), jira: parseJiraAuth(value, path) }
+    return { iconMode: iconModeFromValue(value.iconMode), themeId: themeIdFromValue(value.themeId), jira: parseJiraAuth(value, path) }
   }
   const prodWorkspace = workspaceFromValue(value.prodWorkspace ?? value.workspace, path)
   const devWorkspace = workspaceFromValue(value.devWorkspace ?? value.demoWorkspace, path)
   return {
     iconMode: iconModeFromValue(value.iconMode),
+    themeId: themeIdFromValue(value.themeId),
     jira: value.jira === undefined ? undefined : parseJiraAuth(value.jira, path),
     prodWorkspace,
     devWorkspace,
@@ -186,6 +196,10 @@ function parseConfigFile(value: unknown, path: string): LazyJiraConfigFile {
 
 function iconModeFromValue(value: unknown) {
   return value === undefined ? undefined : parseIconMode(value)
+}
+
+function themeIdFromValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined
 }
 
 function workspaceFromValue(value: unknown, path: string) {

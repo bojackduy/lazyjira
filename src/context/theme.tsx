@@ -1,41 +1,46 @@
 import { createRequiredContext, type ProviderProps } from "./helper"
+import { createSignal } from "solid-js"
+import { builtInThemes, defaultThemeId, type ResolvedTheme } from "../themes/catalog"
 
-export type Theme = {
-  background: string
-  panel: string
-  border: string
-  borderActive: string
-  text: string
-  textMuted: string
-  textSubtle: string
-  selected: string
-  selectedText: string
-  accent: string
-  success: string
-  warning: string
-  danger: string
+export type Theme = ResolvedTheme["colors"]
+export type ThemeSyntax = ResolvedTheme["syntax"]
+
+export type ThemeContext = {
+  theme: Theme
+  syntax: ThemeSyntax
+  selectedTheme: ResolvedTheme
+  setTheme: (theme: ResolvedTheme) => void
+  resetToDefault: () => void
 }
 
-export const defaultTheme: Theme = {
-  background: "#0B1020",
-  panel: "#111827",
-  border: "#334155",
-  borderActive: "#38BDF8",
-  text: "#E5E7EB",
-  textMuted: "#94A3B8",
-  textSubtle: "#64748B",
-  selected: "#1D4ED8",
-  selectedText: "#F8FAFC",
-  accent: "#38BDF8",
-  success: "#22C55E",
-  warning: "#F59E0B",
-  danger: "#EF4444",
-}
+const defaultResolved = builtInThemes.find((theme) => theme.id === defaultThemeId) ?? builtInThemes[0]!
 
-const [ThemeContextProvider, useTheme] = createRequiredContext<Theme>("Theme")
+export const defaultTheme: Theme = defaultResolved.colors
+export const defaultThemeSyntax: ThemeSyntax = defaultResolved.syntax
+
+const [ThemeContextProvider, useTheme] = createRequiredContext<ThemeContext>("Theme")
 
 export { useTheme }
 
-export function ThemeProvider(props: ProviderProps<{ value?: Theme }>) {
-  return <ThemeContextProvider value={props.value ?? defaultTheme}>{props.children}</ThemeContextProvider>
+export function ThemeProvider(props: ProviderProps<{ value?: ResolvedTheme; onThemeChange?: (theme: ResolvedTheme) => Promise<unknown> | void }>) {
+  const [selected, setSelected] = createSignal(props.value ?? defaultResolved)
+  const value: ThemeContext = {
+    get theme() {
+      return selected().colors
+    },
+    get syntax() {
+      return selected().syntax
+    },
+    get selectedTheme() {
+      return selected()
+    },
+    setTheme(next) {
+      setSelected(next)
+      void props.onThemeChange?.(next)
+    },
+    resetToDefault() {
+      setSelected(defaultResolved)
+    },
+  }
+  return <ThemeContextProvider value={value}>{props.children}</ThemeContextProvider>
 }

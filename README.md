@@ -201,6 +201,7 @@ The app should use lazy-family muscle memory, adapted to Jira's board and backlo
 | `J` / `K` | Rank backlog item down/up |
 | `o` | Open in browser |
 | `B` | Open a prefilled GitHub bug report |
+| `T` | Preview and select a theme |
 | `y` | Copy issue key/link |
 
 Shortcuts should be generated into help and command surfaces so users can discover them from inside the app.
@@ -246,6 +247,43 @@ bun run auth:login
 ```
 
 Credentials are stored at `~/.config/lazyjira/config.json` with user-only file permissions. Set `LAZYJIRA_CONFIG=/path/to/config.json` to use a different file. Set `LAZYJIRA_API_TOKEN` to override only the saved token at runtime.
+
+### Themes
+
+Press `T` to open the theme picker, preview each theme live with `j/k`, apply and save with `Enter`, and cancel with `Esc`. The current selection is stored under `themeId` in `~/.config/lazyjira/config.json`. Set `LAZYJIRA_THEME=<id>` to force a theme for a session.
+
+Two themes are built in: `midnight` (default) and `catppuccin-mocha`. Custom themes are JSON files in `~/.config/lazyjira/themes/`:
+
+```json
+{
+  "version": 1,
+  "id": "my-theme",
+  "name": "My Theme",
+  "extends": "midnight",
+  "colors": {
+    "background": "#1e1e2e",
+    "accent": "#89b4fa"
+  },
+  "syntax": {
+    "keyword": "#cba6f7",
+    "string": "#a6e3a1"
+  }
+}
+```
+
+`extends` names a built-in theme to inherit from; every token you do not override comes from that base. Color tokens must be `#RRGGBB`. Supported `colors` tokens: `background`, `panel`, `border`, `borderActive`, `text`, `textMuted`, `textSubtle`, `selected`, `selectedText`, `accent`, `accentSoft`, `warningBg`, `success`, `warning`, `danger`. Supported `syntax` tokens: `heading`, `heading2`, `heading3`, `heading4`, `italic`, `linkLabel`, `raw`, `rawBg`, `list`, `quote`, `comment`, `keyword`, `string`, `number`, `function`, `type`, `property`, `operator`, `tag`, `attribute`.
+
+CLI management:
+
+```bash
+lazyjira theme list              # list built-in and user themes
+lazyjira theme use <id>          # select a theme
+lazyjira theme init <id>         # create an editable starter file
+lazyjira theme install <file>    # install a theme JSON file
+lazyjira theme path              # print the themes directory
+```
+
+Jira metadata colors (statuses, issue types, priorities) come from your Jira project and are not replaced by the theme.
 
 ### Jira Project Selection
 

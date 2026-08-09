@@ -17,7 +17,7 @@ import { ParentBadge } from "../ui/parent-badge"
 export function IssueDetailRoute() {
   const appState = useAppState()
   const { state } = appState
-  const theme = useTheme()
+  const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
   const issue = () => issueByKey(state, state.selectedIssueKey)
@@ -109,7 +109,7 @@ export function IssueDetailRoute() {
 
 function PendingIssueDetail(props: { issueKey: string }) {
   const { state } = useAppState()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const loading = () => state.issueDetailLoadingByKey[props.issueKey]
   const error = () => state.issueDetailErrorByKey[props.issueKey]
   return (
@@ -125,7 +125,7 @@ function PendingIssueDetail(props: { issueKey: string }) {
 
 function DetailLoadState(props: { issueKey: string }) {
   const { state } = useAppState()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const loading = () => state.issueDetailLoadingByKey[props.issueKey]
   const error = () => state.issueDetailErrorByKey[props.issueKey]
   const loadedAt = () => state.issueDetailLoadedAtByKey[props.issueKey]
@@ -150,7 +150,7 @@ function DetailLoadState(props: { issueKey: string }) {
 function BodyEditor(props: { issue: IssueSummary }) {
   const appState = useAppState()
   const { state } = appState
-  const theme = useTheme()
+  const { theme } = useTheme()
   let textarea: TextareaRenderable | undefined
   const body = () => state.issueDrafts[props.issue.key]?.description ?? props.issue.description
 
@@ -194,7 +194,7 @@ function BodyEditor(props: { issue: IssueSummary }) {
 function IssueHeader(props: { issue: IssueSummary }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const issueType = () => configuredIssueTypes(state).find((type) => type.id === props.issue.type || type.name === props.issue.type || type.name === props.issue.typeName)
   const status = () => configuredStatuses(state).find((candidate) => candidate.id === props.issue.statusId)
 
@@ -216,7 +216,7 @@ function IssueHeader(props: { issue: IssueSummary }) {
 }
 
 function DetailSection(props: { title: string; children: JSX.Element }) {
-  const theme = useTheme()
+  const { theme } = useTheme()
   return (
     <box border={["top"]} borderColor={theme.border} paddingTop={1} marginTop={1} flexDirection="column" gap={1}>
       <text attributes={TextAttributes.BOLD} fg={theme.warning}>{props.title}</text>
@@ -226,7 +226,7 @@ function DetailSection(props: { title: string; children: JSX.Element }) {
 }
 
 function FieldLine(props: { label: string; value: string }) {
-  const theme = useTheme()
+  const { theme } = useTheme()
   return (
     <text fg={theme.textMuted} wrapMode="none">
       <span style={{ fg: theme.text }}>{props.label}:</span> {props.value}

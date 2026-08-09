@@ -17,7 +17,7 @@ import { LoadMoreActionRow, PartialResultsBanner } from "../ui/partial-results"
 export function BacklogRoute() {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
   let routeBox: BoxRenderable | undefined
   let scrollbox: ScrollBoxRenderable | undefined
@@ -138,7 +138,7 @@ export function BacklogRoute() {
 
 function IssuePageLine(props: { sourceId: string }) {
   const { state } = useAppState()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const page = () => state.issuePageStateBySource[props.sourceId]
 
   return (
@@ -175,7 +175,7 @@ function BacklogLegend(props: { width: number }) {
 }
 
 function LegendRow(props: { tokens: PackedLegendToken[]; overflow: number }) {
-  const theme = useTheme()
+  const { theme } = useTheme()
 
   return (
     <text fg={theme.textSubtle} height={1} flexShrink={0} wrapMode="none">
@@ -271,7 +271,7 @@ function centerBacklogChild(scrollbox: ScrollBoxRenderable, childId: string) {
 function BacklogRow(props: { issue: IssueSummary; selected: boolean; layout: Accessor<BacklogLayout> }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const issueType = () => configuredIssueTypes(state).find((type) => type.id === props.issue.type || type.name === props.issue.type || type.name === props.issue.typeName)
   const status = () => configuredStatuses(state).find((candidate) => candidate.id === props.issue.statusId)
   const ancestor = () => topLevelLoadedAncestor(state, props.issue)
@@ -299,7 +299,7 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; layout: Acc
   }
 
   return (
-    <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} marginBottom={1} backgroundColor={props.selected ? "#172554" : undefined}>
+    <box id={`issue-${props.issue.key}`} flexDirection="column" paddingLeft={1} paddingRight={1} marginBottom={1} backgroundColor={props.selected ? theme.selected : undefined}>
       <Show when={plan().inline} fallback={<IssueIdentity issue={props.issue} selected={props.selected} plan={plan()} />}>
         <box flexDirection="row" minWidth={0}>
           <IssueIdentity issue={props.issue} selected={props.selected} plan={plan()} />
@@ -323,7 +323,7 @@ function BacklogRow(props: { issue: IssueSummary; selected: boolean; layout: Acc
 
 function IssueIdentity(props: { issue: IssueSummary; selected: boolean; plan: BacklogRowPlan }) {
   const { state } = useAppState()
-  const theme = useTheme()
+  const { theme } = useTheme()
   return (
     <box flexDirection="row" flexShrink={0} minWidth={0}>
       <text fg={props.selected ? theme.selectedText : theme.text} wrapMode="none" flexShrink={0}>
@@ -340,7 +340,7 @@ function IssueIdentity(props: { issue: IssueSummary; selected: boolean; plan: Ba
 
 function BacklogMetadata(props: { issue: IssueSummary; plan: BacklogRowPlan }) {
   const { state } = useAppState()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const color = (kind: BacklogMetadataKind) => {
     if (kind === "status") return statusColor(state, props.issue)
     if (kind === "priority") return priorityColor(props.issue)
@@ -446,7 +446,7 @@ function cellWidth(value: string) {
 
 function SprintHealth() {
   const { state } = useAppState()
-  const theme = useTheme()
+  const { theme } = useTheme()
 
   return (
     <box borderStyle="rounded" borderColor={theme.border} padding={1} width={30} flexShrink={0}>

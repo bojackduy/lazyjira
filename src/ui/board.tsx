@@ -34,7 +34,7 @@ import {
 
 export function BoardSurface(props: { mode: "active-sprint" | "kanban" }) {
   const { state } = useAppState()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
   let selectionScrollTimer: ReturnType<typeof setTimeout> | undefined
@@ -183,7 +183,7 @@ function IssueCell(props: { item?: BoardCellItem; location: BoardLocation; mode:
 function IssueCard(props: { issue: IssueSummary; selected: boolean; id: string }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const issueType = () => configuredIssueTypes(state).find((type) => type.id === props.issue.type || type.name === props.issue.type || type.name === props.issue.typeName)
   const typeColor = () => issueTypeColor(state, props.issue)
   const borderColor = () => (props.selected ? theme.borderActive : statusColor(state, props.issue))
@@ -208,7 +208,7 @@ function IssueCard(props: { issue: IssueSummary; selected: boolean; id: string }
 function CreateIssueCard(props: { location: BoardLocation; mode: "active-sprint" | "kanban"; selected: boolean }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
   const status = () => configuredStatuses(state)[props.location.statusIndex]
 
   return (
@@ -223,7 +223,7 @@ function CreateIssueCard(props: { location: BoardLocation; mode: "active-sprint"
 function Legend(props: { statuses: ReturnType<typeof visibleStatusesForBoard> }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const theme = useTheme()
+  const { theme } = useTheme()
 
   return (
     <box flexDirection="column" gap={1}>

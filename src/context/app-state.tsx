@@ -31,6 +31,7 @@ import { planJiraWrites, writePlanCounts } from "../state/jira-write-plan"
 import { groupBacklogIssues, resolvedBacklogSelection } from "../state/selectors"
 import { materializeRankDraft } from "../state/rank-projection"
 import { markdownToAdf } from "../jira/adf"
+import { loadThemeCatalog } from "../themes/store"
 import { useToast } from "./toast"
 
 export type AppStateContext = {
@@ -68,6 +69,10 @@ export type AppStateContext = {
   openIconModePicker: (selectedIndex: number) => void
   closeIconModePicker: () => void
   moveIconModePickerSelection: (delta: number, optionCount: number) => void
+  openThemePicker: () => void
+  closeThemePicker: () => void
+  moveThemePickerSelection: (delta: number, optionCount: number) => void
+  loadThemePickerCatalog: () => Promise<void>
   openHelp: () => void
   closeHelp: () => void
   openSearch: () => void
@@ -783,6 +788,30 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     moveIconModePickerSelection(delta, optionCount) {
       if (!optionCount) return
       setState("iconModePickerSelectedIndex", (state.iconModePickerSelectedIndex + delta + optionCount) % optionCount)
+    },
+    openThemePicker() {
+      setState("themePickerSelectedIndex", 0)
+      setState("themePickerMessage", undefined)
+      setState("themePickerOpen", true)
+      void context.loadThemePickerCatalog()
+    },
+    closeThemePicker() {
+      setState("themePickerOpen", false)
+    },
+    moveThemePickerSelection(delta, optionCount) {
+      if (!optionCount) return
+      setState("themePickerSelectedIndex", (state.themePickerSelectedIndex + delta + optionCount) % optionCount)
+    },
+    async loadThemePickerCatalog() {
+      if (state.themePickerCatalog) return
+      try {
+        const catalog = await loadThemeCatalog()
+        setState("themePickerCatalog", catalog.themes)
+        if (catalog.errors.length) setState("themePickerMessage", `Ignored ${catalog.errors.length} invalid local theme${catalog.errors.length === 1 ? "" : "s"}.`)
+      } catch {
+        setState("themePickerMessage", "Could not load local themes.")
+        setState("themePickerCatalog", [])
+      }
     },
     openHelp() {
       setState("helpOpen", true)

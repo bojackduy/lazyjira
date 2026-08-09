@@ -335,6 +335,10 @@ export type AppState = {
   commandPaletteSelectedIndex: number
   iconModePickerOpen: boolean
   iconModePickerSelectedIndex: number
+  themePickerOpen: boolean
+  themePickerSelectedIndex: number
+  themePickerMessage?: string
+  themePickerCatalog?: Array<import("../themes/catalog").AvailableTheme>
   helpOpen: boolean
   searchOpen: boolean
   searchMode: SearchMode
