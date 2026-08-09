@@ -36,7 +36,7 @@ import { LoadMoreActionRow, PartialResultsBanner } from "../ui/partial-results"
 export function TimelineRoute() {
   const appState = useAppState()
   const { state } = appState
-  const { theme } = useTheme()
+  const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
   const today = () => new Date().toISOString().slice(0, 10)
@@ -125,7 +125,7 @@ export function TimelineRoute() {
 }
 
 function TimelineGridHeader(props: { cells: TimelineCell[]; identityWidth: number; cellWidth: number }) {
-  const { theme } = useTheme()
+  const theme = useTheme()
   return (
     <box flexDirection="row" flexShrink={0}>
       <text attributes={TextAttributes.BOLD} fg={theme.warning} width={props.identityWidth} wrapMode="none"> Work</text>
@@ -143,7 +143,7 @@ function WideTimelineProjectedRow(props: { row: TimelineProjectedRow; previousGr
 function WideTimelineSectionRow(props: { row: Extract<TimelineProjectedRow, { kind: "section" }>; identityWidth: number; scheduleWidth: number }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const selected = () => state.timelineSelectedIssueKey === timelineUnparentedSectionKey
   return (
     <box id={`timeline-${timelineUnparentedSectionKey}`} height={1} flexShrink={0} flexDirection="row" marginTop={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}>
@@ -156,7 +156,7 @@ function WideTimelineSectionRow(props: { row: Extract<TimelineProjectedRow, { ki
 function WideTimelineIssueRow(props: { row: TimelineProjectedIssueRow; previousGroup?: TimelineProjectedRow["group"]; cells: TimelineCell[]; identityWidth: number; cellWidth: number }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const selected = () => state.timelineSelectedIssueKey === props.row.issue.key
   const sprint = () => state.sprints.find((candidate) => candidate.id === props.row.issue.sprintId)
   const schedule = () => timelineSchedule(props.row.issue, props.cells, sprint())
@@ -185,7 +185,7 @@ function WideTimelineIssueRow(props: { row: TimelineProjectedIssueRow; previousG
 
 function NarrowTimeline(props: { rows: TimelineProjectedRow[] }) {
   const { state } = useAppState()
-  const { theme } = useTheme()
+  const theme = useTheme()
   let scrollbox: ScrollBoxRenderable | undefined
 
   createEffect(() => {
@@ -206,7 +206,7 @@ function NarrowTimeline(props: { rows: TimelineProjectedRow[] }) {
 function NarrowTimelineProjectedRow(props: { row: TimelineProjectedRow; previousGroup?: TimelineProjectedRow["group"] }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   if (props.row.kind === "section") {
     const selected = () => state.timelineSelectedIssueKey === timelineUnparentedSectionKey
     return <box id={`timeline-${timelineUnparentedSectionKey}`} height={1} flexShrink={0} paddingLeft={1} marginTop={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text attributes={TextAttributes.BOLD} fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.warning} wrapMode="none">{selected() ? icons.catalog.structural.selection : " "} {props.row.collapsed ? icons.catalog.structural.collapsed : icons.catalog.structural.expanded} {props.row.label} ({props.row.issueCount})</text></box>
@@ -228,7 +228,7 @@ function NarrowTimelineProjectedRow(props: { row: TimelineProjectedRow; previous
 
 function NarrowTimelineSchedule(props: { row: TimelineProjectedIssueRow }) {
   const { state } = useAppState()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const sprint = () => state.sprints.find((candidate) => candidate.id === props.row.issue.sprintId)
   const schedule = () => timelineSchedule(props.row.issue, [], sprint())
   const done = () => statusById(state, props.row.issue.statusId)?.category === "done"
@@ -240,7 +240,7 @@ function NarrowTimelineSchedule(props: { row: TimelineProjectedIssueRow }) {
 function WideTimelineCreateRow(props: { identityWidth: number; scheduleWidth: number }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const selected = () => state.timelineSelectedIssueKey === timelineCreateRowKey
   const typeName = () => highestLevelIssueType(state)?.name.toLowerCase() ?? "issue"
   return <box id={`timeline-${timelineCreateRowKey}`} height={1} flexShrink={0} flexDirection="row" backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.textMuted} width={props.identityWidth} wrapMode="none">{fit(`${selected() ? icons.catalog.structural.selection : " "} ${icons.catalog.structural.create} New ${typeName()}`, props.identityWidth)}</text><text width={props.scheduleWidth}> </text></box>
@@ -249,7 +249,7 @@ function WideTimelineCreateRow(props: { identityWidth: number; scheduleWidth: nu
 function NarrowTimelineCreateRow() {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const selected = () => state.timelineSelectedIssueKey === timelineCreateRowKey
   const typeName = () => highestLevelIssueType(state)?.name.toLowerCase() ?? "issue"
   return <box id={`timeline-${timelineCreateRowKey}`} height={1} flexShrink={0} paddingLeft={1} backgroundColor={selected() && state.focusedPane === "main" ? theme.selected : undefined}><text fg={selected() && state.focusedPane === "main" ? theme.selectedText : theme.textMuted} wrapMode="none">{selected() ? icons.catalog.structural.selection : " "} {icons.catalog.structural.create} New {typeName()}</text></box>

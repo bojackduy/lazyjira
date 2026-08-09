@@ -15,7 +15,7 @@ export function ProjectListRoute() {
   const appState = useAppState()
   const { state } = appState
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const dimensions = useTerminalDimensions()
   let scrollbox: ScrollBoxRenderable | undefined
   let selectionScrollTimer: ReturnType<typeof setTimeout> | undefined
@@ -85,13 +85,13 @@ export function ProjectListRoute() {
 }
 
 function ListRow(props: { columns: ProjectListColumn[] }) {
-  const { theme } = useTheme()
+  const theme = useTheme()
   return <text attributes={TextAttributes.BOLD} fg={theme.warning} wrapMode="none"> {props.columns.map((column) => formatCell(column.label, column)).join("")}</text>
 }
 
 function ListEmptyState() {
   const { state } = useAppState()
-  const { theme } = useTheme()
+  const theme = useTheme()
   return (
     <box flexGrow={1} alignItems="center" justifyContent="center" flexDirection="column" gap={1}>
       <text fg={state.issuePageStateBySource["project-list"]?.error ? theme.danger : theme.textMuted}>{projectListStateText(state)}</text>

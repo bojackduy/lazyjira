@@ -15,7 +15,7 @@ import { RichText } from "./rich-text"
 export function IssueInspector(props: { compact: boolean }) {
   const appState = useAppState()
   const { state } = appState
-  const { theme } = useTheme()
+  const theme = useTheme()
   const icons = useIcons()
   let scrollbox: ScrollBoxRenderable | undefined
   const issue = () => issueByKey(state, state.selectedIssueKey)
@@ -121,7 +121,7 @@ export function IssueInspector(props: { compact: boolean }) {
 function IssueFieldRow(props: { field: IssueFieldDefinition; index: number }) {
   const appState = useAppState()
   const { state } = appState
-  const { theme } = useTheme()
+  const theme = useTheme()
   const issue = () => issueByKey(state, state.selectedIssueKey)
   const selected = () => state.focusedPane === "inspector" && state.inspectorSelectedFieldIndex === props.index
   const editing = () => state.inspectorEditingFieldId === props.field.id
@@ -146,7 +146,7 @@ function IssueFieldRow(props: { field: IssueFieldDefinition; index: number }) {
 function FieldValue(props: { field: IssueFieldDefinition; value: string; selected: boolean; color?: string }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const color = () => props.color ?? (props.selected ? theme.selectedText : theme.textMuted)
   const issue = () => issueByKey(state, state.selectedIssueKey)
   const issueType = () => configuredIssueTypes(state).find((type) => type.id === issue()?.type || type.name === issue()?.type || type.name === issue()?.typeName)
@@ -172,7 +172,7 @@ function FieldValue(props: { field: IssueFieldDefinition; value: string; selecte
 function FieldEditor(props: { field: IssueFieldDefinition }) {
   const appState = useAppState()
   const { state } = appState
-  const { theme } = useTheme()
+  const theme = useTheme()
   if (props.field.id === "statusId" || props.field.id === "type" || props.field.id === "parentKey" || props.field.id === "sprintId") return <ChoiceEditor field={props.field} />
   if (props.field.id === "priority") return <FieldOptionPickerEditor />
   if (props.field.id === "labels") return <LabelPickerEditor />
@@ -219,7 +219,7 @@ function FieldEditor(props: { field: IssueFieldDefinition }) {
 function LabelPickerEditor() {
   const appState = useAppState()
   const { state } = appState
-  const { theme } = useTheme()
+  const theme = useTheme()
   const picker = () => state.inspectorFieldPicker
 
   return (
@@ -253,7 +253,7 @@ function LabelPickerEditor() {
 function FieldOptionPickerEditor() {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const picker = () => state.inspectorFieldPicker
 
   return (
@@ -278,7 +278,7 @@ function FieldOptionPickerEditor() {
 function UserPickerEditor(props: { fieldId: "assignee" | "reporter" }) {
   const appState = useAppState()
   const { state } = appState
-  const { theme } = useTheme()
+  const theme = useTheme()
   const picker = () => state.inspectorUserPicker
   let input: InputRenderable | undefined
 
@@ -316,7 +316,7 @@ function UserPickerEditor(props: { fieldId: "assignee" | "reporter" }) {
 function ChoiceEditor(props: { field: IssueFieldDefinition }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const choices = () =>
     props.field.id === "statusId"
       ? configuredStatuses(state).map((status) => ({ value: status.id, label: status.name, color: status.color, icon: icons.status(status) }))

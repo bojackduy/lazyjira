@@ -27,7 +27,7 @@ import { LoadMoreActionRow, PartialResultsBanner } from "../ui/partial-results"
 export function WorkspaceRoute() {
   const appState = useAppState()
   const { state } = appState
-  const { theme } = useTheme()
+  const theme = useTheme()
   const dimensions = useTerminalDimensions()
   const compact = () => dimensions().width < 95
   let cardsScrollbox: ScrollBoxRenderable | undefined
@@ -114,7 +114,7 @@ export function WorkspaceRoute() {
 }
 
 function WorkspaceSection(props: { title: string; children: JSX.Element }) {
-  const { theme } = useTheme()
+  const theme = useTheme()
   return (
     <box borderStyle="rounded" borderColor={theme.border} padding={1} flexDirection="column" gap={1} flexShrink={0}>
       <text attributes={TextAttributes.BOLD} fg={theme.warning}>{props.title}</text>
@@ -125,7 +125,7 @@ function WorkspaceSection(props: { title: string; children: JSX.Element }) {
 
 function WorkspacePreview(props: { height: number }) {
   const { state } = useAppState()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const item = () => workspaceSelectedItem(state)
   const results = () => workspaceCurrentResults(state)
   const focused = () => state.focusedPane === "main" && state.workspaceFocusedArea === "results"
@@ -169,7 +169,7 @@ function WorkspacePreview(props: { height: number }) {
 function WorkspaceResultRow(props: { result: WorkspaceResult; selected: boolean }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const issue = () => props.result.issueKey ? issueByKey(state, props.result.issueKey) : undefined
   const issueType = () => configuredIssueTypes(state).find((type) => type.id === issue()?.type || type.name === issue()?.type || type.name === issue()?.typeName)
   const status = () => configuredStatuses(state).find((candidate) => candidate.id === issue()?.statusId)
@@ -201,7 +201,7 @@ function WorkspaceResultRow(props: { result: WorkspaceResult; selected: boolean 
 function WorkspaceCard(props: { item: WorkspaceItem; selected: boolean; active: boolean; tone?: "warning" | "danger" | "muted" }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const issue = () => props.item.issueKey ? issueByKey(state, props.item.issueKey) : undefined
   const issueType = () => configuredIssueTypes(state).find((type) => type.id === issue()?.type || type.name === issue()?.type || type.name === issue()?.typeName)
   const status = () => configuredStatuses(state).find((candidate) => candidate.id === issue()?.statusId)

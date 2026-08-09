@@ -7,7 +7,7 @@ import { useConfig } from "./context/config"
 import { useExit } from "./context/exit"
 import { useToast } from "./context/toast"
 import { useIcons } from "./context/icons"
-import { useTheme } from "./context/theme"
+import { useThemeContext } from "./context/theme"
 import { AppShell } from "./ui/shell"
 import { configuredIssueTypes, configuredStatuses } from "./state/config-drafts"
 import { issueByKey } from "./state/issue-drafts"
@@ -50,16 +50,15 @@ export function App() {
   const config = useConfig()
   const toast = useToast()
   const icons = useIcons()
-  const { selectedTheme, setTheme } = useTheme()
+  const themeContext = useThemeContext()
 
   function availableThemes() {
-    return state.themePickerCatalog ?? [{ ...selectedTheme, source: "built-in" }]
+    return state.themePickerCatalog ?? [{ ...themeContext.selectedTheme, source: "built-in" }]
   }
 
   function previewTheme(next: NonNullable<AppState["themePickerCatalog"]>[number]) {
-    setTheme(next)
+    themeContext.setTheme(next)
   }
-
   createEffect(() => {
     if (state.route === "board") ensureSelectedIssue(visibleBoardIssueKeys(currentBoardMode()))
     if (state.route === "backlog") ensureSelectedIssue(groupBacklogIssues(state, state.backlogGroupBy).flatMap((group) => group.issueKeys))
@@ -146,6 +145,7 @@ export function App() {
           else if (state.configEditing) appState.cancelConfigEdit()
           else if (state.detailBodyEditing) appState.cancelDetailBodyEdit()
           else if (state.commentEditing) appState.cancelComment()
+          else if (state.focusedPane === "inspector") appState.cancelInspectorEdit()
           else if (state.detailSectionFocus) appState.setDetailSectionFocus(false)
           else if (state.route === "issue-detail") appState.closeIssueDetail()
           else appState.cancelInspectorEdit()
@@ -168,8 +168,7 @@ export function App() {
       { name: "theme.close", run: () => (state.themePickerOpen ? appState.closeThemePicker() : false) },
       { name: "theme.next", run: () => (state.themePickerOpen ? moveThemePickerSelection(1) : false) },
       { name: "theme.previous", run: () => (state.themePickerOpen ? moveThemePickerSelection(-1) : false) },
-      { name: "theme.select", run: () => (state.themePickerOpen ? selectThemeFromPicker() : false) },
-      { name: "route.workspace", run: () => (canRunGlobalShortcut() ? appState.setRoute("workspace") : false) },
+      { name: "theme.select", run: () => (state.themePickerOpen ? selectThemeFromPicker() : false) },      { name: "route.workspace", run: () => (canRunGlobalShortcut() ? appState.setRoute("workspace") : false) },
       { name: "route.timeline", run: () => (canRunGlobalShortcut() ? appState.setRoute("timeline") : false) },
       { name: "route.backlog", run: () => (canRunGlobalShortcut() ? appState.setRoute("backlog") : false) },
       { name: "route.list", run: () => (canRunGlobalShortcut() ? appState.setRoute("list") : false) },
@@ -333,7 +332,7 @@ export function App() {
     const themes = availableThemes()
     const selected = themes[state.themePickerSelectedIndex]
     if (!selected) return false
-    setTheme(selected)
+    themeContext.applyTheme(selected)
     appState.closeThemePicker()
     toast.show(`Theme changed to ${selected.name}.`)
     return true

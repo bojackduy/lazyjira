@@ -1,10 +1,11 @@
 import { RGBA, SyntaxStyle } from "@opentui/core"
 import { For, Show } from "solid-js"
-import { useTheme, type Theme } from "../context/theme"
+import { useTheme, useThemeSyntax, type Theme } from "../context/theme"
 import { splitJiraRichText, type JiraRichTextPart } from "../jira/adf"
 
 export function RichText(props: { markdown: string; writeBlockedReason?: string; compact?: boolean }) {
-  const { theme, syntax } = useTheme()
+  const theme = useTheme()
+  const syntax = useThemeSyntax()
   const parts = () => splitJiraRichText(props.markdown)
   const style = () => SyntaxStyle.fromStyles({
     "markup.heading": { fg: RGBA.fromHex(syntax.heading), bold: true },
@@ -45,7 +46,7 @@ export function RichText(props: { markdown: string; writeBlockedReason?: string;
 }
 
 function RichTextPart(props: { part: JiraRichTextPart; compact?: boolean; style: SyntaxStyle }) {
-  const { theme } = useTheme()
+  const theme = useTheme()
   if (props.part.type === "mention") return <text fg={theme.accent}>@{props.part.label}</text>
   if (props.part.type === "emoji") return <text fg={theme.warning}>:{props.part.shortName}:</text>
   if (props.part.type === "status") return <text fg={statusColor(theme, props.part.color)}>[{props.part.label}]</text>

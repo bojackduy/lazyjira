@@ -692,12 +692,15 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       if ((route === "list" || route === "timeline") && !state.issuePageStateBySource[projectListIssuePageSourceId]) void context.loadIssuePage(projectListIssuePageSourceId)
     },
     setFocusedPane(pane) {
+      if (pane !== "main") setState("detailSectionFocus", false)
       setState("focusedPane", pane)
     },
     focusNextPane(delta) {
       const panes: FocusPane[] = state.route === "workspace" || state.route === "config" ? ["sidebar", "main"] : ["sidebar", "main", "inspector"]
       const currentIndex = Math.max(0, panes.indexOf(state.focusedPane))
-      setState("focusedPane", panes[(currentIndex + delta + panes.length) % panes.length]!)
+      const next = panes[(currentIndex + delta + panes.length) % panes.length]!
+      if (next !== "main") setState("detailSectionFocus", false)
+      setState("focusedPane", next)
     },
     moveSidebarSelection(delta) {
       const entryCount = sidebarEntryCount(state.board, state.quickFilters.length)
@@ -1220,6 +1223,15 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
       setState("inspectorUserPicker", undefined)
     },
     cancelInspectorEdit() {
+      const picker = state.inspectorFieldPicker ?? state.inspectorUserPicker
+      if (picker && !picker.loading && picker.options.length > 0) {
+        fieldPickerRequestId += 1
+        if (userPickerTimer) clearTimeout(userPickerTimer)
+        userPickerRequestId += 1
+        setState("inspectorFieldPicker", undefined)
+        setState("inspectorUserPicker", undefined)
+        return
+      }
       fieldPickerRequestId += 1
       if (userPickerTimer) clearTimeout(userPickerTimer)
       userPickerRequestId += 1

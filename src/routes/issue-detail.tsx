@@ -28,7 +28,7 @@ const detailFieldIds = [
 export function IssueDetailRoute() {
   const appState = useAppState()
   const { state } = appState
-  const { theme } = useTheme()
+  const theme = useTheme()
   const config = useConfig()
   const toast = useToast()
   const dimensions = useTerminalDimensions()
@@ -199,7 +199,7 @@ export function IssueDetailRoute() {
 }
 
 function CommentPlaceholder(props: { focused: boolean }) {
-  const { theme } = useTheme()
+  const theme = useTheme()
   return (
     <box backgroundColor={props.focused ? theme.selected : undefined} marginBottom={1}>
       <text fg={props.focused ? theme.selectedText : theme.textMuted} wrapMode="none">
@@ -211,7 +211,7 @@ function CommentPlaceholder(props: { focused: boolean }) {
 
 function FocusableFieldLine(props: { fieldId: string; issue: IssueSummary; index: number; focused: boolean }) {
   const { state } = useAppState()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const field = () => issueFields.find((field) => field.id === props.fieldId)
   const value = () => field()?.value(props.issue, state) ?? ""
   const label = () => field()?.label ?? props.fieldId
@@ -226,7 +226,7 @@ function FocusableFieldLine(props: { fieldId: string; issue: IssueSummary; index
 
 function PendingIssueDetail(props: { issueKey: string }) {
   const { state } = useAppState()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const loading = () => state.issueDetailLoadingByKey[props.issueKey]
   const error = () => state.issueDetailErrorByKey[props.issueKey]
   return (
@@ -242,7 +242,7 @@ function PendingIssueDetail(props: { issueKey: string }) {
 
 function DetailLoadState(props: { issueKey: string }) {
   const { state } = useAppState()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const loading = () => state.issueDetailLoadingByKey[props.issueKey]
   const error = () => state.issueDetailErrorByKey[props.issueKey]
   const loadedAt = () => state.issueDetailLoadedAtByKey[props.issueKey]
@@ -266,7 +266,7 @@ function DetailLoadState(props: { issueKey: string }) {
 function BodyEditor(props: { issue: IssueSummary; focused: boolean }) {
   const appState = useAppState()
   const { state } = appState
-  const { theme } = useTheme()
+  const theme = useTheme()
   let textarea: TextareaRenderable | undefined
   const body = () => state.issueDrafts[props.issue.key]?.description ?? props.issue.description
 
@@ -310,7 +310,7 @@ function BodyEditor(props: { issue: IssueSummary; focused: boolean }) {
 function IssueHeader(props: { issue: IssueSummary }) {
   const { state } = useAppState()
   const icons = useIcons()
-  const { theme } = useTheme()
+  const theme = useTheme()
   const issueType = () => configuredIssueTypes(state).find((type) => type.id === props.issue.type || type.name === props.issue.type || type.name === props.issue.typeName)
   const status = () => configuredStatuses(state).find((candidate) => candidate.id === props.issue.statusId)
 
@@ -326,25 +326,39 @@ function IssueHeader(props: { issue: IssueSummary }) {
          <text fg={props.issue.staleDays >= 7 ? theme.warning : theme.textSubtle} wrapMode="none">{props.issue.staleDays >= 7 ? `${icons.catalog.exceptional.stale} ` : ""}Stale {props.issue.staleDays}d</text>
        </box>
        <ParentBadge issue={props.issue} />
-      <text fg={theme.textSubtle}>
-        {state.detailSectionFocus
-          ? "focus · h/l section · j/k item · enter act · esc exit"
-          : `tab focus · ${props.issue.parentKey ? "enter parent · " : ""}j/k scroll · d/u page · e body · q/Esc back`}
-      </text>
+      <box flexDirection="row" gap={1}>
+        {state.detailBodyEditing
+          ? <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">[EDITING BODY]</text>
+          : state.detailSectionFocus
+          ? <text attributes={TextAttributes.BOLD} fg={theme.accent} wrapMode="none">[FOCUS]</text>
+          : <text attributes={TextAttributes.BOLD} fg={theme.textSubtle} wrapMode="none">[scroll]</text>
+        }
+        <text fg={theme.textSubtle} wrapMode="none">
+          {state.detailBodyEditing
+            ? "Ctrl+Enter stage · Esc cancel"
+            : state.detailSectionFocus
+            ? `▶ ${sectionTitle(state.detailSectionIndex)} · h/l section · j/k item · enter act`
+            : `j/k · d/u · e body · c comment · Tab focus${props.issue.parentKey ? " · Enter parent" : ""} · q back`}
+        </text>
+      </box>
     </box>
   )
 }
 
 function DetailSection(props: { id?: string; title: string; focused?: boolean; children: JSX.Element }) {
-  const { theme } = useTheme()
+  const theme = useTheme()
   return (
-    <box id={props.id} border={["top"]} borderColor={theme.border} paddingTop={1} marginTop={1} flexDirection="column" gap={1}>
-      <box backgroundColor={props.focused && !props.children ? theme.selected : undefined}>
-        <text attributes={TextAttributes.BOLD} fg={props.focused ? theme.selectedText : theme.warning}>{props.title}</text>
+    <box id={props.id} border={props.focused ? ["left", "top"] : ["top"]} borderColor={props.focused ? theme.accent : theme.border} paddingTop={1} marginTop={1} flexDirection="column" gap={1}>
+      <box backgroundColor={props.focused ? theme.selected : undefined} paddingLeft={props.focused ? 0 : 0}>
+        <text attributes={TextAttributes.BOLD} fg={props.focused ? theme.selectedText : theme.warning}>{props.focused ? `▶ ${props.title}` : props.title}</text>
       </box>
       {props.children}
     </box>
   )
+}
+
+function sectionTitle(index: number) {
+  return ["Body", "Fields", "Comments", "Links"][index] ?? ""
 }
 
 function clamp(value: number, min: number, max: number) {

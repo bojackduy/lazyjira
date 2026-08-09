@@ -4,7 +4,7 @@ import type { IssuePageState } from "../state/app-state"
 import { issuePageActionVisible, loadMoreActionText, partialResultsBannerText } from "../state/issue-pages"
 
 export function PartialResultsBanner(props: { page?: IssuePageState }) {
-  const { theme } = useTheme()
+  const theme = useTheme()
   return (
     <Show when={props.page && partialResultsBannerText(props.page)}>
       {(text) => <text fg={props.page?.error ? theme.danger : theme.warning} wrapMode="none">{text()}</text>}
@@ -13,7 +13,7 @@ export function PartialResultsBanner(props: { page?: IssuePageState }) {
 }
 
 export function LoadMoreActionRow(props: { page?: IssuePageState; selected: boolean; id?: string }) {
-  const { theme } = useTheme()
+  const theme = useTheme()
   return (
     <Show when={props.page && issuePageActionVisible(props.page)}>
       <box id={props.id} height={1} flexShrink={0} paddingLeft={1} backgroundColor={props.selected ? theme.selected : undefined}>
