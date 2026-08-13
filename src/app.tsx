@@ -121,6 +121,10 @@ export function App() {
             appState.cancelConfigEdit()
             return
           }
+          if (state.detailSectionFocus) {
+            appState.setDetailSectionFocus(false)
+            return
+          }
           if (state.route === "issue-detail") {
             appState.closeIssueDetail()
             return

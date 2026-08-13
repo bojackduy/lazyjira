@@ -957,11 +957,14 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
     },
     openIssueDetail(issueKey) {
       const targetIssueKey = issueKey ?? state.selectedIssueKey
-      if (issueKey) setState("selectedIssueKey", issueKey)
       if (state.route !== "issue-detail") {
         setState("previousRoute", state.route)
         setState("issueDetailHistory", [])
+      } else if (issueKey && issueKey !== state.selectedIssueKey && !state.issueDetailHistory.includes(issueKey)) {
+        setState("issueDetailHistory", (history) => [...history, state.selectedIssueKey])
       }
+      if (issueKey) setState("selectedIssueKey", issueKey)
+      setState("detailSectionFocus", false)
       setState("route", "issue-detail")
       setState("focusedPane", "main")
       void context.loadIssueDetail(targetIssueKey)

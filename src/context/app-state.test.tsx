@@ -387,6 +387,35 @@ describe("app state project picker", () => {
     expect(appState.state.route).toBe(originalRoute)
   })
 
+  test("returns through issue history after opening an in-detail link and resets focus mode", async () => {
+    const firstKey = "PROJ-121"
+    const linkedKey = "PROJ-998"
+    const loadedKeys: string[] = []
+    const appState = createTestAppState({
+      async loadIssueDetail(issueKey, context) {
+        loadedKeys.push(issueKey)
+        return { issue: { ...context.existingIssue ?? loadDevWorkspaceFixture("PROJ").issues["PROJ-101"]!, key: issueKey, title: `Loaded ${issueKey}` } }
+      },
+    })
+    const originalRoute = appState.state.route
+
+    appState.openIssueDetail(firstKey)
+    await flushPromises()
+    appState.setDetailSectionFocus(true)
+    appState.openIssueDetail(linkedKey)
+    await flushPromises()
+
+    expect(appState.state.selectedIssueKey).toBe(linkedKey)
+    expect(appState.state.detailSectionFocus).toBe(false)
+    expect(appState.state.issueDetailHistory).toEqual([firstKey])
+
+    appState.closeIssueDetail()
+    expect(appState.state.route).toBe("issue-detail")
+    expect(appState.state.selectedIssueKey).toBe(firstKey)
+    appState.closeIssueDetail()
+    expect(appState.state.route).toBe(originalRoute)
+  })
+
   test("keeps staged overlays after issue detail refresh", async () => {
     const appState = createTestAppState({
       async loadIssueDetail(issueKey, context) {

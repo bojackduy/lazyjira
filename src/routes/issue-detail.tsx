@@ -124,6 +124,7 @@ export function IssueDetailRoute() {
     } else if (index === 3) {
       const links = issue()?.links ?? []
       if (links.length) {
+        appState.setDetailSectionFocus(false)
         const link = links[clamp(state.detailSectionItemIndex, 0, links.length - 1)] ?? links[0]!
         openLink(link)
       }
