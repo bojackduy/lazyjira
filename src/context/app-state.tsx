@@ -1053,12 +1053,17 @@ export function AppStateProvider(props: ProviderProps<{ initialState: AppState; 
         const nextIssues = { ...state.issues }
         for (const issue of loaded.issues) nextIssues[issue.key] = mergeLoadedPageIssue(nextIssues[issue.key], issue)
         for (const issue of loaded.relatedIssues ?? []) nextIssues[issue.key] = mergeLoadedPageIssue(nextIssues[issue.key], issue)
-        const nextSourceKeys = uniqueStrings([...(refresh ? [] : state.issueKeysBySource[sourceId] ?? []), ...loaded.issues.map((issue) => issue.key)])
+        const freshKeys = loaded.issues.map((issue) => issue.key)
+        const nextSourceKeys = refresh
+          ? uniqueStrings([...freshKeys, ...previousSourceKeys.filter((key) => !freshKeys.includes(key))])
+          : uniqueStrings([...previousSourceKeys, ...freshKeys])
         const firstAppendedKey = loaded.issues.map((issue) => issue.key).find((key) => !previousSourceKeys.includes(key))
         setState("issues", reconcile(nextIssues))
         setState("issueKeysBySource", sourceId, nextSourceKeys)
         setState("stats", workspaceStats(state.statuses, Object.values(nextIssues)))
-        setState("issuePageStateBySource", sourceId, reconcile({ ...loaded.pageState, loading: false, refreshing: false, error: undefined }))
+        setState("issuePageStateBySource", sourceId, reconcile(refresh && retainedPage
+          ? { ...retainedPage, total: loaded.pageState.total ?? retainedPage.total, isLast: loaded.pageState.isLast || retainedPage.isLast, loading: false, refreshing: false, error: undefined }
+          : { ...loaded.pageState, loading: false, refreshing: false, error: undefined }))
         if (sourceId === projectListIssuePageSourceId) {
           if (loaded.sort) setState("projectListSort", loaded.sort)
           if (loaded.timelineStartDateField) setState("timelineStartDateField", loaded.timelineStartDateField)

@@ -4,7 +4,7 @@ import { issuePageActionVisible, issuePageNextCount, issuePageStatusText, loadMo
 describe("issue page presentation", () => {
   test("distinguishes initial loading, partial, complete, and empty pages", () => {
     expect(issuePageStatusText(page({ loading: true }))).toBe("Loading Jira issues...")
-    expect(issuePageStatusText(page({ startAt: 50, total: 120 }))).toBe("Loaded 50/120 Jira issues · L load more")
+    expect(issuePageStatusText(page({ startAt: 50, total: 120 }))).toBe("Loaded 50/120 Jira issues · auto-loads more")
     expect(issuePageStatusText(page({ startAt: 120, total: 120, isLast: true }))).toBe("Loaded 120/120 Jira issues")
     expect(issuePageStatusText(page({ total: 0, isLast: true }))).toBe("Jira returned no issues")
     expect(issuePageStatusText(page({ startAt: 50, total: 120, loading: true, refreshing: true }))).toBe("Refreshing Jira issues · 50/120 retained...")
@@ -19,7 +19,7 @@ describe("issue page presentation", () => {
     const partial = page({ startAt: 50, maxResults: 50, total: 482 })
     expect(issuePageActionVisible(partial)).toBe(true)
     expect(issuePageNextCount(partial)).toBe(50)
-    expect(partialResultsBannerText(partial)).toBe("! PARTIAL RESULTS · 50/482 loaded · [L] LOAD NEXT 50 · [S] SEARCH ALL JIRA")
+    expect(partialResultsBannerText(partial)).toBe("! PARTIAL RESULTS · 50/482 loaded · AUTO-LOADS NEXT 50 ON SCROLL · [S] SEARCH ALL JIRA")
     expect(loadMoreActionText(partial)).toBe("[L] LOAD NEXT 50")
 
     const failed = page({ startAt: 450, maxResults: 50, total: 482, error: "Jira 429" })

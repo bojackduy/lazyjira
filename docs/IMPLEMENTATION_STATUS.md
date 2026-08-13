@@ -21,6 +21,8 @@ Current project navigation uses `Workspace`, `Timeline`, `Backlog`, `List`, and 
 - [x] Board configuration, status-column normalization, active/future sprint discovery, and Jira field-ID discovery for sprint/points/rank.
 - [x] Active sprint issue loading and bounded backlog loading.
 - [x] Explicit load-more for backlog, future sprint, Kanban board, and remote search pages.
+- [x] Automatic page loading: the next page streams in as soon as the selection reaches a load-more row (List, Timeline, Backlog groups, Kanban, and remote results); `L` remains an explicit fallback.
+- [x] Retained refresh: `r` on List/Timeline merges the fresh first page into the loaded list, keeping loaded tail pages and the pagination frontier instead of resetting to page one.
 - [x] Issue detail and comments loading with stale-response protection.
 - [x] Explicit `S` remote Jira search with pagination; `/` remains loaded-data filtering only and applies on Enter.
 - [x] Saved prod workspace renders the shell before its Jira request starts.

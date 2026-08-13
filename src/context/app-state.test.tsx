@@ -691,7 +691,11 @@ describe("app state project picker", () => {
     refresh.resolve({ sourceId: projectListIssuePageSourceId, issues: [{ ...selected, title: "Fresh Jira title" }], pageState: { sourceId: projectListIssuePageSourceId, startAt: 1, cursor: "new", maxResults: 50, total: 3, isLast: false, loading: false }, sort: "updated" })
     await promise
 
-    expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toEqual([selected.key])
+    // Refresh merges the fresh first page into the loaded list instead of
+    // resetting it: the retained tail stays, the pagination frontier is
+    // preserved, and the fresh total is recorded.
+    expect(appState.state.issueKeysBySource[projectListIssuePageSourceId]).toEqual([selected.key, removed.key])
+    expect(appState.state.issuePageStateBySource[projectListIssuePageSourceId]).toMatchObject({ startAt: 2, cursor: "old", total: 3, isLast: false, loading: false, refreshing: false })
     expect(appState.state.projectListSelectedIssueKey).toBe(selected.key)
     expect(appState.state.issueDrafts[selected.key]?.title).toBe("Locally staged title")
     expect(appState.state.projectListSort).toBe("updated")

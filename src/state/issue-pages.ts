@@ -45,7 +45,7 @@ export function partialResultsBannerText(page: IssuePageState) {
     ? `LOADING NEXT ${issuePageNextCount(page)}...`
     : page.error
       ? "LOAD FAILED · [L] RETRY"
-      : `[L] LOAD NEXT ${issuePageNextCount(page)}`
+      : `AUTO-LOADS NEXT ${issuePageNextCount(page)} ON SCROLL`
   return `! PARTIAL RESULTS · ${count} loaded · ${state} · [S] SEARCH ALL JIRA`
 }
 
@@ -63,5 +63,5 @@ export function issuePageStatusText(page: IssuePageState, subject = "Jira issues
   if (page.error) return `${loaded ? "Load more" : "Load"} failed: ${page.error}`
   if (page.isLast && !loaded) return `Jira returned no ${subject.replace(/^Jira /, "")}`
   if (page.isLast) return `Loaded ${count} ${subject}`
-  return `Loaded ${count} ${subject} · L load more`
+  return `Loaded ${count} ${subject} · auto-loads more`
 }

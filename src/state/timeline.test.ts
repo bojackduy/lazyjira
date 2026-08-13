@@ -241,7 +241,7 @@ describe("timeline data model", () => {
 
     state.issueKeysBySource[projectListIssuePageSourceId] = ["PROJ-300"]
     state.issuePageStateBySource[projectListIssuePageSourceId] = page(1, 10, false)
-    expect(timelineStateText(state)).toBe("1/10 project issues loaded · partial · L load more")
+    expect(timelineStateText(state)).toBe("1/10 project issues loaded · partial · auto-loads more")
     state.issuePageStateBySource[projectListIssuePageSourceId]!.loading = true
     expect(timelineStateText(state)).toBe("Loading more Timeline issues · 1/10 retained...")
     state.issuePageStateBySource[projectListIssuePageSourceId]!.loading = false

@@ -80,7 +80,7 @@ export function projectListStateText(state: AppState) {
   if (!visible && loaded) return `No loaded project issues match the active filters. Only ${loaded} loaded Jira issues were searched; press S to search all Jira.`
   if (!loaded && page.isLast) return `Jira returned no issues for project ${state.project.key}.`
   const count = `${loaded}${typeof page.total === "number" ? `/${page.total}` : ""}`
-  return page.isLast ? `${count} project issues loaded` : `${count} project issues loaded · L load more`
+  return page.isLast ? `${count} project issues loaded` : `${count} project issues loaded · auto-loads more`
 }
 
 export function projectListCell(issue: IssueSummary, column: ProjectListColumnId, state: AppState) {

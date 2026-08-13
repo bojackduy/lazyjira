@@ -159,7 +159,7 @@ describe("keyboard input ownership", () => {
     expect(setup.captureCharFrame()).toContain(`>${selectedKey}`)
   })
 
-  test("selects and opens the List load-more action without replacing issue selection", async () => {
+  test("auto-loads the List load-more page when the selection reaches the load-more row", async () => {
     const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
     initialState.route = "list"
     initialState.focusedPane = "main"
@@ -176,9 +176,11 @@ describe("keyboard input ownership", () => {
       appState = useAppState()
       return null
     }
+    let loadCalls = 0
     const source = {
       ...createDevWorkspaceSource(),
       async loadIssuePage(sourceId: string) {
+        loadCalls += 1
         return { sourceId, issues: [second], pageState: { sourceId, startAt: 2, maxResults: 50, total: 2, isLast: true, loading: false } }
       },
     }
@@ -199,10 +201,8 @@ describe("keyboard input ownership", () => {
     expect(setup.captureCharFrame()).toContain("! PARTIAL RESULTS")
     setup.mockInput.pressKey("j")
     await setup.flush()
-    expect(appState!.state.projectListSelectedIssueKey).toBe(projectListLoadMoreRowKey)
-    expect(appState!.state.selectedIssueKey).toBe(first.key)
+    expect(loadCalls).toBe(1)
 
-    setup.mockInput.pressEnter()
     await Bun.sleep(20)
     await setup.flush()
     expect(appState!.state.projectListSelectedIssueKey).toBe(second.key)
@@ -210,7 +210,7 @@ describe("keyboard input ownership", () => {
     expect(setup.captureCharFrame()).not.toContain("! PARTIAL RESULTS")
   })
 
-  test("selects a source-specific Backlog load-more action and focuses the appended issue", async () => {
+  test("auto-loads the Backlog load-more page when its action row is selected", async () => {
     const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
     initialState.route = "backlog"
     initialState.focusedPane = "main"
@@ -251,25 +251,24 @@ describe("keyboard input ownership", () => {
 
     setup.mockInput.pressKey("j")
     await setup.flush()
-    expect(appState!.state.selectedLoadMoreSourceId).toBe(backlogIssuePageSourceId)
-    expect(appState!.state.selectedIssueKey).toBe(previous.key)
+    expect(loadCalls).toBe(1)
 
-    setup.mockInput.pressEnter()
     await Bun.sleep(20)
     await setup.flush()
-    expect(loadCalls).toBe(1)
     expect(appState!.state.selectedLoadMoreSourceId).toBeUndefined()
     expect(appState!.state.selectedIssueKey).toBe(appended.key)
   })
 
-  test("moves from the Kanban grid to its full-width load-more action", async () => {
+  test("auto-loads the Kanban load-more page when navigating past the last card", async () => {
     const initialState = createInitialAppState(structuredClone(loadDevWorkspaceFixture("PROJ")), "dev")
     initialState.route = "board"
     initialState.focusedPane = "main"
     initialState.board = { ...initialState.board, type: "kanban" }
     initialState.kanbanGroupBy = "none"
     const statusIndex = 0
-    const itemIndex = boardCellIssueKeys(initialState, "kanban", 0, statusIndex).length
+    const cellKeys = boardCellIssueKeys(initialState, "kanban", 0, statusIndex)
+    const itemIndex = cellKeys.length
+    const appended = { ...initialState.issues[cellKeys.at(-1)!]!, key: "PROJ-BOARD-NEXT", title: "Next kanban page issue" }
     initialState.selectedBoardLocations.kanban = { groupIndex: 0, statusIndex, itemIndex }
     initialState.issuePageStateBySource[boardIssuePageSourceId] = { sourceId: boardIssuePageSourceId, startAt: 1, maxResults: 100, total: 2, isLast: false, loading: false }
     let appState: AppStateContext | undefined
@@ -277,13 +276,21 @@ describe("keyboard input ownership", () => {
       appState = useAppState()
       return null
     }
+    let loadCalls = 0
+    const source = {
+      ...createDevWorkspaceSource(),
+      async loadIssuePage(sourceId: string) {
+        loadCalls += 1
+        return { sourceId, issues: [appended], pageState: { sourceId, startAt: 2, maxResults: 100, total: 2, isLast: true, loading: false } }
+      },
+    }
     const setup = await createTestRenderer({ width: 150, height: 28 })
     renderers.push(setup.renderer)
     const keymap = createDefaultOpenTuiKeymap(setup.renderer)
 
     await render(() => (
       <LazyJiraKeymapProvider keymap={keymap}>
-        <AppProviders config={{ appName: "lazyjira", runtimeEnv: "dev" }} initialState={initialState} source={createDevWorkspaceSource()} saveWorkspaceConfig={async () => undefined} iconMode="ascii" onExit={() => undefined}>
+        <AppProviders config={{ appName: "lazyjira", runtimeEnv: "dev" }} initialState={initialState} source={source} saveWorkspaceConfig={async () => undefined} iconMode="ascii" onExit={() => undefined}>
           <Capture />
           <App />
         </AppProviders>
@@ -293,13 +300,12 @@ describe("keyboard input ownership", () => {
 
     setup.mockInput.pressKey("j")
     await setup.flush()
+    expect(loadCalls).toBe(1)
+
     await Bun.sleep(20)
     await setup.flush()
-    expect(appState!.state.selectedLoadMoreSourceId).toBe(boardIssuePageSourceId)
-    expect(setup.captureCharFrame()).toContain("[L] LOAD NEXT 1")
-    setup.mockInput.pressKey("k")
-    await setup.flush()
     expect(appState!.state.selectedLoadMoreSourceId).toBeUndefined()
+    expect(appState!.state.selectedIssueKey).toBe(appended.key)
   })
 
   test("centers the selected Backlog issue after h/l group jumps", async () => {

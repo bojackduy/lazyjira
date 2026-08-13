@@ -35,7 +35,7 @@ export function paletteCommandsForBoard(board: BoardType | { type: BoardType } =
     command("search.remote-open", "Search Jira", "Search Jira remotely.", "S", "Jira", { group: "action", name: "search" }),
     command("workspace.refresh", "Refresh workspace", "Reload the current Jira workspace.", "R", "Jira", { group: "action", name: "refresh" }),
     command("issue.refresh-detail", "Refresh current route", "Reload List or the selected issue detail while retaining successful data.", "r", "Jira", { group: "action", name: "refresh" }),
-    command("issue.load-more", "Load more issues", "Load the next Jira issue page for the focused view.", "L", "Jira", { group: "action", name: "refresh" }),
+    command("issue.load-more", "Load more issues", "Load the next Jira issue page for the focused view on demand. Pages also load automatically as you scroll past the last loaded issue.", "L", "Jira", { group: "action", name: "refresh" }),
     command("issue.new", "New issue", "Create a draft issue using the current board context.", "n", "Jira", { group: "action", name: "create" }),
     command("issue.move", "Move backlog issue", "Choose a loaded sprint or move the issue to backlog.", "m", "Jira", { group: "action", name: "transition" }),
     command("issue.assign", "Assign issue", "Choose an assignable Jira user for the selected issue.", "a", "Jira", { group: "action", name: "assign" }),

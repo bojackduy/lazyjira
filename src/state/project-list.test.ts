@@ -63,7 +63,7 @@ describe("project list state", () => {
 
     state.issueKeysBySource[projectListIssuePageSourceId] = ["PROJ-121"]
     state.issuePageStateBySource[projectListIssuePageSourceId] = page({ startAt: 1, total: 5 })
-    expect(projectListStateText(state)).toBe("1/5 project issues loaded · L load more")
+    expect(projectListStateText(state)).toBe("1/5 project issues loaded · auto-loads more")
     state.issuePageStateBySource[projectListIssuePageSourceId]!.loading = true
     expect(projectListStateText(state)).toBe("Loading more project issues · 1/5 retained...")
     state.issuePageStateBySource[projectListIssuePageSourceId]!.loading = false

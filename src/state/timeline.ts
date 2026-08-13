@@ -339,7 +339,7 @@ export function timelineStateText(state: AppState, model = timelineModel(state))
   if (page.error) return `Timeline append failed; ${model.loaded} rows retained · L retry: ${page.error}`
   if (!model.rows.length && model.loaded) return `No loaded Timeline issues match the active filters. Only ${model.loaded} loaded Jira issues were searched; press S to search all Jira.`
   if (!model.loaded && page.isLast) return `Jira returned no issues for project ${state.project.key}.`
-  return model.partial ? `${completeness(model)} project issues loaded · partial · L load more` : `${completeness(model)} project issues loaded · complete`
+  return model.partial ? `${completeness(model)} project issues loaded · partial · auto-loads more` : `${completeness(model)} project issues loaded · complete`
 }
 
 export function timelineNotices(model: TimelineHierarchyModel, sprints: SprintSummary[] = []) {

@@ -19,7 +19,7 @@ import type { AppState, BoardLocation, BoardMode, IssueSummary } from "./state/a
 import { iconModes } from "./icons/catalog"
 import { projectListLoadMoreRowKey, projectListMaxHorizontalOffset, projectListRows, projectListSelection, projectListSelectionKeys, projectListViewportWidth } from "./state/project-list"
 import { panTimelineWindow, projectTimelineViewRows, timelineCreateRowKey, timelineLoadMoreRowKey, timelineModel, timelineSelection, timelineSelectionAction, timelineSelectionKeys, timelineUnparentedExpandedKey, timelineUnparentedSectionKey } from "./state/timeline"
-import { workspaceSelectedItem } from "./state/workspace"
+import { workspaceCurrentResults, workspaceRemoteLoadMoreVisible, workspaceSelectedItem } from "./state/workspace"
 import {
   boardCellItems,
   boardCellIssueKeys,
@@ -64,6 +64,25 @@ export function App() {
     if (state.route === "backlog") ensureSelectedIssue(groupBacklogIssues(state, state.backlogGroupBy).flatMap((group) => group.issueKeys))
     if (state.route === "list") ensureProjectListSelection()
     if (state.route === "timeline") ensureTimelineSelection()
+  })
+
+  // Auto-load the next issue page when the selection reaches a load-more row,
+  // so scrolling past the last loaded issue streams the rest instead of
+  // requiring manual `L`. The `L` command remains as an on-demand fallback.
+  createEffect(() => {
+    if (state.focusedPane !== "main") return
+    const listSourceId = projectListIssuePageSourceId
+    if ((state.route === "list" && state.projectListSelectedIssueKey === projectListLoadMoreRowKey) || (state.route === "timeline" && state.timelineSelectedIssueKey === timelineLoadMoreRowKey)) {
+      if (issuePageCanLoadMore(state.issuePageStateBySource[listSourceId])) void appState.loadIssuePage(listSourceId)
+      return
+    }
+    if (state.selectedLoadMoreSourceId) {
+      if (issuePageCanLoadMore(state.issuePageStateBySource[state.selectedLoadMoreSourceId])) void appState.loadIssuePage(state.selectedLoadMoreSourceId)
+      return
+    }
+    if (state.route === "workspace" && state.workspaceFocusedArea === "results" && workspaceRemoteLoadMoreVisible(state) && state.workspaceResultSelectedIndex === workspaceCurrentResults(state).length && issuePageCanLoadMore(state.remoteSearchPageState)) {
+      void appState.loadMoreRemoteSearch()
+    }
   })
 
   useBindings(() => ({

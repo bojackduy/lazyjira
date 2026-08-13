@@ -305,6 +305,19 @@ Scope and design: `docs/KEYBOARD_ICONOGRAPHY_EPIC.md`.
 - [~] `I4.6` README installation notes, help, and render examples are updated; refresh the product screenshot after visual approval.
 - [~] `I4.7` Typecheck, 285 tests, production build, diff validation, and dev navigation smoke pass; physical wide/narrow Nerd Font smoke remains manual.
 
+## Wave 8: Automatic Page Loading And Retained Refresh
+
+### P1: Automatic Page Loading
+
+- [x] `P1.1` Auto-load the next issue page when the selection reaches a load-more row in List, Timeline, Backlog (per group), and Kanban Board, keeping `L` as an explicit fallback.
+- [x] `P1.2` Auto-load the next remote-search page when the result selection reaches the load-more row.
+- [x] `P1.3` Update partial-results banner, status texts, command help, and README to describe automatic loading.
+
+### P2: Retained Refresh
+
+- [x] `P2.1` `r` refresh on List/Timeline merges the fresh first page into the loaded list instead of resetting it: retained tail pages stay, the pagination frontier (startAt/cursor) is preserved, and the fresh total is recorded.
+- [x] `P2.2` Cover refresh merge, frontier retention, staged-overlay preservation, and auto-load triggers with state and keyboard tests.
+
 ## Cross-Track Reviews
 
 - [ ] All screens use the shared domain/state model.
